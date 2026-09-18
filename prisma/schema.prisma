@@ -1,0 +1,500 @@
+// CRM-Pro — lokal Prisma-model på SQLite.
+// Arvet fra CRM-X, men uden tenant-lag, brugerstyring og betaling.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// KUNDER
+// ============================================================
+
+model Company {
+  id       String  @id @default(cuid())
+  name     String
+  isActive Boolean @default(true)
+
+  // --- Stamdata ---
+  orgNumber String? // CVR-nummer
+  phone     String?
+  email     String?
+  website   String?
+  address   String?
+  city      String?
+  zipCode   String?
+  country   String  @default("Danmark")
+  industry  String?
+  notes     String?
+
+  // --- Felter fra Idus Online-portalen ---
+  accountId     String? @unique // Idus konto-id
+  subdomain     String?
+  runningStatus String?
+  portalCountry String? // landeværdien som portalen skriver den
+  code          String? // Kode
+  groupCode     String? // Gruppe
+  currencyCode  String?
+
+  // --- Firmastørrelse. Ren baggrundsviden om hvor stor en virksomhed det er.
+  //     Bruges IKKE til at beregne pakker, scope eller budget. ---
+  employees      Int?
+  revenueMdkk    Float?
+  sizeConfidence String? // hoej | middel | lav
+  sizeNote       String?
+  sourceUrl      String?
+
+  // --- Din egen markering. Sættes manuelt, beregnes ikke. ---
+  priority String? // hoej | middel | lav
+
+  /// Hvordan står det til med kunden: glad | stabil | opmaerksomhed | problemer | risiko
+  customerStatus     String?   @default("stabil")
+  customerStatusNote String?
+  customerStatusAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  /// Initialer på den der gemte sidst. Tom = ukendt (fx indlæst data).
+  updatedBy String?
+
+  // --- "Hot" — mulighed for at hente flere timer lige nu. Sættes manuelt af
+  //     en tekniker, beregnes ikke. Vises i sidebar og på teknik-dashboardet. ---
+  isHot    Boolean   @default(false)
+  hotSince DateTime?
+  /// Initialer på den der markerede kunden Hot. Samme moenster som updatedBy.
+  hotSetBy String?
+
+  contacts         Contact[]
+  customerProducts CustomerProduct[]
+  deals            Deal[]
+  activities       Activity[]
+  tickets          Ticket[]
+  hourBundles      HourBundle[]
+  logEntries       LogEntry[]
+  timeLogs         TimeLog[]
+  notes_           CustomerNote[]
+  attachments      Attachment[]
+
+  @@index([isActive])
+  @@index([customerStatus])
+  @@index([country])
+  @@index([isHot])
+  @@map("companies")
+}
+
+model Contact {
+  id           String  @id @default(cuid())
+  companyId    String?
+  firstName    String
+  lastName     String
+  email        String?
+  phone        String?
+  title        String?
+  decisionRole String? // ingen | influencer | beslutningstager | budgetansvarlig | ambassadoer
+  notes        String?
+  isPrimary    Boolean @default(false)
+  isActive     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  /// Initialer på den der gemte sidst. Tom = ukendt (fx indlæst data).
+  updatedBy String?
+
+  company    Company?   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  activities Activity[]
+  tickets    Ticket[]
+
+  @@index([companyId])
+  @@map("contacts")
+}
+
+// ============================================================
+// FILBOKS — kontrakter, planer, mødereferater m.m. pr. kunde
+// Filerne selv ligger på disk under datamappen (se lib/filer.ts), ikke i
+// SQLite-filen — kun stien til dem gemmes her.
+// ============================================================
+
+model Attachment {
+  id        String @id @default(cuid())
+  companyId String
+
+  filename String
+  /// kontrakt | plan | moedereferat | email | andet — se lib/attachment-categories.ts
+  category String @default("andet")
+  mimeType String
+  sizeBytes Int
+  /// Sti relativt til datamappen, fx "filer/<companyId>/<cuid>-navn.pdf"
+  storedPath String
+
+  createdAt DateTime @default(now())
+  /// Initialer på den der uploadede filen. Tom = ukendt.
+  uploadedBy String?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, category])
+  @@map("attachments")
+}
+
+// ============================================================
+// PRODUKTER OG PAKKER
+// ============================================================
+
+model Product {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  sku         String?
+  type        String  @default("saas")
+  /// Fri nøgle du selv bestemmer — fx small, medium, large, enterprise
+  tier        String  @default("egen")
+  sortOrder   Int     @default(0)
+  /// Mærke: ikon-nøgle og farve-nøgle fra lib/produktstil.tsx
+  icon        String? @default("package")
+  color       String? @default("graa")
+  /// Listepris pr. bruger pr. måned i DKK. null = pakke ikke prissat.
+  pricePerUserMonth Float?
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  /// Initialer på den der gemte sidst. Tom = ukendt (fx indlæst data).
+  updatedBy String?
+
+  customerProducts CustomerProduct[]
+  deals            Deal[]
+  tickets          Ticket[]
+
+  @@index([isActive, sortOrder])
+  @@map("products")
+}
+
+model CustomerProduct {
+  id        String @id @default(cuid())
+  companyId String
+  productId String
+
+  seats       Int  @default(1) // tildelte licenser, som portalen viser dem
+  activeSeats Int  @default(0) // licenser faktisk i brug
+  /// Aftalt pris pr. bruger pr. måned. Tom = brug pakkens listepris.
+  unitPriceMonth Float?
+
+  billingInterval String    @default("annual")
+  startDate       DateTime  @default(now())
+  endDate         DateTime?
+  notes           String?
+  isActive        Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  /// Initialer på den der gemte sidst. Tom = ukendt (fx indlæst data).
+  updatedBy String?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([companyId, isActive])
+  @@map("customer_products")
+}
+
+// ============================================================
+// PIPELINE
+// ============================================================
+
+model Deal {
+  id        String @id @default(cuid())
+  companyId String
+  /// Pakken udvidelsen gælder — bruges til at regne økonomien i sagen.
+  productId String?
+  title     String
+
+  /// Hvor mange licenser sagen drejer sig om. Dit tal, ikke et modelleret.
+  seatDelta Int?
+  /// Årsværdi i DKK. Tom = beregn som licenser × pakkens månedspris × 12.
+  value     Float?
+  currency  String @default("DKK")
+
+  stage       String @default("ny") // ny | kvalificeret | tilbud | forhandling | vundet | tabt
+  probability Int    @default(10)
+
+  expectedCloseDate DateTime?
+  closedAt          DateTime?
+  lostReason        String?
+  notes             String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  /// Initialer på den der gemte sidst. Tom = ukendt (fx indlæst data).
+  updatedBy String?
+
+  company    Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product    Product?   @relation(fields: [productId], references: [id])
+  activities Activity[]
+
+  @@index([stage])
+  @@index([companyId])
+  @@map("deals")
+}
+
+// ============================================================
+// AKTIVITETER
+// ============================================================
+
+model Activity {
+  id          String    @id @default(cuid())
+  type        String // moede | opkald | mail | opgave | opfoelgning | note
+  subject     String
+  description String?
+  dueDate     DateTime?
+  completedAt DateTime?
+
+  companyId String?
+  contactId String?
+  dealId    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  /// Initialer på den der gemte sidst. Tom = ukendt (fx indlæst data).
+  updatedBy String?
+
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  deal    Deal?    @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([dueDate])
+  @@map("activities")
+}
+
+// ============================================================
+// BRUGERE
+// Login sker med initialer og en PIN. PIN'en gemmes aldrig i klartekst —
+// kun som en scrypt-hash med eget salt.
+// ============================================================
+
+model User {
+  id       String @id @default(cuid())
+  /// Det man skriver ved login. Gemmes med store bogstaver.
+  initials String @unique
+  name     String
+  email    String?
+  phone    String?
+  title    String?
+  /// admin | bruger
+  role     String  @default("bruger")
+  pinHash  String
+  isActive Boolean @default(true)
+
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  /// Initialer på den der gemte sidst. Tom = ukendt (fx indlæst data).
+  updatedBy String?
+
+  @@index([isActive])
+  @@map("users")
+}
+
+// ============================================================
+// TEKNIK — SAGER
+// ============================================================
+
+model Ticket {
+  id        String  @id @default(cuid())
+  /// Fortløbende sagsnummer, vises som SAG-0001
+  number    Int     @unique
+  companyId String
+  contactId String?
+  productId String?
+
+  title       String
+  description String?
+
+  /// aaben | afventer_kunde | afventer_leverandoer | loest | lukket
+  status String @default("aaben")
+  /// lav | normal | hoej | kritisk
+  priority String @default("normal")
+
+  resolvedAt DateTime?
+  closedAt   DateTime?
+  /// Din egen aftalte frist. Ingen automatik bag — den er til for at kunne se hvad der brænder.
+  dueAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  /// Initialer på den der gemte sidst. Tom = ukendt (fx indlæst data).
+  updatedBy String?
+
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact  Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  product  Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  comments TicketComment[]
+  timeLogs TimeLog[]
+
+  @@index([status])
+  @@index([companyId])
+  @@index([priority, status])
+  @@map("tickets")
+}
+
+model TicketComment {
+  id         String   @id @default(cuid())
+  ticketId   String
+  content    String
+  /// Intern note kontra noget kunden har fået at vide
+  isInternal Boolean  @default(false)
+  author     String?
+  createdAt  DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("ticket_comments")
+}
+
+// ============================================================
+// TEKNIK — KLIPPEKORT OG TID
+// ============================================================
+
+model HourBundle {
+  id        String @id @default(cuid())
+  /// Fortløbende kortnummer, vises som KK-0001
+  number    Int    @unique
+  companyId String
+
+  name         String?
+  /// Antal timer solgt på kortet
+  totalHours   Float
+  /// Forbrugte minutter. Holdes opdateret når tidsposter trækkes eller fjernes.
+  usedMinutes  Int      @default(0)
+  price        Float?
+  purchaseDate DateTime @default(now())
+  expiresAt    DateTime?
+  notes        String?
+  isActive     Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  /// Initialer på den der gemte sidst. Tom = ukendt (fx indlæst data).
+  updatedBy String?
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  timeLogs TimeLog[]
+
+  @@index([companyId, isActive])
+  @@map("hour_bundles")
+}
+
+model TimeLog {
+  id        String @id @default(cuid())
+  companyId String
+  ticketId  String?
+  /// Klippekortet timerne er trukket fra. Tom = ikke trukket på et kort.
+  bundleId  String?
+
+  date        DateTime @default(now())
+  durationMin Int
+  description String?
+  isBillable  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+
+  company Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  ticket  Ticket?     @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  bundle  HourBundle? @relation(fields: [bundleId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([ticketId])
+  @@index([bundleId])
+  @@map("time_logs")
+}
+
+// ============================================================
+// KUNDENOTATER — din egen opgavetavle
+// Noten kan hænge på en kunde, men behøver ikke. Kolonnen (lane) og
+// rækkefølgen (position) styres ved at trække kortene rundt.
+// ============================================================
+
+model CustomerNote {
+  id        String  @id @default(cuid())
+  companyId String?
+
+  title   String
+  details String?
+
+  /// nu | naeste | venter | faerdig
+  lane String @default("nu")
+  /// Rækkefølge inden for kolonnen. Lavest står øverst.
+  position Int @default(0)
+
+  /// salg | teknik
+  track String @default("salg")
+  /// hoej | normal | lav
+  priority String @default("normal")
+
+  dueAt       DateTime?
+  completedAt DateTime?
+  author      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  /// Initialer på den der gemte sidst. Tom = ukendt (fx indlæst data).
+  updatedBy String?
+
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([lane, position])
+  @@index([companyId])
+  @@map("customer_notes")
+}
+
+// ============================================================
+// LOGBOG — kundens egen tidslinje
+// ============================================================
+
+model LogEntry {
+  id        String @id @default(cuid())
+  companyId String
+
+  /// note | moede | opkald | mail | aftale | advarsel
+  kind    String @default("note")
+  content String
+  /// Markér de poster der skal kunne findes igen
+  pinned  Boolean @default(false)
+  author  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, createdAt])
+  @@map("log_entries")
+}
+
+// ============================================================
+// INDSTILLINGER — én række, id = "singleton"
+// Priser bor på produkterne, ikke her. Budget regnes udelukkende
+// på de licenser kunderne faktisk har.
+// ============================================================
+
+model Settings {
+  id String @id @default("singleton")
+
+  /// Underteksten under CRM-Pro i sidebjælken
+  brandSubtitle String?
+  /// De få tegn i logofirkanten, når der ikke er uploadet et logo
+  brandMarkText String?
+  /// Firmalogo som data-URL. Ligger i databasen, så der ingen filsti er at holde styr på.
+  brandLogo     String?
+
+  dataSourceNote String?
+  updatedAt      DateTime @updatedAt
+  /// Initialer på den der gemte sidst. Tom = ukendt (fx indlæst data).
+  updatedBy String?
+
+  @@map("settings")
+}

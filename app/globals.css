@@ -1,0 +1,114 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:wght@600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Investerings Ninja-paletten — sort/hvid/beige med en dæmpet orange accent.
+       Erstatter det tidligere "Nordic Design System" arvet fra CRM-X. Se
+       Investerings Ninja's src/app/globals.css for kildepaletten (hex); her
+       som HSL-tripler, som resten af komponentbiblioteket allerede forventer. */
+    --background: 40 47% 96%;        /* paper #faf7f1 */
+    --foreground: 33 14% 12%;        /* ink #24201b */
+
+    --card: 0 0% 100%;               /* paper-raised #ffffff */
+    --card-foreground: 33 14% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 33 14% 12%;
+
+    --primary: 27 56% 51%;           /* accent #c97c3d — mild orange */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 39 40% 90%;         /* paper-sunken #f0e9dc */
+    --secondary-foreground: 35 11% 38%; /* ink-soft #6b6255 */
+
+    --muted: 39 40% 90%;
+    --muted-foreground: 35 11% 38%;
+
+    --accent: 26 60% 41%;            /* accent-strong #a9622a */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 14 45% 45%;       /* bad #a7583f */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 41 35% 84%;            /* line #e5dcc9 */
+    --input: 41 35% 84%;
+    --ring: 27 56% 51%;
+
+    --radius: 0.6rem;
+
+    /* Sidebaren er altid mørk chrome, uafhængigt af lys/mørk-tema — samme
+       mønster som før, bare i ink-familien i stedet for marineblå. */
+    --sidebar-bg: 33 14% 12%;
+    --sidebar-fg: 40 20% 75%;
+    --sidebar-active-bg: 27 56% 51%;
+    --sidebar-active-fg: 0 0% 100%;
+    --sidebar-hover-bg: 33 16% 20%;
+    --sidebar-border: 33 16% 20%;
+    --sidebar-width: 240px;
+    --topbar-height: 56px;
+  }
+
+  .dark {
+    --background: 33 18% 8%;
+    --foreground: 40 25% 92%;
+
+    --card: 33 16% 13%;
+    --card-foreground: 40 25% 92%;
+
+    --popover: 33 16% 13%;
+    --popover-foreground: 40 25% 92%;
+
+    --primary: 27 65% 58%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 33 14% 18%;
+    --secondary-foreground: 40 20% 85%;
+
+    --muted: 33 14% 18%;
+    --muted-foreground: 38 12% 65%;
+
+    --accent: 26 55% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 14 45% 58%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 33 14% 22%;
+    --input: 33 14% 22%;
+    --ring: 27 65% 58%;
+
+    --sidebar-bg: 33 25% 7%;
+    --sidebar-border: 33 18% 16%;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-border rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-muted-foreground/30; }
+}
+
+@layer utilities {
+  .animate-in { animation: fade-in 0.2s ease-out; }
+
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium
+           transition-colors duration-150 cursor-pointer select-none;
+  }
+
+  .tabular { font-variant-numeric: tabular-nums; }
+}

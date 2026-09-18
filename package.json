@@ -1,0 +1,48 @@
+{
+  "name": "crm-pro",
+  "version": "1.0.2",
+  "private": true,
+  "description": "Lokalt CRM over Idus Online-kunder — salg og teknik i ét",
+  "scripts": {
+    "dev": "node scripts/prisma.mjs generate && next dev --turbopack",
+    "dev:webpack": "node scripts/prisma.mjs generate && next dev",
+    "app": "node scripts/prisma.mjs generate && node scripts/prisma.mjs db push && next build && next start",
+    "build": "node scripts/prisma.mjs generate && next build",
+    "start": "next start",
+    "setup": "node scripts/prisma.mjs generate && node scripts/prisma.mjs db push && node scripts/seed.mjs prisma/seed.mjs",
+    "dist": "node scripts/pak.mjs",
+    "server": "node scripts/server.mjs",
+    "db:upgrade": "node scripts/prisma.mjs generate && node scripts/prisma.mjs db push --accept-data-loss && node scripts/seed.mjs prisma/upgrade.mjs && node scripts/seed.mjs prisma/seed.mjs",
+    "db:push": "node scripts/prisma.mjs db push",
+    "db:studio": "node scripts/prisma.mjs studio",
+    "db:seed": "node scripts/seed.mjs prisma/seed.mjs",
+    "db:reset": "node scripts/prisma.mjs db push --force-reset && node scripts/seed.mjs prisma/seed.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.8.2",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.454.0",
+    "next": "^15.3.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.13.3",
+    "server-only": "^0.0.1",
+    "tailwind-merge": "^2.5.5",
+    "tailwindcss-animate": "^1.0.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.4.20",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "postcss": "^8",
+    "prisma": "^6.8.2",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.6.3"
+  },
+  "main": "electron/main.js",
+  "author": "CRM-Pro"
+}

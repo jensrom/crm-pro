@@ -1,0 +1,25 @@
+CRM-Pro — kom i gang på tre linjer
+===================================
+
+1. Pak mappen ud et sted du kan lide, fx D:\Claude Test\CRM-Pro
+
+2. Åbn PowerShell i mappen og kør:
+
+       npm install
+       npm run setup
+       npm run app
+
+3. Åbn http://127.0.0.1:3000 i browseren.
+
+   npm run app bygger appen én gang og starter den. Bagefter er
+   "npm start" nok, og den åbner med det samme.
+   Brug kun "npm run dev" når du selv laver om i koden — den
+   kompilerer hver side forfra og er mærkbart langsommere.
+
+Det er det. Databasen er filen prisma\crm-pro.db — den ligger i projektmappen,
+og en sikkerhedskopi er bare en kopi af den fil.
+
+npm run setup kan køres igen når som helst. Den opdaterer de eksisterende
+kunder i stedet for at oprette dubletter, så dine egne noter og sager overlever.
+
+Resten står i README.md.

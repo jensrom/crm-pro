@@ -1,0 +1,78 @@
+appId: dk.plesnertech.crmpro
+productName: CRM-Pro
+copyright: CRM-Pro
+
+directories:
+  output: dist
+  buildResources: build
+
+# Kun det appen faktisk skal bruge. Kildekoden i app/ og components/ er
+# allerede oversat ind i .next/standalone.
+files:
+  - electron/**
+  - build/icon.png
+  - build/icon.ico
+  - package.json
+  - "!**/*.map"
+  # Alt appen skal bruge ligger i extraResources. Uden den her linje pakker
+  # electron-builder hele node_modules med, og exe-filen bliver tre gange så stor.
+  - "!node_modules/**"
+
+extraResources:
+  - from: .next/standalone
+    to: app/.next/standalone
+  - from: .next/static
+    to: app/.next/standalone/.next/static
+  - from: public
+    to: app/.next/standalone/public
+    filter: ["**/*"]
+  - from: prisma/schema.prisma
+    to: app/prisma/schema.prisma
+  - from: prisma/init.sql
+    to: app/prisma/init.sql
+  - from: data/kunder.json
+    to: app/data/kunder.json
+  - from: electron
+    to: app/electron
+  - from: build/icon.png
+    to: app/build/icon.png
+  # Prismas motor er en binær fil. Den skal ligge udpakket, ellers kan
+  # klienten ikke indlæse den.
+  - from: node_modules/.prisma/client
+    to: app/node_modules/.prisma/client
+  - from: node_modules/@prisma/client
+    to: app/node_modules/@prisma/client
+
+asar: true
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  icon: build/icon.ico
+
+# Den almindelige installation. Filerne bliver liggende på disken, så
+# programmet ikke skal pakke sig selv ud ved hver start.
+nsis:
+  # Per bruger, ikke per maskine: så slipper man for at skulle være
+  # administrator for at installere.
+  perMachine: false
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: CRM-Pro
+  # Databasen og indstillingerne ligger i %APPDATA%\CRM-Pro og skal blive
+  # liggende når programmet afinstalleres.
+  deleteAppDataOnUninstall: false
+  artifactName: CRM-Pro-opsaetning-${version}.exe
+
+portable:
+  # Programmet må ikke pakke sig ud i en tilfældig temp-mappe hver gang —
+  # så ville datamappen flytte sig.
+  unpackDirName: CRM-Pro
+  artifactName: CRM-Pro-portable-${version}.exe
+
+compression: maximum
