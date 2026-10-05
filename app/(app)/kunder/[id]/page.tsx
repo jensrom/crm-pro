@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Check, ExternalLink, Flame, LifeBuoy, ListChecks, Mail, Minus, PackagePlus, Phone, Plus, Scissors, Trash2, Undo2 } from "lucide-react";
+import { ArrowLeft, Check, Download, ExternalLink, FileBadge, FileText, Flame, LifeBuoy, ListChecks, Mail, Minus, PackagePlus, Phone, Plus, Scissors, Trash2, Undo2 } from "lucide-react";
 import { GemValg } from "@/components/ui/gem-valg";
 import { GemtAf } from "@/components/ui/gemt-af";
 import { Card, CardBody, CardHeader, EmptyState } from "@/components/ui/card";
@@ -30,6 +30,8 @@ import { licensGrupper, licensmodel, listepris } from "@/lib/katalog";
 import { LicensOptions } from "@/components/produkter/LicensOptions";
 import { fortrydLicensaendring, registrerLicensaendring } from "@/app/actions/tilkoeb";
 import { hentSession } from "@/lib/auth";
+import { isoDato, ordreNr, sikrSubNumre, subNr } from "@/lib/dokumenter";
+import { ordreTotal } from "@/lib/ordre-pdf";
 
 export const dynamic = "force-dynamic";
 
@@ -55,11 +57,13 @@ export default async function KundeSide({
 }) {
   const { id } = await params;
   const { tilkoeb } = await searchParams;
+  await sikrSubNumre(id);
   const [kunde, grupper, filer, mig] = await Promise.all([
     db.company.findUnique({
       where: { id },
       include: {
-        customerProducts: { include: { product: true }, orderBy: { createdAt: "asc" } },
+        customerProducts: { include: { product: { include: { family: true } } }, orderBy: { createdAt: "asc" } },
+        orders: { include: { lines: true }, orderBy: { number: "desc" }, take: 5 },
         contacts: { orderBy: [{ isPrimary: "desc" }, { firstName: "asc" }] },
         deals: { include: { product: true }, orderBy: { createdAt: "desc" } },
         tickets: { orderBy: [{ status: "asc" }, { createdAt: "asc" }] },
@@ -313,6 +317,10 @@ export default async function KundeSide({
                       <div className="text-sm font-medium flex items-center gap-2">
                         <ProduktMaerke icon={l.product.icon} color={l.product.color} size="md" />
                         {l.product.name}
+                        <Badge variant="muted">{subNr(l.subNumber)}</Badge>
+                        <Link href={`/kunder/${kunde.id}/licensbevis?linje=${l.id}`} title="Licensbevis for denne licens" className="text-muted-foreground hover:text-primary">
+                          <FileBadge className="h-3.5 w-3.5" />
+                        </Link>
                       </div>
                       <div className="text-xs text-muted-foreground tabular">
                         {perpetual
@@ -334,7 +342,11 @@ export default async function KundeSide({
                         <Label htmlFor={`u-${l.id}`}>Aftalt pris pr. bruger/md.</Label>
                         <Input id={`u-${l.id}`} name="unitPriceMonth" inputMode="decimal" defaultValue={l.unitPriceMonth ?? ""} placeholder={l.product.pricePerUserMonth != null ? `listepris ${l.product.pricePerUserMonth}` : "ingen listepris"} />
                       </div>
-                      <div className="col-span-2">
+                      <div>
+                        <Label htmlFor={`sd-${l.id}`}>Startdato</Label>
+                        <Input id={`sd-${l.id}`} name="startDate" type="date" defaultValue={isoDato(l.startDate)} />
+                      </div>
+                      <div>
                         <Label htmlFor={`b-${l.id}`}>Fakturering</Label>
                         <Select id={`b-${l.id}`} name="billingInterval" defaultValue={l.billingInterval}>
                           {FAKTURERING.map((i) => <option key={i.key} value={i.key}>{i.label}</option>)}
@@ -448,6 +460,45 @@ export default async function KundeSide({
                       </li>
                     );
                   })}
+                </ul>
+              )}
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader
+              title="Dokumenter"
+              description="Licensbevis med faste licensnumre (SUB) og ordrebekræftelser som PDF."
+              action={<Link href={`/ordrer?kunde=${kunde.id}`} className="text-xs font-medium text-primary hover:underline">Alle ordrer</Link>}
+            />
+            <CardBody className="flex flex-col gap-4">
+              <div className="flex flex-wrap gap-2">
+                <Link href={`/kunder/${kunde.id}/licensbevis`}>
+                  <Button size="sm" variant="secondary"><FileBadge className="h-3.5 w-3.5" /> Licensbevis — alle licenser</Button>
+                </Link>
+                {[...new Map(kunde.customerProducts.filter((l) => l.product.family).map((l) => [l.product.family!.id, l.product.family!.name])).entries()].map(([fid, navn]) => (
+                  <Link key={fid} href={`/kunder/${kunde.id}/licensbevis?produkt=${fid}`}>
+                    <Button size="sm" variant="ghost"><FileBadge className="h-3.5 w-3.5" /> Kun {navn}</Button>
+                  </Link>
+                ))}
+                <Link href={`/ordrer/ny?kunde=${kunde.id}`} className="sm:ml-auto">
+                  <Button size="sm"><FileText className="h-3.5 w-3.5" /> Ny ordrebekræftelse</Button>
+                </Link>
+              </div>
+              {kunde.orders.length > 0 && (
+                <ul className="divide-y divide-border border-t border-border">
+                  {kunde.orders.map((o) => (
+                    <li key={o.id} className="py-2 flex items-center justify-between gap-3 text-sm">
+                      <Link href={`/ordrer/${o.id}`} className="hover:text-primary">
+                        <span className="font-medium tabular">{ordreNr(o.number)}</span>
+                        <span className="text-xs text-muted-foreground ml-2 tabular">{datoKort(o.orderDate)} · {o.lines.length} linjer</span>
+                      </Link>
+                      <span className="flex items-center gap-2">
+                        <span className="text-xs tabular">{kroner(ordreTotal(o.lines))}</span>
+                        <a href={`/api/dokumenter/ordre/${o.id}`} title="Hent PDF" className="text-muted-foreground hover:text-primary p-1"><Download className="h-3.5 w-3.5" /></a>
+                      </span>
+                    </li>
+                  ))}
                 </ul>
               )}
             </CardBody>

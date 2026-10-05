@@ -20,6 +20,11 @@ const heltal = (v: FormDataEntryValue | null) => {
   return n == null ? null : Math.round(n);
 };
 
+const startDato = (v: FormDataEntryValue | null) => {
+  const m = txt(v)?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12) : null;
+};
+
 function opfrisk(kundeId?: string | null) {
   revalidatePath("/dashboard");
   revalidatePath("/kunder");
@@ -65,6 +70,7 @@ export async function gemLicenslinje(kundeId: string, formData: FormData) {
     billingInterval: txt(formData.get("billingInterval")) ?? "annual",
     notes: txt(formData.get("notes")),
     ...(productId ? { productId } : {}),
+    ...(startDato(formData.get("startDate")) ? { startDate: startDato(formData.get("startDate"))! } : {}),
   };
   if (id) await db.customerProduct.update({ where: { id }, data });
   else if (productId) await db.customerProduct.create({ data: { companyId: kundeId, ...data, productId } });

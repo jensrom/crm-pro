@@ -67,3 +67,31 @@ export async function gemDatagrundlag(formData: FormData) {
   revalidatePath("/indstillinger/whitelabel");
   redirect("/indstillinger/whitelabel?besked=note");
 }
+
+/** Afsenderoplysninger og standardtekster til licensbevis og ordrebekræftelse. */
+export async function gemDokumentindstillinger(formData: FormData) {
+  await kraevSuperAdmin();
+  const moms = txt(formData.get("docVatRate"));
+  const n = moms == null ? null : Number(moms.replace(",", "."));
+  await db.settings.upsert({
+    where: { id: "singleton" },
+    create: { id: "singleton" },
+    update: {
+      docCompanyName: txt(formData.get("docCompanyName")),
+      docCvr: txt(formData.get("docCvr")),
+      docAddress: txt(formData.get("docAddress")),
+      docZipCity: txt(formData.get("docZipCity")),
+      docCountry: txt(formData.get("docCountry")),
+      docEmail: txt(formData.get("docEmail")),
+      docPhone: txt(formData.get("docPhone")),
+      docWebsite: txt(formData.get("docWebsite")),
+      docBankInfo: txt(formData.get("docBankInfo")),
+      docPaymentTerms: txt(formData.get("docPaymentTerms")),
+      docVatRate: n != null && Number.isFinite(n) ? n : null,
+      docCertText: txt(formData.get("docCertText")),
+      docOrderText: txt(formData.get("docOrderText")),
+    },
+  });
+  revalidatePath("/indstillinger/dokumenter");
+  redirect("/indstillinger/dokumenter?besked=gemt");
+}

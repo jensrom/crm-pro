@@ -6,6 +6,7 @@ const PUNKTER = [
   { href: "/indstillinger/brugere", label: "Brugere" },
   { href: "/indstillinger/whitelabel", label: "Whitelabel" },
   { href: "/indstillinger/katalog", label: "Katalog" },
+  { href: "/indstillinger/dokumenter", label: "Dokumenter" },
   { href: "/indstillinger/database", label: "Database" },
   { href: "/indstillinger/opdatering", label: "Opdatering" },
 ];

@@ -75,3 +75,34 @@ export async function sletFilFraDisk(storedPath: string): Promise<void> {
 export async function laesFilFraDisk(storedPath: string): Promise<Buffer> {
   return readFile(absolutFilSti(storedPath));
 }
+
+/**
+ * Gemmer en genereret fil (fx et licensbevis eller en ordrebekræftelse som PDF)
+ * i kundens filboks og opretter posten. Returnerer filboks-postens id.
+ */
+export async function gemDokumentIFilboks(
+  companyId: string,
+  filnavn: string,
+  bytes: Uint8Array,
+  category: string,
+  uploadedBy: string | null
+): Promise<string> {
+  const { db } = await import("@/lib/db");
+  const mappe = join(filerRod(), companyId);
+  if (!existsSync(mappe)) mkdirSync(mappe, { recursive: true });
+  const navn = saniterFilnavn(filnavn);
+  const diskNavn = `${randomBytes(4).toString("hex")}-${navn}`;
+  await writeFile(join(mappe, diskNavn), bytes);
+  const att = await db.attachment.create({
+    data: {
+      companyId,
+      filename: navn,
+      category,
+      mimeType: "application/pdf",
+      sizeBytes: bytes.byteLength,
+      storedPath: join(FILER_UNDERMAPPE, companyId, diskNavn),
+      uploadedBy,
+    },
+  });
+  return att.id;
+}

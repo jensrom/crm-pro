@@ -78,6 +78,7 @@ try {
   for (const t of [
     "users", "tickets", "hour_bundles", "time_logs", "log_entries", "customer_notes", "ticket_comments",
     "attachments", "product_families", "product_prices", "license_changes",
+    "orders", "order_lines",
   ]) {
     if (!(await tabelFindes(t))) mangler.push(t);
   }
@@ -110,14 +111,19 @@ try {
       ["licenseModel", "TEXT NOT NULL DEFAULT 'sub'"],
       ["oneTimePrice", "REAL"],
     ],
-    customer_products: [["updatedBy", "TEXT"]],
+    customer_products: [["updatedBy", "TEXT"], ["subNumber", "INTEGER"]],
     deals: [["updatedBy", "TEXT"]],
     activities: [["updatedBy", "TEXT"]],
     users: [["updatedBy", "TEXT"]],
     tickets: [["updatedBy", "TEXT"]],
     hour_bundles: [["updatedBy", "TEXT"]],
     customer_notes: [["updatedBy", "TEXT"]],
-    settings: [["updatedBy", "TEXT"]],
+    settings: [
+      ["updatedBy", "TEXT"],
+      ...["docCompanyName", "docCvr", "docAddress", "docZipCity", "docCountry", "docEmail", "docPhone",
+        "docWebsite", "docBankInfo", "docPaymentTerms", "docCertText", "docOrderText"].map((k) => [k, "TEXT"]),
+      ["docVatRate", "REAL"],
+    ],
   };
   let tilfoejet = 0;
   for (const [tabel, kolonner] of Object.entries(KOLONNER)) {
@@ -131,6 +137,12 @@ try {
     }
   }
   if (tilfoejet) log(`${tilfoejet} kolonner tilføjet`);
+
+  // Unikt indeks på licensnummeret (SUB-nummer). Kan ikke lægges på med
+  // ALTER TABLE, så det oprettes separat — findes det, sker der intet.
+  await db.$executeRawUnsafe(
+    'CREATE UNIQUE INDEX IF NOT EXISTS "customer_products_subNumber_key" ON "customer_products"("subNumber")'
+  );
 
   // 2. Produkter
   const antalProdukter = await db.product.count();
@@ -186,6 +198,21 @@ try {
     });
   }
   if (udenHistorik.length) log(`prishistorik startet for ${udenHistorik.length} licenser`);
+
+  // 2b2. SUB-numre: alle licenslinjer får et fast nummer i oprettelsesrækkefølge.
+  {
+    const uden = await db.customerProduct.findMany({
+      where: { subNumber: null },
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    });
+    if (uden.length) {
+      const maks = await db.customerProduct.aggregate({ _max: { subNumber: true } });
+      let n = maks._max.subNumber ?? 0;
+      for (const l of uden) await db.customerProduct.update({ where: { id: l.id }, data: { subNumber: ++n } });
+      log(`${uden.length} licenslinjer fik SUB-nummer`);
+    }
+  }
 
   // 2c. Superadministrator. Hele Indstillinger kræver rollen, så der skal
   //     altid være mindst én. Findes der ingen, bliver den ældste aktive

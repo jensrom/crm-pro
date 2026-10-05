@@ -7,12 +7,14 @@
  * PDF/eksport af en mailtråd.
  */
 
-export type Filkategori = "kontrakt" | "plan" | "moedereferat" | "email" | "andet";
+export type Filkategori = "kontrakt" | "ordre" | "licensbevis" | "plan" | "moedereferat" | "email" | "andet";
 
-export const FILKATEGORIER: Filkategori[] = ["kontrakt", "plan", "moedereferat", "email", "andet"];
+export const FILKATEGORIER: Filkategori[] = ["kontrakt", "ordre", "licensbevis", "plan", "moedereferat", "email", "andet"];
 
 export const FILKATEGORI_LABEL: Record<Filkategori, string> = {
   kontrakt: "Kontrakter",
+  ordre: "Ordrebekræftelser",
+  licensbevis: "Licensbeviser",
   plan: "Planer",
   moedereferat: "Mødereferater",
   email: "E-mails",
@@ -22,6 +24,8 @@ export const FILKATEGORI_LABEL: Record<Filkategori, string> = {
 /** Ental-form — bruges i upload-vælgeren ("Gemmes som: Kontrakt") */
 export const FILKATEGORI_LABEL_ENTAL: Record<Filkategori, string> = {
   kontrakt: "Kontrakt",
+  ordre: "Ordrebekræftelse",
+  licensbevis: "Licensbevis",
   plan: "Plan",
   moedereferat: "Mødereferat",
   email: "E-mail",

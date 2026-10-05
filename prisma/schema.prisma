@@ -78,6 +78,7 @@ model Company {
   notes_           CustomerNote[]
   attachments      Attachment[]
   licenseChanges   LicenseChange[]
+  orders           Order[]
 
   @@index([isActive])
   @@index([customerStatus])
@@ -263,6 +264,8 @@ model CustomerProduct {
   companyId String
   productId String
 
+  /// Fast licensnummer for linjen, vises som SUB-00001 på licensbeviser
+  subNumber   Int? @unique
   seats       Int  @default(1) // tildelte licenser, som portalen viser dem
   activeSeats Int  @default(0) // licenser faktisk i brug
   /// Aftalt pris pr. bruger pr. måned. Tom = brug pakkens listepris.
@@ -578,9 +581,85 @@ model Settings {
   brandLogo     String?
 
   dataSourceNote String?
+
+  // --- Dokumenter (licensbevis og ordrebekræftelse) ---
+  docCompanyName  String?
+  docCvr          String?
+  docAddress      String?
+  docZipCity      String?
+  docCountry      String?
+  docEmail        String?
+  docPhone        String?
+  docWebsite      String?
+  docBankInfo     String?
+  docPaymentTerms String?
+  /// Momssats i procent på ordrebekræftelser. Tom = 25.
+  docVatRate      Float?
+  /// Fast tekst på licensbeviset
+  docCertText     String?
+  /// Fast tekst/betingelser nederst på ordrebekræftelsen
+  docOrderText    String?
+
   updatedAt      DateTime @updatedAt
   /// Initialer på den der gemte sidst. Tom = ukendt (fx indlæst data).
   updatedBy String?
 
   @@map("settings")
+}
+
+// ============================================================
+// ORDREBEKRÆFTELSER
+// Kan laves med eller uden kunde. Modtageren gemmes som tekst på ordren,
+// så dokumentet kan genskabes præcis som det blev sendt.
+// ============================================================
+
+model Order {
+  id     String  @id @default(cuid())
+  /// Fortløbende nummer, vises som ORD-00001
+  number Int     @unique
+  companyId String?
+
+  recipientName    String
+  recipientAttn    String?
+  recipientAddress String?
+  recipientEmail   String?
+  /// Kundens reference / PO-nummer
+  reference String?
+  orderDate DateTime @default(now())
+  note      String?
+  vatRate   Float    @default(25)
+
+  /// Filboks-posten PDF'en blev gemt som (kun når ordren har en kunde)
+  attachmentId String?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+
+  company Company?    @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  lines   OrderLine[]
+
+  @@index([companyId])
+  @@index([orderDate])
+  @@map("orders")
+}
+
+model OrderLine {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String?
+
+  /// Teksten på linjen, typisk "Idus · Idus Online Professional"
+  description  String
+  quantity     Int
+  /// Pris pr. enhed (sub: pr. bruger pr. md., perpetual: pr. licens)
+  unitPrice    Float?
+  /// Antal måneder for sub. Tom = engangsbeløb.
+  months       Int?
+  licenseModel String  @default("sub")
+  sortOrder    Int     @default(0)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("order_lines")
 }
