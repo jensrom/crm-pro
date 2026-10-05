@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 const FEJL: Record<string, string> = {
   forkert: "Initialer eller PIN passer ikke.",
+  spaerret: "For mange forkerte forsøg. Prøv igen om 15 minutter.",
   mangler: "Udfyld både initialer og PIN.",
 };
 

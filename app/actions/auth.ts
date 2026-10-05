@@ -13,18 +13,45 @@ const txt = (v: FormDataEntryValue | null) => {
 
 const PIN_MOENSTER = /^\d{4,8}$/;
 
+/** Efter så mange forkerte PIN-forsøg i træk spærres brugeren et stykke tid. */
+const MAKS_FORSOEG = 5;
+const SPAERRING_MIN = 15;
+
+/**
+ * Førstegangsopsætningen er åben, så længe der ingen brugere er. På internettet
+ * kræver den derfor koden fra miljøvariablen OPSAETNINGSKODE — uden den er
+ * opsætningen lukket i produktion.
+ */
+function opsaetningskodeOk(kode: string | null) {
+  if (process.env.NODE_ENV !== "production") return true;
+  const rigtig = process.env.OPSAETNINGSKODE?.trim();
+  return !!rigtig && rigtig.length >= 8 && kode === rigtig;
+}
+
 export async function logInd(formData: FormData) {
   const initialer = txt(formData.get("initials"))?.toUpperCase();
   const pin = txt(formData.get("pin"));
   if (!initialer || !pin) redirect("/login?fejl=mangler");
 
   const bruger = await db.user.findUnique({ where: { initials: initialer } });
+  if (bruger?.lockedUntil && bruger.lockedUntil > new Date()) redirect("/login?fejl=spaerret");
+
   // Samme svar uanset om det er initialerne eller PIN'en der er forkert.
   if (!bruger || !bruger.isActive || !tjekPin(pin, bruger.pinHash)) {
+    if (bruger) {
+      const forsoeg = bruger.failedLogins + 1;
+      await db.user.update({
+        where: { id: bruger.id },
+        data: {
+          failedLogins: forsoeg >= MAKS_FORSOEG ? 0 : forsoeg,
+          ...(forsoeg >= MAKS_FORSOEG ? { lockedUntil: new Date(Date.now() + SPAERRING_MIN * 60_000) } : {}),
+        },
+      });
+    }
     redirect("/login?fejl=forkert");
   }
 
-  await db.user.update({ where: { id: bruger.id }, data: { lastLoginAt: new Date() } });
+  await db.user.update({ where: { id: bruger.id }, data: { lastLoginAt: new Date(), failedLogins: 0, lockedUntil: null } });
   await saetSession(bruger.id, bruger.initials);
   redirect("/dashboard");
 }
@@ -37,6 +64,7 @@ export async function logUd() {
 /** Første bruger oprettes uden login — men kun så længe der slet ingen brugere er. */
 export async function opretFoersteAdmin(formData: FormData) {
   if ((await db.user.count()) > 0) redirect("/login");
+  if (!opsaetningskodeOk(txt(formData.get("kode")))) redirect("/opsaetning?fejl=kode");
 
   const initialer = txt(formData.get("initials"))?.toUpperCase();
   const navn = txt(formData.get("name"));

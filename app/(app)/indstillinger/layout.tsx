@@ -7,8 +7,7 @@ const PUNKTER = [
   { href: "/indstillinger/whitelabel", label: "Whitelabel" },
   { href: "/indstillinger/katalog", label: "Katalog" },
   { href: "/indstillinger/dokumenter", label: "Dokumenter" },
-  { href: "/indstillinger/database", label: "Database" },
-  { href: "/indstillinger/opdatering", label: "Opdatering" },
+  { href: "/indstillinger/eksport", label: "Eksport" },
 ];
 
 export default async function IndstillingerLayout({ children }: { children: React.ReactNode }) {

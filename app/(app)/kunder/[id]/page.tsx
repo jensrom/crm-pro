@@ -54,10 +54,10 @@ export default async function KundeSide({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tilkoeb?: string }>;
+  searchParams: Promise<{ tilkoeb?: string; fil?: string }>;
 }) {
   const { id } = await params;
-  const { tilkoeb } = await searchParams;
+  const { tilkoeb, fil } = await searchParams;
   await sikrSubNumre(id);
   const [kunde, grupper, filer, mig] = await Promise.all([
     db.company.findUnique({
@@ -541,7 +541,7 @@ export default async function KundeSide({
             </CardBody>
           </Card>
 
-          <Filboks companyId={kunde.id} filer={filer} />
+          <Filboks companyId={kunde.id} filer={filer} forStor={fil === "for-stor"} />
         </div>
 
         {/* Højre: logbogen først — det er den man skal kunne skrive i uden at lede */}

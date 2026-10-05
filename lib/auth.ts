@@ -29,6 +29,7 @@ export async function saetSession(brugerId: string, initialer: string) {
   c.set(COOKIE, pak(brugerId, initialer), {
     httpOnly: true,
     sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: LEVETID_SEK,
   });

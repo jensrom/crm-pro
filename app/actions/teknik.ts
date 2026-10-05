@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
-import { hentSession } from "@/lib/auth";
+import { hentSession, kraevBruger } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
 const txt = (v: FormDataEntryValue | null) => {
@@ -48,6 +48,7 @@ async function naesteKortnummer() {
 // ============================================================
 
 export async function opretSag(formData: FormData) {
+  await kraevBruger();
   const companyId = txt(formData.get("companyId"));
   const title = txt(formData.get("title"));
   if (!companyId || !title) return;
@@ -70,6 +71,7 @@ export async function opretSag(formData: FormData) {
 }
 
 export async function gemSag(id: string, formData: FormData) {
+  await kraevBruger();
   const status = txt(formData.get("status")) ?? "aaben";
   const nu = new Date();
   const sag = await db.ticket.update({
@@ -91,6 +93,7 @@ export async function gemSag(id: string, formData: FormData) {
 
 /** Hurtigt statusskift fra en liste, uden at åbne sagen. */
 export async function skiftSagsstatus(id: string, status: string) {
+  await kraevBruger();
   const nu = new Date();
   const sag = await db.ticket.update({
     where: { id },
@@ -104,12 +107,14 @@ export async function skiftSagsstatus(id: string, status: string) {
 }
 
 export async function sletSag(id: string) {
+  await kraevBruger();
   const sag = await db.ticket.delete({ where: { id } });
   opfrisk(sag.companyId);
   redirect("/teknik/sager");
 }
 
 export async function skrivKommentar(sagId: string, formData: FormData) {
+  await kraevBruger();
   const content = txt(formData.get("content"));
   if (!content) return;
   const mig = await hentSession();
@@ -125,6 +130,7 @@ export async function skrivKommentar(sagId: string, formData: FormData) {
 }
 
 export async function sletKommentar(id: string, sagId: string) {
+  await kraevBruger();
   await db.ticketComment.delete({ where: { id } });
   revalidatePath(`/teknik/sager/${sagId}`);
 }
@@ -134,6 +140,7 @@ export async function sletKommentar(id: string, sagId: string) {
 // ============================================================
 
 export async function opretKlippekort(formData: FormData) {
+  await kraevBruger();
   const companyId = txt(formData.get("companyId"));
   const timer = num(formData.get("totalHours"));
   if (!companyId || timer == null || timer <= 0) return;
@@ -154,6 +161,7 @@ export async function opretKlippekort(formData: FormData) {
 }
 
 export async function gemKlippekort(id: string, formData: FormData) {
+  await kraevBruger();
   const kort = await db.hourBundle.update({
     where: { id },
     data: {
@@ -170,6 +178,7 @@ export async function gemKlippekort(id: string, formData: FormData) {
 }
 
 export async function sletKlippekort(id: string) {
+  await kraevBruger();
   // Tidsposterne slippes fri i stedet for at forsvinde — timerne er stadig brugt.
   await db.timeLog.updateMany({ where: { bundleId: id }, data: { bundleId: null } });
   const kort = await db.hourBundle.delete({ where: { id } });
@@ -194,6 +203,7 @@ async function opdaterForbrug(bundleId: string | null | undefined) {
 }
 
 export async function registrerTid(formData: FormData) {
+  await kraevBruger();
   const companyId = txt(formData.get("companyId"));
   const minutter = heltal(formData.get("durationMin"));
   if (!companyId || minutter == null || minutter <= 0) return;
@@ -217,6 +227,7 @@ export async function registrerTid(formData: FormData) {
 }
 
 export async function sletTid(id: string) {
+  await kraevBruger();
   const post = await db.timeLog.delete({ where: { id } });
   await opdaterForbrug(post.bundleId);
   opfrisk(post.companyId, post.ticketId);
@@ -227,6 +238,7 @@ export async function sletTid(id: string) {
 // ============================================================
 
 export async function skrivLog(kundeId: string, formData: FormData) {
+  await kraevBruger();
   const content = txt(formData.get("content"));
   if (!content) return;
   const mig = await hentSession();
@@ -243,11 +255,13 @@ export async function skrivLog(kundeId: string, formData: FormData) {
 }
 
 export async function skiftFastgjort(id: string, kundeId: string, fastgjort: boolean) {
+  await kraevBruger();
   await db.logEntry.update({ where: { id }, data: { pinned: fastgjort } });
   revalidatePath(`/kunder/${kundeId}`);
 }
 
 export async function sletLog(id: string, kundeId: string) {
+  await kraevBruger();
   await db.logEntry.delete({ where: { id } });
   revalidatePath(`/kunder/${kundeId}`);
 }

@@ -2,67 +2,58 @@
 
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
-import { gemFilPaaDisk, sletFilFraDisk } from "@/lib/filer";
+import { redirect } from "next/navigation";
+import { MAKS_FILSTOERRELSE, saniterFilnavn } from "@/lib/filer";
 import { normaliserKategori } from "@/lib/attachment-categories";
-import { laesSessionKiks } from "@/lib/sessionkiks";
+import { kraevBruger } from "@/lib/auth";
 
-// Prisma-klienten er ikke regenereret i denne sandbox endnu (netvaerket kan
-// ikke naa binaries.prisma.sh, se PORTABEL.md-fejlsoegning) -- saa
-// Attachment-modellen mangler stadig i de genererede typer. `attDb` er kun
-// et typemidlertidigt kig forbi det, indtil `node scripts/prisma.mjs
-// generate` er koert paa en maskine med normal netadgang.
-const attDb = db as any;
-
-/** Alle uploadede filer paa en kunde, nyeste foerst. */
+/** Alle filer på en kunde, nyeste først — uden selve indholdet. */
 export async function hentFiler(companyId: string) {
-  return attDb.attachment.findMany({
+  await kraevBruger();
+  return db.attachment.findMany({
     where: { companyId },
     orderBy: { createdAt: "desc" },
+    select: { id: true, companyId: true, filename: true, category: true, mimeType: true, sizeBytes: true, createdAt: true, uploadedBy: true },
   });
 }
 
-/**
- * Modtager en fil via et almindeligt <form action={...}> (ingen klient-JS
- * noedvendig -- ligesom resten af CRM-Pro). Filen skrives til disk, og kun
- * stien gemmes i databasen.
- */
+/** Modtager en fil via et almindeligt <form action={...}> og gemmer den i databasen. */
 export async function uploadFil(companyId: string, formData: FormData) {
+  const mig = await kraevBruger();
   const kunde = await db.company.findUnique({ where: { id: companyId }, select: { id: true } });
   if (!kunde) throw new Error("Kunde ikke fundet");
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) return;
+  if (file.size > MAKS_FILSTOERRELSE) redirect(`/kunder/${companyId}?fil=for-stor#filer`);
 
-  const category = normaliserKategori(formData.get("category"));
-  const { storedPath, filename, mimeType, sizeBytes } = await gemFilPaaDisk(companyId, file);
-
-  const kiks = await laesSessionKiks();
-  await attDb.attachment.create({
+  const bytes = Buffer.from(await file.arrayBuffer());
+  await db.attachment.create({
     data: {
       companyId,
-      filename,
-      category,
-      mimeType,
-      sizeBytes,
-      storedPath,
-      uploadedBy: kiks?.initials ?? null,
+      filename: saniterFilnavn(file.name || "fil"),
+      category: normaliserKategori(formData.get("category")),
+      mimeType: file.type || "application/octet-stream",
+      sizeBytes: bytes.byteLength,
+      data: bytes,
+      uploadedBy: mig.initials,
     },
+    select: { id: true },
   });
 
   revalidatePath(`/kunder/${companyId}`);
 }
 
-/** Flytter en fil til en anden kategori -- fx naar en mail hoerer til som kontrakt. */
+/** Flytter en fil til en anden kategori — fx når en mail hører til som kontrakt. */
 export async function flytFilKategori(id: string, formData: FormData) {
+  await kraevBruger();
   const category = normaliserKategori(formData.get("category"));
-  const att = await attDb.attachment.update({ where: { id }, data: { category } });
+  const att = await db.attachment.update({ where: { id }, data: { category }, select: { companyId: true } });
   revalidatePath(`/kunder/${att.companyId}`);
 }
 
 export async function sletFil(id: string) {
-  const att = await attDb.attachment.findUnique({ where: { id } });
-  if (!att) return;
-  await attDb.attachment.delete({ where: { id } });
-  await sletFilFraDisk(att.storedPath);
-  revalidatePath(`/kunder/${att.companyId}`);
+  await kraevBruger();
+  const att = await db.attachment.delete({ where: { id }, select: { companyId: true } }).catch(() => null);
+  if (att) revalidatePath(`/kunder/${att.companyId}`);
 }

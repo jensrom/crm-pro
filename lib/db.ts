@@ -1,5 +1,4 @@
 import { PrismaClient } from "@prisma/client";
-import { databaseUrl } from "@/lib/config";
 import { laesSessionKiks } from "@/lib/sessionkiks";
 
 /**
@@ -44,7 +43,7 @@ function stempl(args: any, operation: string, initialer: string) {
 }
 
 function lavKlient() {
-  const basis = new PrismaClient({ datasources: { db: { url: databaseUrl() } } });
+  const basis = new PrismaClient();
 
   return basis.$extends({
     query: {
@@ -65,10 +64,7 @@ type Klient = ReturnType<typeof lavKlient>;
 
 const globalForPrisma = globalThis as unknown as { prisma?: Klient };
 
-/**
- * Datakilden sættes ved opstart ud fra crm-pro.config.json, ikke fra .env.
- * Derfor kræver et skift af databasens placering en genstart af programmet.
- */
+/** Forbindelsen kommer fra DATABASE_URL. Én klient pr. serverinstans. */
 export const db: Klient = globalForPrisma.prisma ?? lavKlient();
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;
+globalForPrisma.prisma = db;

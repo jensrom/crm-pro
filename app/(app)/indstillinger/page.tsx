@@ -57,15 +57,13 @@ export default async function IndstillingerSide() {
       </Card>
 
       <Card>
-        <CardHeader title="Databasen" description="CRM-Pro kører på én SQLite-fil. Ingen server, ingen sky." />
+        <CardHeader title="Databasen" description="Postgres hos Neon, koblet på Vercel-projektet." />
         <CardBody className="flex flex-col gap-3 text-sm">
-          <Linje label="Placering" vaerdi={<code className="text-xs">prisma/crm-pro.db</code>} />
           <Linje label="Kunder" vaerdi={tal(antalKunder)} />
           <Linje label="Salgsmuligheder" vaerdi={tal(antalSager)} />
           <p className="text-xs text-muted-foreground border-t border-border pt-3 leading-relaxed">
-            Sikkerhedskopi er en filkopi: luk appen og kopiér <code>prisma/crm-pro.db</code>. <code>npm run db:seed</code>{" "}
-            henter kunderne ind igen og opdaterer licensantal fra portaludtrækket — den rører ikke dine egne noter,
-            prioriteter eller pakkevalg. <code>npm run db:reset</code> tømmer alt og starter forfra.
+            Neon tager selv løbende sikkerhedskopier og kan gendanne til et tidspunkt. Vil du have en kopi i hånden,
+            så hent alt under <Link href="/indstillinger/eksport" className="text-primary hover:underline">Eksport</Link>.
           </p>
         </CardBody>
       </Card>

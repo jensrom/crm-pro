@@ -3,7 +3,6 @@ import { AppTopbar } from "@/components/layout/AppTopbar";
 import { hentIndstillinger } from "@/lib/analysis";
 import { kraevBruger } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { tjekOpdatering } from "@/lib/opdatering";
 import { anvendPlanlagtePriser } from "@/lib/katalog";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -20,21 +19,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     db.company.count({ where: { isActive: true, isHot: true } as any }),
   ]);
 
-  // Synkron (læser bare en lille fil), men må aldrig vælte hele layoutet —
-  // det her kaldes på hver eneste side, ikke kun i Indstillinger.
-  let opdatering: ReturnType<typeof tjekOpdatering> | null = null;
-  try {
-    opdatering = tjekOpdatering();
-  } catch {
-    /* opdateringstjek er informativt, ikke kritisk — kør videre uden */
-  }
-
   return (
     <div className="min-h-screen bg-background">
       <AppSidebar
         brand={{ subtitle: i.brandSubtitle, markText: i.brandMarkText, logo: i.brandLogo }}
         hotAntal={hotAntal}
-        opdatering={opdatering}
         visIndstillinger={bruger.erSuperAdmin}
       />
       <div className="lg:pl-[var(--sidebar-width)]">

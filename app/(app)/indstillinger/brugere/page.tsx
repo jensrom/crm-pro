@@ -186,8 +186,8 @@ export default async function BrugerSide({
 
       <p className="text-xs text-muted-foreground max-w-prose">
         PIN'en gemmes som en scrypt-hash med eget salt — hverken du eller nogen anden kan læse den ud af databasen.
-        Ligger databasefilen på et drev andre kan åbne, kan de dog stadig læse alt indhold direkte i filen.
-        PIN-koden spærrer programmet, ikke filen.
+        Fem forkerte forsøg i træk spærrer brugeren i 15 minutter. Brug derfor gerne 6–8 cifre, nu hvor
+        CRM-Pro ligger på internettet.
       </p>
     </div>
   );

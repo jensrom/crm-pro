@@ -30,15 +30,19 @@ function filstoerrelse(bytes: number): string {
  * moedereferat, email, andet). Ingen klient-JS: almindelige <form
  * action={...}> ligesom resten af CRM-Pro.
  */
-export function Filboks({ companyId, filer }: { companyId: string; filer: FilRaekke[] }) {
+export function Filboks({ companyId, filer, forStor = false }: { companyId: string; filer: FilRaekke[]; forStor?: boolean }) {
   const grupper = FILKATEGORIER
     .map((kat) => ({ kat, rows: filer.filter((f) => f.category === kat) }))
     .filter((g) => g.rows.length > 0);
 
   return (
     <Card>
-      <CardHeader title="Filer" description="Kontrakter, planer, mødereferater og andet på denne kunde." />
+      <div id="filer" className="scroll-mt-24" />
+      <CardHeader title="Filer" description="Kontrakter, planer, mødereferater og andet på denne kunde. Højst 4 MB pr. fil." />
       <CardBody className="flex flex-col gap-5">
+        {forStor && (
+          <p className="text-sm text-danger rounded-lg bg-danger/[0.08] px-3 py-2">Filen er for stor. Grænsen er 4 MB pr. fil.</p>
+        )}
         <form
           action={uploadFil.bind(null, companyId)}
           className="flex flex-wrap items-end gap-3 rounded-lg border border-dashed border-border p-4"

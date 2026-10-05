@@ -1,12 +1,14 @@
-// CRM-Pro — lokal Prisma-model på SQLite.
-// Arvet fra CRM-X, men uden tenant-lag, brugerstyring og betaling.
+// CRM-Pro — Prisma-model på Postgres (Neon via Vercel).
+// DATABASE_URL er den poolede forbindelse appen bruger; DATABASE_URL_UNPOOLED
+// er den direkte, som skemaændringer (prisma db push) kører over.
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 // ============================================================
@@ -115,8 +117,8 @@ model Contact {
 
 // ============================================================
 // FILBOKS — kontrakter, planer, mødereferater m.m. pr. kunde
-// Filerne selv ligger på disk under datamappen (se lib/filer.ts), ikke i
-// SQLite-filen — kun stien til dem gemmes her.
+// Filerne ligger i databasen (bytea). Vercel har ingen vedvarende disk, og så
+// følger filerne med i backup og adgangskontrol uden en ekstra tjeneste.
 // ============================================================
 
 model Attachment {
@@ -128,8 +130,8 @@ model Attachment {
   category String @default("andet")
   mimeType String
   sizeBytes Int
-  /// Sti relativt til datamappen, fx "filer/<companyId>/<cuid>-navn.pdf"
-  storedPath String
+  /// Selve filen
+  data      Bytes
 
   createdAt DateTime @default(now())
   /// Initialer på den der uploadede filen. Tom = ukendt.
@@ -389,6 +391,10 @@ model User {
   isActive Boolean @default(true)
 
   lastLoginAt DateTime?
+  /// Mislykkede loginforsøg i træk. Nulstilles ved korrekt login.
+  failedLogins Int       @default(0)
+  /// Spærret for login indtil dette tidspunkt efter for mange forkerte forsøg
+  lockedUntil  DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   /// Initialer på den der gemte sidst. Tom = ukendt (fx indlæst data).

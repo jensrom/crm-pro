@@ -1,7 +1,6 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import { laesKonfig } from "@/lib/config";
 
 /**
  * Selve login-cookien, adskilt fra resten af auth-laget.
@@ -9,8 +8,7 @@ import { laesKonfig } from "@/lib/config";
  * Grunden til at den bor for sig: både auth og databaselaget skal kunne læse
  * hvem der sidder ved tasterne, og databaselaget må ikke slå brugeren op i
  * databasen for at finde ud af det. Et opslag midt i en skrivning ville tage
- * en ekstra forbindelse til den samme SQLite-fil — og det er lige præcis den
- * slags der låser sig fast over et netværksdrev.
+ * en ekstra databaseforespørgsel for hver eneste skrivning.
  *
  * Derfor bærer cookien selv initialerne. Den er HMAC-signeret, så den kan ikke
  * ændres udefra, og initialerne bruges udelukkende til at skrive "sidst gemt
@@ -22,8 +20,20 @@ export const LEVETID_SEK = 60 * 60 * 12; // en arbejdsdag
 
 export type SessionKiks = { id: string; initials: string | null };
 
+/**
+ * Nøglen der signerer login-cookien. Sættes som AUTH_SECRET i Vercel (mindst
+ * 32 tegn). Uden den kan ingen logge ind i produktion — hellere det end en
+ * forudsigelig nøgle.
+ */
+export function authSecret() {
+  const s = process.env.AUTH_SECRET?.trim();
+  if (s && s.length >= 32) return s;
+  if (process.env.NODE_ENV !== "production") return "dev-hemmelighed-kun-til-lokal-udvikling-0000";
+  throw new Error("AUTH_SECRET mangler eller er kortere end 32 tegn");
+}
+
 function signer(data: string) {
-  return createHmac("sha256", laesKonfig().authSecret).update(data).digest("hex");
+  return createHmac("sha256", authSecret()).update(data).digest("hex");
 }
 
 export function pak(brugerId: string, initialer: string) {

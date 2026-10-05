@@ -1,5 +1,7 @@
 "use server";
 
+import { kraevBruger } from "@/lib/auth";
+
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
@@ -15,6 +17,7 @@ const num = (v: FormDataEntryValue | null) => {
 };
 
 export async function opretSag(formData: FormData) {
+  await kraevBruger();
   const companyId = txt(formData.get("companyId"));
   const title = txt(formData.get("title"));
   if (!companyId || !title) return;
@@ -38,6 +41,7 @@ export async function opretSag(formData: FormData) {
 }
 
 export async function flytStadie(id: string, stadie: string) {
+  await kraevBruger();
   const afsluttet = stadie === "vundet" || stadie === "tabt";
   const d = await db.deal.update({
     where: { id },
@@ -53,12 +57,14 @@ export async function flytStadie(id: string, stadie: string) {
 }
 
 export async function sletSag(id: string) {
+  await kraevBruger();
   await db.deal.delete({ where: { id } });
   revalidatePath("/pipeline");
   revalidatePath("/dashboard");
 }
 
 export async function opretAktivitet(formData: FormData) {
+  await kraevBruger();
   const subject = txt(formData.get("subject"));
   if (!subject) return;
   const forfald = txt(formData.get("dueDate"));
@@ -80,6 +86,7 @@ export async function opretAktivitet(formData: FormData) {
 }
 
 export async function skiftAktivitet(id: string, faerdig: boolean) {
+  await kraevBruger();
   const a = await db.activity.update({
     where: { id },
     data: { completedAt: faerdig ? new Date() : null },
@@ -90,12 +97,14 @@ export async function skiftAktivitet(id: string, faerdig: boolean) {
 }
 
 export async function sletAktivitet(id: string) {
+  await kraevBruger();
   const a = await db.activity.delete({ where: { id } });
   revalidatePath("/aktiviteter");
   if (a.companyId) revalidatePath(`/kunder/${a.companyId}`);
 }
 
 export async function gemIndstillinger(formData: FormData) {
+  await kraevBruger();
   const note = txt(formData.get("dataSourceNote"));
   await db.settings.upsert({
     where: { id: "singleton" },

@@ -9,6 +9,7 @@
 // Kan køres igen — den opdaterer eksisterende i stedet for at lave dubletter,
 // og rører aldrig felter du selv har udfyldt (noter, prioritet, pakkevalg).
 import { PrismaClient } from '@prisma/client';
+import { klargoer } from '../scripts/klargoering.mjs';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -149,55 +150,6 @@ async function main() {
   console.log(`  ${nye} nye kunder, ${opdaterede} opdaterede`);
   console.log(`  ${kontakter} kontaktpersoner, ${linjer} licenslinjer oprettet`);
   console.log(`  ${udenPakke} kunder mangler pakkevalg — sæt dem under Produkter`);
-  await katalogOgRoller();
+  await klargoer(prisma);
   console.log('Færdig. Ingen salgsmuligheder oprettet — dem opretter du selv.');
 }
-
-/**
- * Samme klargøring som den pakkede app laver ved opstart (electron/bootstrap.mjs):
- * licenser uden produkt lægges under "Idus", prishistorikken startes, og der
- * sikres mindst én superadministrator.
- */
-async function katalogOgRoller() {
-  if ((await prisma.productFamily.count()) === 0) {
-    await prisma.productFamily.create({ data: { id: 'fam-idus', name: 'Idus', description: 'Idus Online', sortOrder: 1 } });
-  }
-  const idus = await prisma.productFamily.findUnique({ where: { id: 'fam-idus' } });
-  if (idus && !idus.commercialTerms && !idus.generalTerms) {
-    const { readFileSync, existsSync } = await import('node:fs');
-    const laes = (f) => (existsSync(`prisma/betingelser/${f}`) ? readFileSync(`prisma/betingelser/${f}`, 'utf8').trim() : null);
-    await prisma.productFamily.update({
-      where: { id: 'fam-idus' },
-      data: { commercialTerms: laes('idus-kommercielle.txt'), generalTerms: laes('idus-generelle.txt') },
-    });
-  }
-  const foerste = await prisma.productFamily.findFirst({ orderBy: { sortOrder: 'asc' } });
-  const flyttet = await prisma.product.updateMany({ where: { familyId: null }, data: { familyId: foerste.id } });
-  if (flyttet.count) console.log(`  ${flyttet.count} licenser lagt under "${foerste.name}" i kataloget`);
-
-  const udenHistorik = await prisma.product.findMany({ where: { prices: { none: {} } } });
-  for (const p of udenHistorik) {
-    await prisma.productPrice.create({
-      data: {
-        productId: p.id,
-        price: p.licenseModel === 'perpetual' ? p.oneTimePrice : p.pricePerUserMonth,
-        validFrom: p.createdAt,
-        appliedAt: new Date(),
-        note: 'Pris da kataloget blev oprettet',
-      },
-    });
-  }
-
-  const superadmins = await prisma.user.count({ where: { role: 'superadmin', isActive: true } });
-  if (superadmins === 0) {
-    const aeldste = await prisma.user.findFirst({ where: { role: 'admin', isActive: true }, orderBy: { createdAt: 'asc' } });
-    if (aeldste) {
-      await prisma.user.update({ where: { id: aeldste.id }, data: { role: 'superadmin' } });
-      console.log(`  ${aeldste.initials} er gjort til superadministrator`);
-    }
-  }
-}
-
-main()
-  .catch((e) => { console.error(e); process.exit(1); })
-  .finally(() => prisma.$disconnect());
