@@ -17,6 +17,7 @@ import {
   Flame,
   PackagePlus,
   FileText,
+  RefreshCw,
 } from "lucide-react";
 
 type NavItem = { label: string; href: string; icon: React.ElementType };
@@ -41,7 +42,8 @@ const SEKTIONER: { sektion: string; punkter: NavItem[] }[] = [
       { label: "Pipeline", href: "/pipeline", icon: KanbanSquare },
       { label: "Produkter", href: "/produkter", icon: Package },
       { label: "Tilkøb", href: "/tilkoeb", icon: PackagePlus },
-      { label: "Ordrer", href: "/ordrer", icon: FileText },
+      { label: "Tilbud og ordrer", href: "/ordrer", icon: FileText },
+      { label: "Fornyelser", href: "/fornyelser", icon: RefreshCw },
     ],
   },
   {

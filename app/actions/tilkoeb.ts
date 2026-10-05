@@ -11,6 +11,7 @@ import { db } from "@/lib/db";
 import { kraevAdmin, kraevBruger } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { registrerLicensaendring as registrer } from "@/lib/licenser";
 
 const txt = (v: FormDataEntryValue | null) => {
   const s = typeof v === "string" ? v.trim() : "";
@@ -58,7 +59,6 @@ export async function registrerLicensaendring(kundeId: string, formData: FormDat
   const foer = linje?.seats ?? 0;
   const delta = reduktion ? -antal : antal;
   if (foer + delta < 0) redirect(`${tilbage}?tilkoeb=for-mange#tilkoeb`);
-  const efter = foer + delta;
 
   // Prisen pr. licens: det du skriver — ellers kundens aftalte pris, ellers listeprisen.
   const perpetual = produkt.licenseModel === "perpetual";
@@ -68,39 +68,18 @@ export async function registrerLicensaendring(kundeId: string, formData: FormDat
   const dato = datoFra(formData.get("date"));
   const note = txt(formData.get("note"));
 
-  await db.$transaction(async (tx) => {
-    if (linje) {
-      await tx.customerProduct.update({ where: { id: linje.id }, data: { seats: efter } });
-    } else {
-      await tx.customerProduct.create({
-        data: { companyId: kundeId, productId, seats: efter, activeSeats: 0, startDate: dato },
-      });
-    }
-    await tx.licenseChange.create({
-      data: {
-        companyId: kundeId,
-        productId,
-        quantity: delta,
-        seatsBefore: foer,
-        seatsAfter: efter,
-        unitPrice: pris,
-        licenseModel: produkt.licenseModel,
-        date: dato,
-        note,
-        createdBy: mig.initials,
-      },
-    });
-    await tx.logEntry.create({
-      data: {
-        companyId: kundeId,
-        kind: "aftale",
-        content:
-          `${reduktion ? "Reduktion" : "Tilkøb"}: ${delta > 0 ? "+" : ""}${delta} × ${produkt.name} (${foer} → ${efter})` +
-          (note ? ` — ${note}` : ""),
-        author: mig.initials,
-      },
-    });
-  });
+  await db.$transaction((tx) =>
+    registrer(tx, {
+      companyId: kundeId,
+      productId,
+      delta,
+      unitPrice: pris,
+      date: dato,
+      note,
+      initials: mig.initials,
+      ny: { startDate: dato },
+    })
+  );
 
   opfrisk(kundeId);
   redirect(`${tilbage}?tilkoeb=gemt#tilkoeb`);

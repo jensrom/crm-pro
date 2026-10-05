@@ -316,6 +316,19 @@ function ProduktRediger({ familie }: { familie: Familie }) {
             <div className="sm:col-span-2"><Label htmlFor="en">Navn</Label><Input id="en" name="name" defaultValue={familie.name} required /></div>
             <div><Label htmlFor="es">Sortering</Label><Input id="es" name="sortOrder" type="number" defaultValue={familie.sortOrder} /></div>
             <div className="sm:col-span-2"><Label htmlFor="ed">Beskrivelse</Label><Textarea id="ed" name="description" defaultValue={familie.description ?? ""} className="min-h-[70px]" /></div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="ec">Kommercielle betingelser — én pr. linje, fx &quot;Betaling: 14 dage netto.&quot;</Label>
+              <Textarea id="ec" name="commercialTerms" defaultValue={familie.commercialTerms ?? ""} className="min-h-[150px] font-mono text-xs" />
+              <p className="text-xs text-muted-foreground mt-1">Står på tilbud og ordrebekræftelser med licenser fra produktet. Linjen &quot;Gyldighed&quot; vises kun på tilbud.</p>
+            </div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="eg">Generelle betingelser (Terms &amp; Conditions)</Label>
+              <Textarea id="eg" name="generalTerms" defaultValue={familie.generalTerms ?? ""} className="min-h-[220px] font-mono text-xs" />
+              <p className="text-xs text-muted-foreground mt-1">
+                Sættes ind på egne sider bagerst i dokumentet. Punktnumre adskilt med tabulator (&quot;1.1.→tekst&quot;) får hængende indryk.
+                {familie.generalTerms ? ` ${tal(familie.generalTerms.length)} tegn.` : ""}
+              </p>
+            </div>
             <label className="sm:col-span-2 flex items-center gap-2 text-sm">
               <input type="checkbox" name="isActive" defaultChecked={familie.isActive} className="h-4 w-4 rounded border-input accent-[hsl(var(--primary))]" />
               Aktivt — licenserne kan vælges på kunder og sager
@@ -418,7 +431,8 @@ function NyLicens({ familier, valgtFamilieId }: { familier: Familie[]; valgtFami
           <ModelValg />
           <div><Label htmlFor="lk">Varenummer</Label><Input id="lk" name="sku" placeholder="valgfrit" /></div>
           <div><Label htmlFor="lo">Sortering</Label><Input id="lo" name="sortOrder" type="number" placeholder="rækkefølge under produktet" /></div>
-          <div className="sm:col-span-2"><Label htmlFor="ld">Beskrivelse</Label><Textarea id="ld" name="description" className="min-h-[70px]" /></div>
+          <div className="sm:col-span-2"><Label htmlFor="ld">Intern beskrivelse</Label><Textarea id="ld" name="description" className="min-h-[60px]" /></div>
+          <div className="sm:col-span-2"><Label htmlFor="ldt">Tekst på tilbud og ordrebekræftelser</Label><Textarea id="ldt" name="documentText" className="min-h-[80px]" /></div>
           <div className="sm:col-span-2 border-t border-border pt-4"><StilVaelger /></div>
           <div className="sm:col-span-2 flex justify-end gap-2">
             <Link href={KAT}><Button variant="secondary" type="button">Fortryd</Button></Link>
@@ -452,7 +466,11 @@ function LicensRediger({ licens, familier }: { licens: Licens; familier: Familie
           <div><Label htmlFor="ek">Varenummer</Label><Input id="ek" name="sku" defaultValue={licens.sku ?? ""} /></div>
           <ModelValg valgt={licens.licenseModel} />
           <div><Label htmlFor="eo">Sortering</Label><Input id="eo" name="sortOrder" type="number" defaultValue={licens.sortOrder} /></div>
-          <div className="sm:col-span-2"><Label htmlFor="ed">Beskrivelse</Label><Textarea id="ed" name="description" defaultValue={licens.description ?? ""} className="min-h-[70px]" /></div>
+          <div className="sm:col-span-2"><Label htmlFor="ed">Intern beskrivelse</Label><Textarea id="ed" name="description" defaultValue={licens.description ?? ""} className="min-h-[60px]" /></div>
+          <div className="sm:col-span-2">
+            <Label htmlFor="edt">Tekst på tilbud og ordrebekræftelser</Label>
+            <Textarea id="edt" name="documentText" defaultValue={licens.documentText ?? ""} className="min-h-[90px]" placeholder="fx OPC Router 5 – Basic indeholder følgende plugins: OPC UA/Classic Client og SQL Server." />
+          </div>
           <div className="sm:col-span-2 border-t border-border pt-4"><StilVaelger valgtIkon={licens.icon} valgtFarve={licens.color} /></div>
           <label className="sm:col-span-2 flex items-center gap-2 text-sm">
             <input type="checkbox" name="isActive" defaultChecked={licens.isActive} className="h-4 w-4 rounded border-input accent-[hsl(var(--primary))]" />

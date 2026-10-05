@@ -30,6 +30,8 @@ extraResources:
     to: app/prisma/schema.prisma
   - from: prisma/init.sql
     to: app/prisma/init.sql
+  - from: prisma/betingelser
+    to: app/prisma/betingelser
   - from: data/kunder.json
     to: app/data/kunder.json
   - from: electron

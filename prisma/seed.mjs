@@ -162,6 +162,15 @@ async function katalogOgRoller() {
   if ((await prisma.productFamily.count()) === 0) {
     await prisma.productFamily.create({ data: { id: 'fam-idus', name: 'Idus', description: 'Idus Online', sortOrder: 1 } });
   }
+  const idus = await prisma.productFamily.findUnique({ where: { id: 'fam-idus' } });
+  if (idus && !idus.commercialTerms && !idus.generalTerms) {
+    const { readFileSync, existsSync } = await import('node:fs');
+    const laes = (f) => (existsSync(`prisma/betingelser/${f}`) ? readFileSync(`prisma/betingelser/${f}`, 'utf8').trim() : null);
+    await prisma.productFamily.update({
+      where: { id: 'fam-idus' },
+      data: { commercialTerms: laes('idus-kommercielle.txt'), generalTerms: laes('idus-generelle.txt') },
+    });
+  }
   const foerste = await prisma.productFamily.findFirst({ orderBy: { sortOrder: 'asc' } });
   const flyttet = await prisma.product.updateMany({ where: { familyId: null }, data: { familyId: foerste.id } });
   if (flyttet.count) console.log(`  ${flyttet.count} licenser lagt under "${foerste.name}" i kataloget`);

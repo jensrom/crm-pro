@@ -117,7 +117,8 @@ export default async function BrugerSide({
               <form action={gemBruger.bind(null, under.id)} className="grid sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2"><Label htmlFor="name">Navn</Label><Input id="name" name="name" defaultValue={under.name} required /></div>
                 <div><Label htmlFor="email">Mail</Label><Input id="email" name="email" type="email" defaultValue={under.email ?? ""} /></div>
-                <div><Label htmlFor="phone">Telefon</Label><Input id="phone" name="phone" defaultValue={under.phone ?? ""} /></div>
+                <div><Label htmlFor="phone">Tlf. direkte</Label><Input id="phone" name="phone" defaultValue={under.phone ?? ""} /></div>
+                <div><Label htmlFor="mobile">Tlf. mobil</Label><Input id="mobile" name="mobile" defaultValue={under.mobile ?? ""} /></div>
                 <div><Label htmlFor="title">Stilling</Label><Input id="title" name="title" defaultValue={under.title ?? ""} /></div>
                 <div>
                   <Label htmlFor="role">Rolle</Label>
@@ -163,7 +164,8 @@ export default async function BrugerSide({
               <div><Label htmlFor="npin2">PIN (4–8 cifre)</Label><Input id="npin2" name="pin" type="password" inputMode="numeric" required placeholder="••••" /></div>
               <div className="sm:col-span-2"><Label htmlFor="nname">Navn</Label><Input id="nname" name="name" required /></div>
               <div><Label htmlFor="nemail">Mail</Label><Input id="nemail" name="email" type="email" /></div>
-              <div><Label htmlFor="nphone">Telefon</Label><Input id="nphone" name="phone" /></div>
+              <div><Label htmlFor="nphone">Tlf. direkte</Label><Input id="nphone" name="phone" /></div>
+              <div><Label htmlFor="nmobile">Tlf. mobil</Label><Input id="nmobile" name="mobile" /></div>
               <div><Label htmlFor="ntitle">Stilling</Label><Input id="ntitle" name="title" /></div>
               <div>
                 <Label htmlFor="nrole">Rolle</Label>

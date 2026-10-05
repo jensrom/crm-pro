@@ -1,11 +1,16 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { aftalePeriode } from "@/lib/perioder";
 
 export const subNr = (n: number | null | undefined) => (n == null ? "SUB-?????" : `SUB-${String(n).padStart(5, "0")}`);
 /** Antal frie tekstlinjer på en ny ordrebekræftelse. */
 export const ANTAL_FRIE_LINJER = 3;
 
 export const ordreNr = (n: number) => `ORD-${String(n).padStart(5, "0")}`;
+export const tilbudNr = (n: number) => `TIL-${String(n).padStart(5, "0")}`;
+/** Nummeret på et tilbud eller en ordrebekræftelse */
+export const dokNr = (o: { kind: string; number: number }) => (o.kind === "tilbud" ? tilbudNr(o.number) : ordreNr(o.number));
+export const dokNavn = (kind: string) => (kind === "tilbud" ? "Tilbud" : "Ordrebekræftelse");
 
 /**
  * Giver licenslinjer uden SUB-nummer det næste ledige. Kaldes før der vises
@@ -27,41 +32,17 @@ export async function sikrSubNumre(companyId?: string) {
   return uden.length;
 }
 
-const INTERVAL_MDR: Record<string, number> = { monthly: 1, quarterly: 3, biannual: 6, annual: 12 };
-export const intervalMaaneder = (i: string | null | undefined) => INTERVAL_MDR[i ?? "annual"] ?? 12;
-
-function plusMaaneder(d: Date, m: number) {
-  const r = new Date(d);
-  r.setMonth(r.getMonth() + m);
-  return r;
-}
-
 /**
- * Foreslår licensperioden der dækker i dag: fra linjens startdato frem i
- * faktureringsintervaller. Perpetual har ingen slutdato. Har linjen en
- * slutdato, er det den der gælder som yderste grænse.
+ * Licensperioden på beviset: den aftaleperiode der dækker i dag (startdato +
+ * aftaleperiode, eller udløbsdatoen hvis den er sat). Perpetual har ingen slutdato.
  */
 export function foreslaaPeriode(
-  linje: { startDate: Date; endDate: Date | null; billingInterval: string },
+  linje: { startDate: Date; endDate: Date | null; termMonths?: number | null },
   licenseModel: string | null | undefined,
   nu = new Date()
 ): { fra: Date; til: Date | null } {
-  const start = new Date(linje.startDate);
-  start.setHours(0, 0, 0, 0);
-  if (licenseModel === "perpetual") return { fra: start, til: linje.endDate };
-
-  const m = intervalMaaneder(linje.billingInterval);
-  let fra = start;
-  let naeste = plusMaaneder(fra, m);
-  let vagt = 0;
-  while (naeste <= nu && vagt++ < 1000) {
-    fra = naeste;
-    naeste = plusMaaneder(fra, m);
-  }
-  const til = new Date(naeste);
-  til.setDate(til.getDate() - 1);
-  if (linje.endDate && linje.endDate < til) return { fra, til: linje.endDate };
-  return { fra, til };
+  if (licenseModel === "perpetual") return { fra: linje.startDate, til: linje.endDate };
+  return aftalePeriode(linje, nu);
 }
 
 /** yyyy-mm-dd i lokal tid — til <input type="date">. */
@@ -81,6 +62,7 @@ export function fraIsoDato(s: string | null | undefined): Date | null {
 
 export type Afsender = {
   navn: string;
+  afdeling: string | null;
   cvr: string | null;
   adresse: string | null;
   postby: string | null;
@@ -100,6 +82,7 @@ export async function hentAfsender(): Promise<Afsender> {
   const s = await db.settings.findUnique({ where: { id: "singleton" } });
   return {
     navn: s?.docCompanyName ?? "Afsender ikke udfyldt",
+    afdeling: s?.docDepartment ?? null,
     cvr: s?.docCvr ?? null,
     adresse: s?.docAddress ?? null,
     postby: s?.docZipCity ?? null,

@@ -78,6 +78,7 @@ export async function gemDokumentindstillinger(formData: FormData) {
     create: { id: "singleton" },
     update: {
       docCompanyName: txt(formData.get("docCompanyName")),
+      docDepartment: txt(formData.get("docDepartment")),
       docCvr: txt(formData.get("docCvr")),
       docAddress: txt(formData.get("docAddress")),
       docZipCity: txt(formData.get("docZipCity")),
@@ -87,7 +88,7 @@ export async function gemDokumentindstillinger(formData: FormData) {
       docWebsite: txt(formData.get("docWebsite")),
       docBankInfo: txt(formData.get("docBankInfo")),
       docPaymentTerms: txt(formData.get("docPaymentTerms")),
-      docVatRate: n != null && Number.isFinite(n) ? n : null,
+      ...(formData.has("docVatRate") ? { docVatRate: n != null && Number.isFinite(n) ? n : null } : {}),
       docCertText: txt(formData.get("docCertText")),
       docOrderText: txt(formData.get("docOrderText")),
     },

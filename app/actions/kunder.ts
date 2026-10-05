@@ -71,6 +71,8 @@ export async function gemLicenslinje(kundeId: string, formData: FormData) {
     notes: txt(formData.get("notes")),
     ...(productId ? { productId } : {}),
     ...(startDato(formData.get("startDate")) ? { startDate: startDato(formData.get("startDate"))! } : {}),
+    ...(formData.has("endDate") ? { endDate: startDato(formData.get("endDate")) } : {}),
+    ...(formData.has("termMonths") ? { termMonths: Math.max(1, heltal(formData.get("termMonths")) ?? 12) } : {}),
   };
   if (id) await db.customerProduct.update({ where: { id }, data });
   else if (productId) await db.customerProduct.create({ data: { companyId: kundeId, ...data, productId } });

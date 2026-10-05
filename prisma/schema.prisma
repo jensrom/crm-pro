@@ -152,6 +152,10 @@ model ProductFamily {
   id          String  @id @default(cuid())
   name        String
   description String?
+  /// Kommercielle betingelser på tilbud og ordrebekræftelser. Én pr. linje: "Betaling: 14 dage netto".
+  commercialTerms String?
+  /// Generelle salgs- og leveringsbetingelser (T&C). Sættes ind på egne sider bagest i dokumentet.
+  generalTerms    String?
   sortOrder   Int     @default(0)
   isActive    Boolean @default(true)
 
@@ -176,6 +180,8 @@ model Product {
   licenseModel String @default("sub")
   /// Engangspris pr. licens. Kun for perpetual.
   oneTimePrice Float?
+  /// Beskrivende tekst under positionen på tilbud og ordrebekræftelser
+  documentText String?
   name        String
   description String?
   sku         String?
@@ -273,7 +279,10 @@ model CustomerProduct {
 
   billingInterval String    @default("annual")
   startDate       DateTime  @default(now())
+  /// Aftalens nuværende udløb (sidste dag i perioden). Tom = beregnes ud fra startdato + aftaleperiode.
   endDate         DateTime?
+  /// Aftaleperiode i måneder (typisk 12, 24 eller 36). Bruges ved fornyelse.
+  termMonths      Int       @default(12)
   notes           String?
   isActive        Boolean   @default(true)
 
@@ -371,6 +380,8 @@ model User {
   name     String
   email    String?
   phone    String?
+  /// Mobilnummer — står på tilbud og ordrebekræftelser
+  mobile   String?
   title    String?
   /// superadmin | admin | bruger — kun superadmin har adgang til Indstillinger
   role     String  @default("bruger")
@@ -584,6 +595,8 @@ model Settings {
 
   // --- Dokumenter (licensbevis og ordrebekræftelse) ---
   docCompanyName  String?
+  /// Afdeling i dokumenthovedet, fx "Novotek A/S, Horsens"
+  docDepartment   String?
   docCvr          String?
   docAddress      String?
   docZipCity      String?
@@ -615,8 +628,10 @@ model Settings {
 
 model Order {
   id     String  @id @default(cuid())
-  /// Fortløbende nummer, vises som ORD-00001
-  number Int     @unique
+  /// tilbud | ordre — hver sin nummerserie (TIL-00001 / ORD-00001)
+  kind   String  @default("ordre")
+  /// Fortløbende nummer inden for typen
+  number Int
   companyId String?
 
   recipientName    String
@@ -625,9 +640,17 @@ model Order {
   recipientEmail   String?
   /// Kundens reference / PO-nummer
   reference String?
+  /// Indledende tekst under overskriften. %KUNDENAVN% erstattes med modtageren.
+  intro     String?
   orderDate DateTime @default(now())
   note      String?
   vatRate   Float    @default(25)
+  /// Kun tilbud: hvor længe tilbuddet gælder
+  validUntil DateTime?
+  /// Tilbuddet en ordrebekræftelse er lavet ud fra
+  sourceOrderId String?
+  /// Hvornår ordren blev lagt over på kundens aftaler (licensantal og udløb)
+  appliedAt DateTime?
 
   /// Filboks-posten PDF'en blev gemt som (kun når ordren har en kunde)
   attachmentId String?
@@ -638,6 +661,7 @@ model Order {
   company Company?    @relation(fields: [companyId], references: [id], onDelete: SetNull)
   lines   OrderLine[]
 
+  @@unique([kind, number])
   @@index([companyId])
   @@index([orderDate])
   @@map("orders")
@@ -650,6 +674,8 @@ model OrderLine {
 
   /// Teksten på linjen, typisk "Idus · Idus Online Professional"
   description  String
+  /// Beskrivende tekst under positionen (kopieret fra licensen, kan rettes)
+  details      String?
   quantity     Int
   /// Pris pr. enhed (sub: pr. bruger pr. md., perpetual: pr. licens)
   unitPrice    Float?
@@ -657,6 +683,13 @@ model OrderLine {
   months       Int?
   licenseModel String  @default("sub")
   sortOrder    Int     @default(0)
+  /// nyt | fornyelse | fri
+  lineKind     String  @default("nyt")
+  /// Kundens licenslinje som fornyelsen gælder
+  customerProductId String?
+  periodStart  DateTime?
+  /// Sidste dag i perioden
+  periodEnd    DateTime?
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 

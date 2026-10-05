@@ -61,6 +61,12 @@ class Dok {
     this.nySide();
   }
 
+  /** Logo øverst til højre på hver side (salgsdokumenter). Kaldes lige efter start(). */
+  logoPaaAlleSider() {
+    this.logoAlle = true;
+    this.tegnSidelogo();
+  }
+
   private async indlejrLogo(dataUrl: string | null) {
     const m = dataUrl?.match(/^data:image\/(png|jpe?g);base64,(.+)$/i);
     if (!m) return null;
@@ -72,17 +78,34 @@ class Dok {
     }
   }
 
+  logoAlle = false;
+
   nySide() {
     this.side = this.pdf.addPage([A4.b, A4.h]);
     this.sider.push(this.side);
     this.y = A4.h - MARGIN;
     // Tynd orange streg i toppen — samme accent som appen
     this.side.drawRectangle({ x: 0, y: A4.h - 6, width: A4.b, height: 6, color: ORANGE });
+    if (this.logoAlle) this.tegnSidelogo();
+  }
+
+  private tegnSidelogo() {
+    const top = A4.h - 30;
+    if (this.logo) {
+      const s = Math.min(30 / this.logo.height, 140 / this.logo.width);
+      const w = this.logo.width * s;
+      const h = this.logo.height * s;
+      this.side.drawImage(this.logo, { x: A4.b - MARGIN - w, y: top - h, width: w, height: h });
+      this.y = top - h - 18;
+    } else {
+      this.skriv(this.afsender.navn, A4.b - MARGIN, top - 14, { str: 14, fed: true, hoejre: true });
+      this.y = top - 34;
+    }
   }
 
   /** Sørger for plads til h punkter — ellers ny side. */
   plads(h: number) {
-    if (this.y - h < MARGIN + 60) {
+    if (this.y - h < 92) {
       this.nySide();
       return true;
     }
@@ -126,13 +149,18 @@ class Dok {
     return ud;
   }
 
-  afsnit(t: string | null | undefined, o: { str?: number; farve?: ReturnType<typeof rgb>; fed?: boolean } = {}) {
+  afsnit(
+    t: string | null | undefined,
+    o: { str?: number; farve?: ReturnType<typeof rgb>; fed?: boolean; x?: number; centreret?: boolean } = {}
+  ) {
     if (!t) return;
     const str = o.str ?? 9.5;
-    for (const l of this.ombryd(t, A4.b - 2 * MARGIN, str, o.fed)) {
+    const x = o.x ?? MARGIN;
+    for (const l of this.ombryd(t, A4.b - MARGIN - x, str, o.fed)) {
       this.plads(str + 4);
-      this.skriv(l, MARGIN, this.y - str, { str, farve: o.farve, fed: o.fed });
-      this.y -= str + 4;
+      const xx = o.centreret ? (A4.b - this.bredde(l, str, o.fed)) / 2 : x;
+      this.skriv(l, xx, this.y - str, { str, farve: o.farve, fed: o.fed });
+      this.y -= str + 4.5;
     }
   }
 
@@ -232,6 +260,53 @@ class Dok {
     }
   }
 
+  /** To kolonner: nøgle til venstre, værdi til højre (ombrudt). */
+  noegleVaerdi(par: [string, string][]) {
+    const kx = MARGIN + 105;
+    const b = A4.b - MARGIN - kx;
+    for (const [k, v] of par) {
+      const linjer = this.ombryd(v, k ? b : A4.b - 2 * MARGIN, 9.5);
+      this.plads(linjer.length * 13 + 2);
+      if (k) this.skriv(k, MARGIN, this.y - 9.5, { str: 9.5, fed: true });
+      linjer.forEach((l, i) => this.skriv(l, k ? kx : MARGIN, this.y - 9.5 - i * 13, { str: 9.5 }));
+      this.y -= linjer.length * 13 + 2;
+    }
+  }
+
+  /**
+   * Lange betingelser (T&C) i lille skrift. Linjer der starter med et
+   * punktnummer ("1." / "1.1.") eller en definition før en tabulator får et
+   * hængende indryk; korte linjer uden punktum (overskrifter) står med fed.
+   */
+  betingelsestekst(t: string) {
+    const str = 7.6;
+    const lh = 9.6;
+    const ind = 34;
+    for (const raa of t.replace(/\r/g, "").split("\n")) {
+      const linje = raa.replace(/\s+$/, "");
+      if (!linje.trim()) {
+        this.y -= lh * 0.6;
+        continue;
+      }
+      const tab = linje.match(/^([^\t]{1,40})\t+(.*)$/);
+      const nummer = tab ? tab[1].trim() : "";
+      const rest = tab ? tab[2] : linje;
+      const overskrift = /^\d+\.$/.test(nummer) || (!tab && linje.length < 60 && !/[.;:]$/.test(linje.trim()));
+      // Punktnumre ("1.1.") får et smalt indryk, definitioner ("Agreement") en bred kolonne
+      const indryk = tab ? (/^[\d.]+$|^[a-z]\)$|^-$/i.test(nummer) ? ind : 150) : 0;
+      const bredde = A4.b - 2 * MARGIN - indryk;
+      const dele = this.ombryd(rest, bredde, str, overskrift);
+      if (overskrift) this.y -= lh * 0.4;
+      this.plads(Math.min(dele.length, 3) * lh);
+      if (tab) this.skriv(nummer, MARGIN, this.y - str, { str, fed: overskrift, farve: overskrift ? ORANGE : SORT });
+      dele.forEach((d, i) => {
+        if (i > 0) this.plads(lh);
+        this.skriv(d, MARGIN + indryk, this.y - str, { str, fed: overskrift, farve: overskrift ? ORANGE : rgb(0.25, 0.24, 0.22) });
+        this.y -= lh;
+      });
+    }
+  }
+
   overskrift(t: string) {
     this.plads(30);
     this.y -= 10;
@@ -240,21 +315,29 @@ class Dok {
   }
 
   /** Afsenderoplysninger og sidetal nederst på hver side. */
+  /** Hvor "Side 1 af N" skal stå i dokumenthovedet (udfyldes, når antal sider kendes). */
+  sideFelt: { x: number; y: number } | null = null;
+
   fod() {
+    if (this.sideFelt) {
+      this.sider[0].drawText(`1 af ${this.sider.length}`, { x: this.sideFelt.x, y: this.sideFelt.y, size: 9, font: this.f, color: SORT });
+    }
     const a = this.afsender;
-    const linje1 = [a.navn, a.cvr ? `CVR ${a.cvr}` : null, a.adresse, a.postby, a.land].filter(Boolean).join("  ·  ");
-    const linje2 = [a.telefon, a.mail, a.web, a.bank].filter(Boolean).join("  ·  ");
+    // Tre kolonner som Novoteks brevfod: firma | bank og CVR | afdeling
+    const kol1 = [a.navn, a.adresse, a.postby, a.telefon ? `Tlf. ${a.telefon}` : null].filter(Boolean) as string[];
+    const kol2 = [...(a.bank ?? "").split("\n").map((x) => x.trim()).filter(Boolean), a.cvr ? `CVR: ${a.cvr}` : null].filter(Boolean) as string[];
+    const kol3 = [a.afdeling, a.mail, a.web].filter(Boolean) as string[];
     this.sider.forEach((s, i) => {
-      s.drawLine({ start: { x: MARGIN, y: 48 }, end: { x: A4.b - MARGIN, y: 48 }, thickness: 0.6, color: LINJE });
-      const skriv = (t: string, y: number) => {
-        const tt = ren(t);
-        const w = this.f.widthOfTextAtSize(tt, 7.5);
-        s.drawText(tt, { x: (A4.b - w) / 2, y, size: 7.5, font: this.f, color: GRAA });
-      };
-      skriv(linje1, 36);
-      if (linje2) skriv(linje2, 26);
+      s.drawLine({ start: { x: MARGIN, y: 74 }, end: { x: A4.b - MARGIN, y: 74 }, thickness: 0.6, color: LINJE });
+      const kolonne = (linjer: string[], x: number) =>
+        linjer.slice(0, 6).forEach((t, j) =>
+          s.drawText(ren(t), { x, y: 62 - j * 8.5, size: 6.8, font: j === 0 ? this.fb : this.f, color: j === 0 ? SORT : GRAA })
+        );
+      kolonne(kol1, MARGIN);
+      kolonne(kol2, MARGIN + 175);
+      kolonne(kol3, MARGIN + 360);
       const sidetal = `Side ${i + 1} af ${this.sider.length}`;
-      s.drawText(sidetal, { x: A4.b - MARGIN - this.f.widthOfTextAtSize(sidetal, 7.5), y: 14, size: 7.5, font: this.f, color: GRAA });
+      s.drawText(sidetal, { x: A4.b - MARGIN - this.f.widthOfTextAtSize(sidetal, 7), y: 12, size: 7, font: this.f, color: GRAA });
     });
   }
 
@@ -346,92 +429,217 @@ export async function lavLicensbevis(d: {
 }
 
 // ============================================================
-// ORDREBEKRÆFTELSE
+// TILBUD OG ORDREBEKRÆFTELSE
+// Opbygget som Novoteks egne dokumenter: modtager til venstre, sælgerens
+// oplysninger til højre, en indledning og derefter positionerne én for én
+// med beskrivelse, periode og nettopris. Til sidst samlet nettopris,
+// kommercielle betingelser, hilsen og de generelle betingelser.
 // ============================================================
 
 export type OrdreLinjePdf = {
   beskrivelse: string;
+  detaljer?: string | null;
   antal: number;
   enhedspris: number | null;
   maaneder: number | null;
   model: string;
+  fra?: Date | null;
+  til?: Date | null;
 };
 
 export function linjebeloeb(l: { antal: number; enhedspris: number | null; maaneder: number | null }) {
   return l.enhedspris == null ? 0 : l.antal * l.enhedspris * (l.maaneder ?? 1);
 }
 
-export async function lavOrdrebekraeftelse(d: {
+/** "Nøgle: værdi" eller "Nøgle<TAB>værdi" pr. linje → par. Linjer uden skilletegn står alene. */
+function betingelsesPar(t: string): [string, string][] {
+  return t
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => {
+      const m = l.match(/^([^:\t]{1,40}?)\s*(?:\t+|:)\s*(.+)$/);
+      return m ? ([m[1].trim(), m[2].trim()] as [string, string]) : (["", l] as [string, string]);
+    });
+}
+
+const langDato = (d: Date) => {
+  const ugedag = new Intl.DateTimeFormat("da-DK", { weekday: "long" }).format(d);
+  const rest = new Intl.DateTimeFormat("da-DK", { day: "numeric", month: "long", year: "numeric" }).format(d);
+  return `${ugedag} d. ${rest}`;
+};
+
+export type Saelger = { navn: string | null; mail: string | null; telefon: string | null; mobil: string | null };
+
+export async function lavSalgsdokument(d: {
+  kind: string;
   afsender: Afsender;
+  saelger: Saelger;
   nummer: string;
+  tilbudsnummer: string | null;
   dato: Date;
+  gyldigTil: Date | null;
   reference: string | null;
-  konto: string | null;
   modtager: { navn: string; att?: string | null; adresse?: string | null; mail?: string | null };
+  intro: string | null;
   linjer: OrdreLinjePdf[];
-  moms: number;
   note: string | null;
-  udstedtAf: string | null;
+  betingelser: { name: string; commercialTerms: string | null; generalTerms: string | null }[];
 }) {
-  const dok = new Dok(d.afsender, "Ordrebekræftelse");
+  const tilbud = d.kind === "tilbud";
+  const titel = tilbud ? "Tilbud" : "Ordrebekræftelse";
+  const dok = new Dok(d.afsender, titel);
   await dok.start();
-  dok.hoved([
-    ["Ordrenr.", d.nummer],
-    ["Ordredato", datoTekst(d.dato)],
-    ["Jeres reference", d.reference ?? ""],
-    ["Kundekonto", d.konto ?? ""],
-  ]);
-  dok.parter(
-    "Kunde",
-    [d.modtager.navn, d.modtager.att ? `Att. ${d.modtager.att}` : "", ...(d.modtager.adresse ?? "").split("\n"), d.modtager.mail ?? ""],
-    "Leverandør",
-    afsenderLinjer(d.afsender)
-  );
+  dok.logoPaaAlleSider();
 
-  dok.afsnit("Tak for jeres ordre. Vi bekræfter hermed følgende:", { str: 10 });
-  dok.y -= 8;
+  // Pladsholdere i tekster: %KUNDENAVN%, %KUNDE NAVN%, %KONTAKTPERSON%, %BRUGERENS NAVN%
+  const flet = (t: string) =>
+    t
+      .replace(/%KUNDE ?NAVN%/gi, d.modtager.navn)
+      .replace(/%KONTAKTPERSON%/gi, d.modtager.att ?? "")
+      .replace(/%BRUGERENS NAVN%/gi, d.saelger.navn ?? "");
 
-  dok.tabel(
-    [
-      { titel: "Beskrivelse", bredde: 210 },
-      { titel: "Antal", bredde: 45, hoejre: true },
-      { titel: "Enhedspris", bredde: 95, hoejre: true },
-      { titel: "Periode", bredde: 65, hoejre: true },
-      { titel: "Beløb", bredde: 95, hoejre: true },
-    ],
-    d.linjer.map((l) => [
-      l.beskrivelse,
-      String(l.antal),
-      l.enhedspris == null ? "-" : `${kr(l.enhedspris)}${l.maaneder ? "\npr. md." : ""}`,
-      l.maaneder ? `${l.maaneder} mdr.` : "Engang",
-      kr(linjebeloeb(l)),
-    ]),
-    { fedSidsteKolonne: true }
-  );
+  const INDRYK = MARGIN + 100; // kolonnen positionernes tekst står i
+  const BELOEB_X = A4.b - MARGIN; // beløb højrestilles her
 
-  const sub = d.linjer.reduce((s, l) => s + linjebeloeb(l), 0);
-  const moms = (sub * d.moms) / 100;
-  dok.summer([
-    ["Subtotal ekskl. moms", kr(sub)],
-    [`Moms ${String(d.moms).replace(".", ",")} %`, kr(moms)],
-    ["Total inkl. moms", kr(sub + moms), true],
-  ]);
+  // ---------- Hoved: modtager til venstre, sælger og dokumentdata til højre ----------
+  const hTop = dok.y;
+  let yv = hTop - 12;
+  const venstreB = 220;
+  const modtagerLinjer = [d.modtager.navn, ...(d.modtager.adresse ?? "").split("\n").filter(Boolean)];
+  for (const l of modtagerLinjer) {
+    for (const del of dok.ombryd(l, venstreB, 10.5, true)) {
+      dok.skriv(del, MARGIN, yv, { str: 10.5, fed: true });
+      yv -= 14;
+    }
+  }
+  if (d.modtager.att) {
+    yv -= 12;
+    for (const del of dok.ombryd(`Att.: ${d.modtager.att}`, venstreB, 10.5, true)) {
+      dok.skriv(del, MARGIN, yv, { str: 10.5, fed: true });
+      yv -= 14;
+    }
+  }
+  const kx = MARGIN + 265;
+  const vx = kx + 78;
+  const meta: [string, string][] = [
+    ["Afdeling", d.afsender.afdeling ?? d.afsender.navn],
+    ["Navn", d.saelger.navn ?? ""],
+    ["E-mail", d.saelger.mail ?? d.afsender.mail ?? ""],
+    ["Tlf. direkte", d.saelger.telefon ?? d.afsender.telefon ?? ""],
+    ["Tlf. mobil", d.saelger.mobil ?? ""],
+    ["Deres ref.", d.modtager.att ?? ""],
+    ["Deres rekv. nr.", d.reference ?? ""],
+    ["Vor ordre nr.", tilbud ? "--" : d.nummer],
+    ["Vor tilbuds nr.", tilbud ? d.nummer : d.tilbudsnummer ?? "--"],
+    ...(tilbud && d.gyldigTil ? ([["Gyldigt til", datoTekst(d.gyldigTil)]] as [string, string][]) : []),
+    ["Dato", langDato(d.dato)],
+    ["Side", ""],
+  ];
+  let yh = hTop - 10;
+  for (const [k, v] of meta) {
+    dok.skriv(k, kx, yh, { str: 8.5, farve: GRAA });
+    if (k === "Side") dok.sideFelt = { x: vx, y: yh };
+    else dok.skriv(v, vx, yh, { str: 8.5 });
+    yh -= 11.5;
+  }
+  dok.y = Math.min(yv, yh) - 22;
+
+  // ---------- Overskrift og indledning ----------
+  const tb = dok.bredde(titel, 15, true);
+  dok.skriv(titel, (A4.b - tb) / 2, dok.y - 15, { str: 15, fed: true });
+  dok.side.drawRectangle({ x: (A4.b - 36) / 2, y: dok.y - 23, width: 36, height: 2, color: ORANGE });
+  dok.y -= 38;
+  if (d.intro) {
+    dok.afsnit(flet(d.intro), { str: 10.5 });
+    dok.y -= 6;
+  }
+
+  // ---------- Positioner ----------
+  d.linjer.forEach((l, i) => {
+    const pos = i + 1;
+    const beloeb = linjebeloeb(l);
+    dok.plads(80);
+    dok.y -= 16;
+    const posTekst = `Pos. ${pos}:`;
+    dok.skriv(posTekst, MARGIN, dok.y - 11, { str: 11, fed: true });
+    dok.side.drawLine({
+      start: { x: MARGIN, y: dok.y - 13.5 },
+      end: { x: MARGIN + dok.bredde(posTekst, 11, true), y: dok.y - 13.5 },
+      thickness: 0.8,
+      color: ORANGE,
+    });
+    const navnLinjer = dok.ombryd(l.beskrivelse, BELOEB_X - INDRYK, 11, true);
+    navnLinjer.forEach((t, j) => dok.skriv(t, INDRYK, dok.y - 11 - j * 14.5, { str: 11, fed: true }));
+    dok.y -= navnLinjer.length * 14.5 + 10;
+
+    if (l.detaljer) {
+      dok.afsnit(flet(l.detaljer), { str: 10, x: INDRYK });
+      dok.y -= 6;
+    }
+
+    const linjer: string[] = [];
+    if (l.maaneder) {
+      if (l.fra && l.til) linjer.push(`Periode: ${datoTekst(l.fra)} - ${datoTekst(l.til)} (${l.maaneder} måneder).`);
+      if (l.enhedspris != null)
+        linjer.push(`${l.antal} ${l.antal === 1 ? "licens" : "licenser"} à ${kr(l.enhedspris)} pr. måned.`);
+      linjer.push(`Det samlede beløb for perioden på ${l.maaneder} måneder er ${kr(beloeb)}`);
+    } else if (l.enhedspris != null && l.antal > 1) {
+      linjer.push(`${l.antal} stk. à ${kr(l.enhedspris)}`);
+    }
+    for (const t of linjer) dok.afsnit(t, { str: 10, x: INDRYK });
+
+    dok.plads(24);
+    dok.y -= 8;
+    dok.skriv(`Pris netto pos. ${pos}`, INDRYK, dok.y - 10.5, { str: 10.5, fed: true });
+    dok.skriv(kr(beloeb), BELOEB_X, dok.y - 10.5, { str: 10.5, fed: true, hoejre: true });
+    dok.y -= 18;
+  });
+
+  // ---------- Samlet ----------
+  const total = d.linjer.reduce((s, l) => s + linjebeloeb(l), 0);
+  dok.plads(40);
+  dok.y -= 14;
+  dok.side.drawRectangle({ x: MARGIN, y: dok.y - 26, width: A4.b - 2 * MARGIN, height: 26, color: FLADE });
+  dok.skriv(d.linjer.length > 1 ? `Samlet pris netto pos. 1 - ${d.linjer.length}` : "Samlet pris netto", MARGIN + 8, dok.y - 17, { str: 11, fed: true });
+  dok.skriv(kr(total), BELOEB_X - 8, dok.y - 17, { str: 11, fed: true, hoejre: true });
+  dok.y -= 34;
 
   if (d.note) {
-    dok.overskrift("Bemærkninger");
-    dok.afsnit(d.note);
+    dok.y -= 4;
+    dok.afsnit(flet(d.note), { str: 10 });
   }
-  if (d.afsender.betaling) {
-    dok.overskrift("Betalingsbetingelser");
-    dok.afsnit(d.afsender.betaling);
+
+  // ---------- Kommercielle betingelser ----------
+  const kommercielle = d.betingelser.filter((b) => b.commercialTerms?.trim());
+  if (kommercielle.length) {
+    for (const [i, b] of kommercielle.entries()) {
+      // Gyldighed hører til tilbuddet, ikke ordrebekræftelsen
+      const par = betingelsesPar(b.commercialTerms!).filter(([k]) => tilbud || !/^gyldighed/i.test(k));
+      // Hold betingelserne (og hilsenen efter den sidste blok) samlet på én side
+      const hoejde = par.length * 15 + 40 + (i === kommercielle.length - 1 ? 70 : 0);
+      if (hoejde < 400) dok.plads(hoejde);
+      dok.overskrift(kommercielle.length > 1 ? `Kommercielle betingelser — ${b.name}` : "Kommercielle betingelser");
+      dok.noegleVaerdi(par);
+    }
+  } else {
+    if (d.afsender.betaling) {
+      dok.overskrift("Betalingsbetingelser");
+      dok.afsnit(d.afsender.betaling);
+    }
+    if (d.afsender.ordreTekst) {
+      dok.overskrift("Betingelser");
+      dok.afsnit(d.afsender.ordreTekst, { farve: GRAA, str: 9 });
+    }
   }
-  if (d.afsender.ordreTekst) {
-    dok.overskrift("Betingelser");
-    dok.afsnit(d.afsender.ordreTekst, { farve: GRAA, str: 9 });
-  }
-  if (d.udstedtAf) {
-    dok.y -= 14;
-    dok.afsnit(`Med venlig hilsen\n${d.udstedtAf}\n${d.afsender.navn}`);
+
+  dok.y -= 16;
+  dok.afsnit(["Med venlig hilsen", d.saelger.navn, d.afsender.navn].filter(Boolean).join("\n"), { str: 10 });
+
+  // ---------- Generelle betingelser bagerst ----------
+  for (const b of d.betingelser.filter((x) => x.generalTerms?.trim())) {
+    dok.nySide();
+    dok.betingelsestekst(b.generalTerms!);
   }
 
   return dok.gem();

@@ -110,22 +110,39 @@ try {
       ["familyId", "TEXT"],
       ["licenseModel", "TEXT NOT NULL DEFAULT 'sub'"],
       ["oneTimePrice", "REAL"],
+      ["documentText", "TEXT"],
     ],
-    customer_products: [["updatedBy", "TEXT"], ["subNumber", "INTEGER"]],
+    customer_products: [["updatedBy", "TEXT"], ["subNumber", "INTEGER"], ["termMonths", "INTEGER NOT NULL DEFAULT 12"]],
+    orders: [
+      ["kind", "TEXT NOT NULL DEFAULT 'ordre'"],
+      ["intro", "TEXT"],
+      ["validUntil", "DATETIME"],
+      ["sourceOrderId", "TEXT"],
+      ["appliedAt", "DATETIME"],
+    ],
+    product_families: [["commercialTerms", "TEXT"], ["generalTerms", "TEXT"]],
+    order_lines: [
+      ["lineKind", "TEXT NOT NULL DEFAULT 'nyt'"],
+      ["details", "TEXT"],
+      ["customerProductId", "TEXT"],
+      ["periodStart", "DATETIME"],
+      ["periodEnd", "DATETIME"],
+    ],
     deals: [["updatedBy", "TEXT"]],
     activities: [["updatedBy", "TEXT"]],
-    users: [["updatedBy", "TEXT"]],
+    users: [["updatedBy", "TEXT"], ["mobile", "TEXT"]],
     tickets: [["updatedBy", "TEXT"]],
     hour_bundles: [["updatedBy", "TEXT"]],
     customer_notes: [["updatedBy", "TEXT"]],
     settings: [
       ["updatedBy", "TEXT"],
-      ...["docCompanyName", "docCvr", "docAddress", "docZipCity", "docCountry", "docEmail", "docPhone",
+      ...["docCompanyName", "docDepartment", "docCvr", "docAddress", "docZipCity", "docCountry", "docEmail", "docPhone",
         "docWebsite", "docBankInfo", "docPaymentTerms", "docCertText", "docOrderText"].map((k) => [k, "TEXT"]),
       ["docVatRate", "REAL"],
     ],
   };
   let tilfoejet = 0;
+  const nyeKolonner = new Set();
   for (const [tabel, kolonner] of Object.entries(KOLONNER)) {
     if (!(await tabelFindes(tabel))) continue;
     const info = await db.$queryRawUnsafe(`PRAGMA table_info(${tabel})`);
@@ -133,6 +150,7 @@ try {
     for (const [navn, type] of kolonner) {
       if (findes.has(navn)) continue;
       await db.$executeRawUnsafe(`ALTER TABLE ${tabel} ADD COLUMN ${navn} ${type}`);
+      nyeKolonner.add(`${tabel}.${navn}`);
       tilfoejet++;
     }
   }
@@ -143,6 +161,13 @@ try {
   await db.$executeRawUnsafe(
     'CREATE UNIQUE INDEX IF NOT EXISTS "customer_products_subNumber_key" ON "customer_products"("subNumber")'
   );
+  // Tilbud og ordrebekræftelser har hver sin nummerserie: nummeret er unikt pr. type.
+  if (await tabelFindes("orders")) {
+    await db.$executeRawUnsafe('DROP INDEX IF EXISTS "orders_number_key"');
+    await db.$executeRawUnsafe(
+      'CREATE UNIQUE INDEX IF NOT EXISTS "orders_kind_number_key" ON "orders"("kind", "number")'
+    );
+  }
 
   // 2. Produkter
   const antalProdukter = await db.product.count();
@@ -172,11 +197,29 @@ try {
   // 2b. Katalog: licenserne skal hænge under et produkt. Første gang lægges
   //     alle eksisterende licenser under produktet "Idus", og deres nuværende
   //     pris skrives ind som første post i prishistorikken.
+  let idusNy = false;
   if ((await db.productFamily.count()) === 0) {
     await db.productFamily.create({
       data: { id: "fam-idus", name: "Idus", description: "Idus Online", sortOrder: 1 },
     });
+    idusNy = true;
     log('produktet "Idus" oprettet i kataloget');
+  }
+  // Idus' betingelser lægges ind én gang: når produktet oprettes, eller når
+  // felterne til betingelser lige er kommet til. Derefter er teksten din.
+  if (idusNy || nyeKolonner.has("product_families.commercialTerms")) {
+    const idus = await db.productFamily.findUnique({ where: { id: "fam-idus" } });
+    if (idus && !idus.commercialTerms && !idus.generalTerms) {
+      const laes = (f) => {
+        const sti = join(rod, "prisma", "betingelser", f);
+        return existsSync(sti) ? readFileSync(sti, "utf8").trim() : null;
+      };
+      await db.productFamily.update({
+        where: { id: "fam-idus" },
+        data: { commercialTerms: laes("idus-kommercielle.txt"), generalTerms: laes("idus-generelle.txt") },
+      });
+      log('betingelser lagt ind på "Idus"');
+    }
   }
   const uplacerede = await db.product.findMany({ where: { familyId: null }, select: { id: true } });
   if (uplacerede.length) {

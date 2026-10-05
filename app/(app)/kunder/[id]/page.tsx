@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Check, Download, ExternalLink, FileBadge, FileText, Flame, LifeBuoy, ListChecks, Mail, Minus, PackagePlus, Phone, Plus, Scissors, Trash2, Undo2 } from "lucide-react";
+import { ArrowLeft, Check, Download, ExternalLink, FileBadge, FileText, Flame, RefreshCw, LifeBuoy, ListChecks, Mail, Minus, PackagePlus, Phone, Plus, Scissors, Trash2, Undo2 } from "lucide-react";
 import { GemValg } from "@/components/ui/gem-valg";
 import { GemtAf } from "@/components/ui/gemt-af";
 import { Card, CardBody, CardHeader, EmptyState } from "@/components/ui/card";
@@ -30,7 +30,8 @@ import { licensGrupper, licensmodel, listepris } from "@/lib/katalog";
 import { LicensOptions } from "@/components/produkter/LicensOptions";
 import { fortrydLicensaendring, registrerLicensaendring } from "@/app/actions/tilkoeb";
 import { hentSession } from "@/lib/auth";
-import { isoDato, ordreNr, sikrSubNumre, subNr } from "@/lib/dokumenter";
+import { dokNr, isoDato, sikrSubNumre, subNr } from "@/lib/dokumenter";
+import { aftaleUdloeb, dagTekst } from "@/lib/perioder";
 import { ordreTotal } from "@/lib/ordre-pdf";
 
 export const dynamic = "force-dynamic";
@@ -352,6 +353,31 @@ export default async function KundeSide({
                           {FAKTURERING.map((i) => <option key={i.key} value={i.key}>{i.label}</option>)}
                         </Select>
                       </div>
+                      {!perpetual && (
+                        <>
+                          <div>
+                            <Label htmlFor={`t-${l.id}`}>Aftaleperiode</Label>
+                            <Select id={`t-${l.id}`} name="termMonths" defaultValue={String(l.termMonths)}>
+                              {[...new Set([12, 24, 36, l.termMonths])].sort((a, b) => a - b).map((n) => (
+                                <option key={n} value={n}>{n} måneder</option>
+                              ))}
+                            </Select>
+                          </div>
+                          <div>
+                            <Label htmlFor={`e-${l.id}`}>Aftale udløber</Label>
+                            <Input id={`e-${l.id}`} name="endDate" type="date" defaultValue={isoDato(l.endDate)} title="Tom = beregnes ud fra startdato og aftaleperiode" />
+                          </div>
+                          <div className="col-span-2 flex items-end justify-between gap-2 pb-1">
+                            <span className="text-xs text-muted-foreground">
+                              Udløber <b className="text-foreground tabular">{dagTekst(aftaleUdloeb(l))}</b>
+                              {!l.endDate && " (beregnet)"}
+                            </span>
+                            <Link href={`/ordrer/ny?kunde=${kunde.id}&forny=${l.id}`}>
+                              <Button size="sm" variant="secondary" type="button"><RefreshCw className="h-3.5 w-3.5" /> Lav fornyelse</Button>
+                            </Link>
+                          </div>
+                        </>
+                      )}
                     </div>
                     <div><Label htmlFor={`n-${l.id}`}>Note</Label><Input id={`n-${l.id}`} name="notes" defaultValue={l.notes ?? ""} placeholder="fx moduler eller aftalenummer" /></div>
                     <div className="flex justify-between items-center">
@@ -468,8 +494,8 @@ export default async function KundeSide({
           <Card>
             <CardHeader
               title="Dokumenter"
-              description="Licensbevis med faste licensnumre (SUB) og ordrebekræftelser som PDF."
-              action={<Link href={`/ordrer?kunde=${kunde.id}`} className="text-xs font-medium text-primary hover:underline">Alle ordrer</Link>}
+              description="Licensbevis med faste licensnumre (SUB), tilbud, ordrebekræftelser og fornyelser som PDF."
+              action={<Link href={`/ordrer?kunde=${kunde.id}`} className="text-xs font-medium text-primary hover:underline">Alle tilbud og ordrer</Link>}
             />
             <CardBody className="flex flex-col gap-4">
               <div className="flex flex-wrap gap-2">
@@ -481,16 +507,27 @@ export default async function KundeSide({
                     <Button size="sm" variant="ghost"><FileBadge className="h-3.5 w-3.5" /> Kun {navn}</Button>
                   </Link>
                 ))}
-                <Link href={`/ordrer/ny?kunde=${kunde.id}`} className="sm:ml-auto">
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Link href={`/ordrer/ny?type=tilbud&kunde=${kunde.id}`}>
+                  <Button size="sm" variant="secondary"><FileText className="h-3.5 w-3.5" /> Nyt tilbud</Button>
+                </Link>
+                <Link href={`/ordrer/ny?type=ordre&kunde=${kunde.id}`}>
                   <Button size="sm"><FileText className="h-3.5 w-3.5" /> Ny ordrebekræftelse</Button>
                 </Link>
+                {[...new Map(kunde.customerProducts.filter((l) => l.product.family && l.product.licenseModel !== "perpetual").map((l) => [l.product.family!.id, l.product.family!.name])).entries()].map(([fid, navn]) => (
+                  <Link key={fid} href={`/ordrer/ny?kunde=${kunde.id}&fornyProdukt=${fid}`}>
+                    <Button size="sm" variant="ghost"><RefreshCw className="h-3.5 w-3.5" /> Forny {navn}</Button>
+                  </Link>
+                ))}
               </div>
               {kunde.orders.length > 0 && (
                 <ul className="divide-y divide-border border-t border-border">
                   {kunde.orders.map((o) => (
                     <li key={o.id} className="py-2 flex items-center justify-between gap-3 text-sm">
                       <Link href={`/ordrer/${o.id}`} className="hover:text-primary">
-                        <span className="font-medium tabular">{ordreNr(o.number)}</span>
+                        <span className="font-medium tabular">{dokNr(o)}</span>
+                        {o.kind === "tilbud" && <Badge variant="warning" className="ml-2">Tilbud</Badge>}
                         <span className="text-xs text-muted-foreground ml-2 tabular">{datoKort(o.orderDate)} · {o.lines.length} linjer</span>
                       </Link>
                       <span className="flex items-center gap-2">

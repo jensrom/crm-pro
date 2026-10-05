@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Download, FileText, Paperclip, Trash2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Download, FileText, Paperclip, RefreshCw, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { hentSession } from "@/lib/auth";
 import { dato, kroner } from "@/lib/format";
-import { ordreNr } from "@/lib/dokumenter";
+import { dokNavn, dokNr } from "@/lib/dokumenter";
+import { dagTekst } from "@/lib/perioder";
 import { ordreTotal } from "@/lib/ordre-pdf";
-import { sletOrdre } from "@/app/actions/ordrer";
+import { anvendOrdre, sletOrdre, tilbudTilOrdre } from "@/app/actions/ordrer";
 
 export const dynamic = "force-dynamic";
 
@@ -23,9 +25,13 @@ export default async function OrdreSide({ params, searchParams }: { params: Prom
     hentSession(),
   ]);
   if (!o) notFound();
+  const [kilde, afledte] = await Promise.all([
+    o.sourceOrderId ? db.order.findUnique({ where: { id: o.sourceOrderId }, select: { id: true, kind: true, number: true } }) : null,
+    db.order.findMany({ where: { sourceOrderId: o.id }, select: { id: true, kind: true, number: true } }),
+  ]);
+  const kanAnvendes = o.kind === "ordre" && !!o.companyId && !o.appliedAt && o.lines.some((l) => l.lineKind !== "fri");
 
   const sub = ordreTotal(o.lines);
-  const moms = (sub * o.vatRate) / 100;
 
   return (
     <div className="max-w-4xl flex flex-col gap-5">
@@ -34,8 +40,15 @@ export default async function OrdreSide({ params, searchParams }: { params: Prom
           <Link href={o.company ? `/kunder/${o.company.id}` : "/ordrer"} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-3.5 w-3.5" /> {o.company ? o.company.name : "Ordrebekræftelser"}
           </Link>
-          <h1 className="mt-1.5 text-xl font-semibold flex items-center gap-2"><FileText className="h-5 w-5" /> {ordreNr(o.number)}</h1>
-          <p className="text-xs text-muted-foreground mt-1">{dato(o.orderDate)} · {o.recipientName}{o.createdBy && ` · oprettet af ${o.createdBy}`}</p>
+          <h1 className="mt-1.5 text-xl font-semibold flex items-center gap-2"><FileText className="h-5 w-5" /> {dokNavn(o.kind)} {dokNr(o)}
+            {o.appliedAt && <Badge variant="success"><CheckCircle2 className="h-3 w-3 mr-1 inline" />Lagt på kunden</Badge>}
+          </h1>
+          <p className="text-xs text-muted-foreground mt-1">
+            {dato(o.orderDate)} · {o.recipientName}{o.createdBy && ` · oprettet af ${o.createdBy}`}
+            {o.validUntil && ` · gyldigt til ${dato(o.validUntil)}`}
+            {kilde && <> · lavet ud fra <Link href={`/ordrer/${kilde.id}`} className="text-primary hover:underline">{dokNr(kilde)}</Link></>}
+            {afledte.map((a) => <span key={a.id}> · ordre <Link href={`/ordrer/${a.id}`} className="text-primary hover:underline">{dokNr(a)}</Link></span>)}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <a href={`/api/dokumenter/ordre/${o.id}`}><Button size="sm"><Download className="h-3.5 w-3.5" /> Hent PDF</Button></a>
@@ -48,7 +61,47 @@ export default async function OrdreSide({ params, searchParams }: { params: Prom
       {besked === "oprettet" && (
         <Card className="border-success/40 bg-success/[0.06]">
           <CardBody className="text-sm">
-            Ordrebekræftelsen er oprettet{o.attachmentId ? " og gemt i kundens filboks" : ""}. Hent PDF'en med knappen ovenfor.
+            {dokNavn(o.kind)} er oprettet{o.attachmentId ? " og gemt i kundens filboks" : ""}
+            {o.appliedAt ? ", og kundens aftaler er opdateret" : ""}. Hent PDF'en med knappen ovenfor.
+          </CardBody>
+        </Card>
+      )}
+      {besked === "anvendt" && (
+        <Card className="border-success/40 bg-success/[0.06]"><CardBody className="text-sm">Kundens aftaler er opdateret ud fra ordren.</CardBody></Card>
+      )}
+
+      {o.kind === "tilbud" && (
+        <Card className="border-primary/40 bg-primary/[0.04]">
+          <CardBody>
+            <form action={tilbudTilOrdre.bind(null, o.id)} className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm">
+                <div className="font-medium">Accepteret? Lav ordrebekræftelsen ud fra tilbuddet.</div>
+                <div className="text-xs text-muted-foreground">Samme linjer og priser — nyt ORD-nummer og dagens dato.</div>
+              </div>
+              <div className="flex items-center gap-3">
+                {o.companyId && (
+                  <label className="flex items-center gap-2 text-xs">
+                    <input type="checkbox" name="opdater" value="1" defaultChecked className="h-4 w-4 rounded border-input accent-[hsl(var(--primary))]" />
+                    Opdatér kundens aftaler
+                  </label>
+                )}
+                <Button size="sm" type="submit"><FileText className="h-3.5 w-3.5" /> Lav ordrebekræftelse</Button>
+              </div>
+            </form>
+          </CardBody>
+        </Card>
+      )}
+
+      {kanAnvendes && (
+        <Card>
+          <CardBody>
+            <form action={anvendOrdre.bind(null, o.id)} className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm">
+                <div className="font-medium">Ordren er ikke lagt på kundens aftaler endnu.</div>
+                <div className="text-xs text-muted-foreground">Fornyelser flytter udløbsdatoen, nye licenser registreres som tilkøb.</div>
+              </div>
+              <Button size="sm" variant="secondary" type="submit"><RefreshCw className="h-3.5 w-3.5" /> Opdatér kundens aftaler</Button>
+            </form>
           </CardBody>
         </Card>
       )}
@@ -73,25 +126,28 @@ export default async function OrdreSide({ params, searchParams }: { params: Prom
                 <th className="px-5 py-2.5 font-medium">Beskrivelse</th>
                 <th className="px-3 py-2.5 font-medium text-right">Antal</th>
                 <th className="px-3 py-2.5 font-medium text-right">Enhedspris</th>
-                <th className="px-3 py-2.5 font-medium text-right">Periode</th>
+                <th className="px-3 py-2.5 font-medium">Periode</th>
                 <th className="px-5 py-2.5 font-medium text-right">Beløb</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {o.lines.map((l) => (
                 <tr key={l.id}>
-                  <td className="px-5 py-2.5">{l.description}</td>
+                  <td className="px-5 py-2.5">
+                    {l.description}
+                    {l.details && <div className="text-xs text-muted-foreground whitespace-pre-line mt-0.5 line-clamp-3">{l.details}</div>}
+                  </td>
                   <td className="px-3 py-2.5 text-right tabular">{l.quantity}</td>
                   <td className="px-3 py-2.5 text-right tabular">{l.unitPrice == null ? "–" : `${kroner(l.unitPrice)}${l.months ? "/md." : ""}`}</td>
-                  <td className="px-3 py-2.5 text-right tabular">{l.months ? `${l.months} mdr.` : "Engang"}</td>
+                  <td className="px-3 py-2.5 tabular text-xs">
+                    {l.months ? (l.periodStart && l.periodEnd ? `${dagTekst(l.periodStart)} – ${dagTekst(l.periodEnd)} (${l.months} mdr.)` : `${l.months} mdr.`) : "Engang"}
+                  </td>
                   <td className="px-5 py-2.5 text-right tabular">{kroner(l.unitPrice == null ? 0 : l.quantity * l.unitPrice * (l.months ?? 1))}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot className="text-sm">
-              <tr className="border-t border-border"><td colSpan={4} className="px-5 py-1.5 text-right text-muted-foreground">Subtotal ekskl. moms</td><td className="px-5 py-1.5 text-right tabular">{kroner(sub)}</td></tr>
-              <tr><td colSpan={4} className="px-5 py-1.5 text-right text-muted-foreground">Moms {o.vatRate} %</td><td className="px-5 py-1.5 text-right tabular">{kroner(moms)}</td></tr>
-              <tr className="font-semibold"><td colSpan={4} className="px-5 py-2 text-right">Total inkl. moms</td><td className="px-5 py-2 text-right tabular">{kroner(sub + moms)}</td></tr>
+              <tr className="font-semibold border-t border-border"><td colSpan={4} className="px-5 py-2 text-right">Samlet pris netto</td><td className="px-5 py-2 text-right tabular">{kroner(sub)}</td></tr>
             </tfoot>
           </table>
         </CardBody>
