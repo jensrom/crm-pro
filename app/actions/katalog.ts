@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { kraevSuperAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { erEngang } from "@/lib/katalog";
 
 const txt = (v: FormDataEntryValue | null) => {
   const s = typeof v === "string" ? v.trim() : "";
@@ -19,7 +20,7 @@ const num = (v: FormDataEntryValue | null) => {
   const n = Number(s.replace(/\s/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", "."));
   return Number.isFinite(n) ? n : null;
 };
-const model = (v: FormDataEntryValue | null) => (v === "perpetual" ? "perpetual" : "sub");
+const model = (v: FormDataEntryValue | null) => (v === "perpetual" ? "perpetual" : v === "fee" ? "fee" : "sub");
 
 /** "2026-10-05" → lokal midnat den dag. Tom/ugyldig = nu. */
 function datoFra(v: FormDataEntryValue | null) {
@@ -110,8 +111,8 @@ export async function opretLicens(formData: FormData) {
       name,
       familyId,
       licenseModel,
-      pricePerUserMonth: licenseModel === "sub" ? pris : null,
-      oneTimePrice: licenseModel === "perpetual" ? pris : null,
+      pricePerUserMonth: erEngang(licenseModel) ? null : pris,
+      oneTimePrice: erEngang(licenseModel) ? pris : null,
       sku: txt(formData.get("sku")),
       description: txt(formData.get("description")),
       documentText: txt(formData.get("documentText")),
@@ -141,6 +142,11 @@ export async function gemLicens(id: string, formData: FormData) {
 
   const nyModel = model(formData.get("licenseModel"));
   const skifter = nyModel !== foer.licenseModel;
+  // En licens kunderne allerede har, kan ikke gøres til en engangsydelse.
+  if (skifter && nyModel === "fee" && (await db.customerProduct.count({ where: { productId: id } })) > 0) {
+    redirect(`${KAT}?licens=${id}&fejl=ydelse-i-brug`);
+  }
+  const prisSkifterFelt = erEngang(nyModel) !== erEngang(foer.licenseModel);
 
   await db.product.update({
     where: { id },
@@ -149,8 +155,8 @@ export async function gemLicens(id: string, formData: FormData) {
       ...(familyId ? { familyId } : {}),
       licenseModel: nyModel,
       // Ved skift af licensmodel følger den nuværende pris med over i det nye felt.
-      ...(skifter
-        ? nyModel === "perpetual"
+      ...(prisSkifterFelt
+        ? erEngang(nyModel)
           ? { oneTimePrice: foer.pricePerUserMonth, pricePerUserMonth: null }
           : { pricePerUserMonth: foer.oneTimePrice, oneTimePrice: null }
         : {}),
@@ -197,7 +203,7 @@ export async function aendrPris(id: string, formData: FormData) {
   if (straks) {
     await db.product.update({
       where: { id },
-      data: p.licenseModel === "perpetual" ? { oneTimePrice: pris } : { pricePerUserMonth: pris },
+      data: erEngang(p.licenseModel) ? { oneTimePrice: pris } : { pricePerUserMonth: pris },
     });
   }
   opfrisk();

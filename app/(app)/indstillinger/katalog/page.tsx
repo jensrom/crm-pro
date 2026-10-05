@@ -23,7 +23,7 @@ const BESKEDER: Record<string, string> = {
   gemt: "Ændringerne er gemt.",
   "produkt-oprettet": "Produktet er oprettet. Læg nu licenserne ind under det.",
   "produkt-slettet": "Produktet er slettet.",
-  "licens-oprettet": "Licensen er oprettet.",
+  "licens-oprettet": "Oprettet. Den kan nu vælges på tilbud og ordrer.",
   "pris-aendret": "Prisen er ændret og gælder fra nu.",
   "pris-planlagt": "Prisændringen er planlagt og træder i kraft på datoen.",
   "pris-annulleret": "Den planlagte prisændring er annulleret.",
@@ -35,6 +35,7 @@ const FEJL: Record<string, string> = {
   "licens-mangler": "Licensen skal have et navn og høre under et produkt.",
   "har-licenser": "Produktet har stadig licenser. Flyt eller slet dem først.",
   "findes-ikke": "Licensen findes ikke længere.",
+  "ydelse-i-brug": "Licensen ligger på kunder og kan derfor ikke gøres til en engangsydelse. Opret ydelsen som en ny post i stedet.",
 };
 
 function iDag() {
@@ -137,7 +138,7 @@ export default async function KatalogSide({
                             <ProduktMaerke icon={l.icon} color={l.color} size="sm" />
                             <span className="truncate">{l.name}</span>
                           </span>
-                          <Badge variant={l.licenseModel === "perpetual" ? "warning" : "muted"} className="shrink-0">
+                          <Badge variant={l.licenseModel === "perpetual" ? "warning" : l.licenseModel === "fee" ? "info" : "muted"} className="shrink-0">
                             {licensmodel(l.licenseModel).kort}
                           </Badge>
                         </Link>
@@ -149,7 +150,7 @@ export default async function KatalogSide({
                       href={`${KAT}?ny=licens&produkt=${f.id}`}
                       className="flex items-center gap-1.5 pl-6 pr-4 py-1.5 text-xs text-muted-foreground hover:text-primary"
                     >
-                      <Plus className="h-3.5 w-3.5" /> Ny licens under {f.name}
+                      <Plus className="h-3.5 w-3.5" /> Ny licens / ydelse under {f.name}
                     </Link>
                   </li>
                 </ul>
@@ -263,7 +264,7 @@ function Oversigt({ familier }: { familier: Familie[] }) {
                         </Link>
                       </td>
                       <td className="px-3 py-2.5">
-                        <Badge variant={l.licenseModel === "perpetual" ? "warning" : "muted"}>{licensmodel(l.licenseModel).label}</Badge>
+                        <Badge variant={l.licenseModel === "perpetual" ? "warning" : l.licenseModel === "fee" ? "info" : "muted"}>{licensmodel(l.licenseModel).label}</Badge>
                       </td>
                       <td className="px-3 py-2.5 text-right tabular">{prisTekst(l)}</td>
                       <td className="px-3 py-2.5 text-right tabular">{tal(l.customerProducts.length)}</td>
@@ -387,15 +388,15 @@ function ProduktRediger({ familie }: { familie: Familie }) {
 function ModelValg({ valgt = "sub" }: { valgt?: string }) {
   return (
     <div className="sm:col-span-2">
-      <span className="block text-xs font-medium text-muted-foreground mb-1.5">Licensmodel</span>
-      <div className="grid sm:grid-cols-2 gap-2">
+      <span className="block text-xs font-medium text-muted-foreground mb-1.5">Type</span>
+      <div className="grid sm:grid-cols-3 gap-2">
         {LICENSMODELLER.map((m) => (
           <label key={m.key} className="cursor-pointer">
             <input type="radio" name="licenseModel" value={m.key} defaultChecked={m.key === valgt} className="sr-only peer" />
             <span className="flex flex-col rounded-lg border border-border px-3 py-2.5 text-sm transition-colors hover:bg-secondary peer-checked:border-primary peer-checked:bg-primary/[0.06]">
               <span className="font-medium">{m.label}</span>
               <span className="text-xs text-muted-foreground">
-                {m.key === "sub" ? "Abonnement — pris pr. bruger pr. måned" : "Købt én gang — pris pr. licens"}
+                {m.beskrivelse}
               </span>
             </span>
           </label>
@@ -417,17 +418,17 @@ function NyLicens({ familier, valgtFamilieId }: { familier: Familie[]; valgtFami
   }
   return (
     <Card>
-      <CardHeader title="Ny licens" description="Navn, produkt og pris er nok. Prisen bliver første post i prishistorikken." />
+      <CardHeader title="Ny licens eller ydelse" description="Navn, produkt og pris er nok. Prisen bliver første post i prishistorikken. Vælg Engangsydelse til gebyrer og ydelser som extension fee." />
       <CardBody>
         <form action={opretLicens} className="grid sm:grid-cols-2 gap-4">
-          <div className="sm:col-span-2"><Label htmlFor="ln">Navn</Label><Input id="ln" name="name" required placeholder="fx Idus Online Professional" /></div>
+          <div className="sm:col-span-2"><Label htmlFor="ln">Navn</Label><Input id="ln" name="name" required placeholder="fx Idus Online Professional eller Extension fee" /></div>
           <div>
             <Label htmlFor="lf">Produkt</Label>
             <Select id="lf" name="familyId" defaultValue={valgtFamilieId} required>
               {familier.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
             </Select>
           </div>
-          <div><Label htmlFor="lp">Pris (kr.)</Label><Input id="lp" name="price" inputMode="decimal" placeholder="sub: pr. bruger/md. · perpetual: pr. licens" /></div>
+          <div><Label htmlFor="lp">Pris (kr.)</Label><Input id="lp" name="price" inputMode="decimal" placeholder="sub: pr. bruger/md. · perpetual: pr. licens · ydelse: pr. stk." /></div>
           <ModelValg />
           <div><Label htmlFor="lk">Varenummer</Label><Input id="lk" name="sku" placeholder="valgfrit" /></div>
           <div><Label htmlFor="lo">Sortering</Label><Input id="lo" name="sortOrder" type="number" placeholder="rækkefølge under produktet" /></div>
@@ -436,7 +437,7 @@ function NyLicens({ familier, valgtFamilieId }: { familier: Familie[]; valgtFami
           <div className="sm:col-span-2 border-t border-border pt-4"><StilVaelger /></div>
           <div className="sm:col-span-2 flex justify-end gap-2">
             <Link href={KAT}><Button variant="secondary" type="button">Fortryd</Button></Link>
-            <Button type="submit">Opret licens</Button>
+            <Button type="submit">Opret</Button>
           </div>
         </form>
       </CardBody>

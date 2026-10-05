@@ -1,5 +1,6 @@
 "use server";
 
+import { erEngang } from "@/lib/katalog";
 import { db } from "@/lib/db";
 import { kraevAdmin, kraevBruger } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
@@ -135,7 +136,7 @@ export async function opretOrdre(formData: FormData) {
   const produkter = valgte.length ? await db.product.findMany({ where: { id: { in: valgte } }, include: { family: true } }) : [];
   produkter.sort((a, b) => (a.family?.sortOrder ?? 999) - (b.family?.sortOrder ?? 999) || a.sortOrder - b.sortOrder);
   for (const pr of produkter) {
-    const perpetual = pr.licenseModel === "perpetual";
+    const perpetual = erEngang(pr.licenseModel);
     const p = perpetual ? { start: null, slut: null, mdr: null } : periode(formData, `n_${pr.id}_`, idag);
     linjer.push({
       productId: pr.id,

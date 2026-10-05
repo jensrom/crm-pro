@@ -47,7 +47,7 @@ export async function anvendOrdrePaaKunde(orderId: string, initials: string | nu
           },
         });
         antal++;
-      } else if (l.lineKind === "nyt" && l.productId) {
+      } else if (l.lineKind === "nyt" && l.productId && l.licenseModel !== "fee") {
         await registrerLicensaendring(tx, {
           companyId,
           productId: l.productId,

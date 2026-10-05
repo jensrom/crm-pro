@@ -39,3 +39,6 @@ coverage/
 *.spec.bak
 .vercel
 .env*.local
+
+.vercel
+.env*

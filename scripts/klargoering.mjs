@@ -38,7 +38,7 @@ export async function klargoer(prisma, log = console.log) {
     await prisma.productPrice.create({
       data: {
         productId: p.id,
-        price: p.licenseModel === "perpetual" ? p.oneTimePrice : p.pricePerUserMonth,
+        price: p.licenseModel === "perpetual" || p.licenseModel === "fee" ? p.oneTimePrice : p.pricePerUserMonth,
         validFrom: p.createdAt,
         appliedAt: new Date(),
         note: "Pris da kataloget blev oprettet",

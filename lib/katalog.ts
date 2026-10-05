@@ -2,9 +2,15 @@ import "server-only";
 import { db } from "@/lib/db";
 
 export const LICENSMODELLER = [
-  { key: "sub", label: "Subscription", kort: "Sub", enhed: "pr. bruger/md." },
-  { key: "perpetual", label: "Perpetual", kort: "Perpetual", enhed: "pr. licens (engang)" },
+  { key: "sub", label: "Subscription", kort: "Sub", enhed: "pr. bruger/md.", beskrivelse: "Abonnement — pris pr. bruger pr. måned" },
+  { key: "perpetual", label: "Perpetual", kort: "Perpetual", enhed: "pr. licens (engang)", beskrivelse: "Købt én gang — pris pr. licens" },
+  { key: "fee", label: "Engangsydelse", kort: "Ydelse", enhed: "pr. stk. (engang)", beskrivelse: "Gebyr eller ydelse — fx extension fee, opsætning, kursus. Bliver aldrig en licens på kunden" },
 ] as const;
+
+/** Engangspris (oneTimePrice) i stedet for månedspris: perpetual og engangsydelser. */
+export const erEngang = (m: string | null | undefined) => m === "perpetual" || m === "fee";
+/** Engangsydelser er ikke licenser — de kan kun bruges på tilbud og ordrer. */
+export const erYdelse = (m: string | null | undefined) => m === "fee";
 
 export function licensmodel(key: string | null | undefined) {
   return LICENSMODELLER.find((m) => m.key === key) ?? LICENSMODELLER[0];
@@ -12,7 +18,7 @@ export function licensmodel(key: string | null | undefined) {
 
 /** Licensens gældende listepris — månedspris for sub, engangspris for perpetual. */
 export function listepris(p: { licenseModel?: string | null; pricePerUserMonth: number | null; oneTimePrice?: number | null }) {
-  return p.licenseModel === "perpetual" ? p.oneTimePrice ?? null : p.pricePerUserMonth;
+  return erEngang(p.licenseModel) ? p.oneTimePrice ?? null : p.pricePerUserMonth;
 }
 
 /**
@@ -29,7 +35,7 @@ export async function anvendPlanlagtePriser(nu = new Date()) {
     orderBy: { validFrom: "asc" },
   });
   for (const pp of klar) {
-    const felt = pp.product.licenseModel === "perpetual" ? { oneTimePrice: pp.price } : { pricePerUserMonth: pp.price };
+    const felt = erEngang(pp.product.licenseModel) ? { oneTimePrice: pp.price } : { pricePerUserMonth: pp.price };
     await db.$transaction([
       db.product.update({ where: { id: pp.productId }, data: felt }),
       db.productPrice.update({ where: { id: pp.id }, data: { appliedAt: nu } }),
@@ -57,12 +63,14 @@ export async function hentKatalog({ kunAktive = false } = {}) {
   return { familier, uplacerede };
 }
 
-/** Licenser grupperet efter produkt — til <optgroup> i dropdowns. */
+/** Licenser grupperet efter produkt — til <optgroup> i dropdowns. Engangsydelser er ikke licenser og er udeladt. */
 export async function licensGrupper({ kunAktive = true } = {}) {
   const { familier, uplacerede } = await hentKatalog({ kunAktive });
+  const kunLicenser = <T extends { licenseModel: string }>(l: T[]) => l.filter((p) => !erYdelse(p.licenseModel));
   const grupper = familier
-    .filter((f) => f.products.length > 0)
-    .map((f) => ({ id: f.id, navn: f.name, licenser: f.products }));
-  if (uplacerede.length) grupper.push({ id: "uden", navn: "Uden produkt", licenser: uplacerede });
+    .map((f) => ({ id: f.id, navn: f.name, licenser: kunLicenser(f.products) }))
+    .filter((g) => g.licenser.length > 0);
+  const uden = kunLicenser(uplacerede);
+  if (uden.length) grupper.push({ id: "uden", navn: "Uden produkt", licenser: uden });
   return grupper;
 }

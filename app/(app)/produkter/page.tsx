@@ -111,6 +111,7 @@ export default async function ProdukterSide({
                       <span>·</span>
                       <span>{licenser} licenser</span>
                       {p.licenseModel === "perpetual" && <Badge variant="warning">Perpetual</Badge>}
+                      {p.licenseModel === "fee" && <Badge variant="info">Engangsydelse</Badge>}
                       {!p.isActive && <Badge variant="muted">Arkiveret</Badge>}
                     </div>
                   </Link>
