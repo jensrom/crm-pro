@@ -8,7 +8,8 @@ import { GruppeFlueben } from "@/components/dokumenter/GruppeFlueben";
 import { PeriodeFelter, type SynkMaal } from "@/components/dokumenter/PeriodeFelter";
 import { db } from "@/lib/db";
 import { ANTAL_FRIE_LINJER, subNr } from "@/lib/dokumenter";
-import { hentKatalog, licensmodel, listepris } from "@/lib/katalog";
+import { erEngang, hentKatalog, licensmodel, listepris } from "@/lib/katalog";
+import { KundeVaelger } from "@/components/dokumenter/KundeVaelger";
 import { aftaleUdloeb, dagTekst, fornyelsesPeriode, isoDag, plusDage } from "@/lib/perioder";
 import { opretOrdre } from "@/app/actions/ordrer";
 
@@ -120,21 +121,11 @@ export default async function NyOrdre({
             <Link href={qs("tilbud")} className={kind === "tilbud" ? "px-3 py-1.5 bg-primary text-primary-foreground" : "px-3 py-1.5 hover:bg-secondary"}>Tilbud</Link>
             <Link href={qs("ordre")} className={kind === "ordre" ? "px-3 py-1.5 bg-primary text-primary-foreground" : "px-3 py-1.5 hover:bg-secondary"}>Ordrebekræftelse</Link>
           </div>
-          <form method="get" className="flex flex-wrap items-end gap-3">
-            <input type="hidden" name="type" value={kind} />
-            <div className="w-80 max-w-full">
-              <Label htmlFor="kunde">Kunde</Label>
-              <Select id="kunde" name="kunde" defaultValue={kunde?.id ?? ""}>
-                <option value="">Ingen kunde — fri modtager</option>
-                {kunder.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
-              </Select>
-            </div>
-            <Button type="submit" size="sm" variant="secondary">Vælg</Button>
-          </form>
+          <KundeVaelger kunder={kunder} valgt={kunde?.id ?? null} kind={kind} />
         </CardBody>
       </Card>
 
-      <form action={opretOrdre} className="flex flex-col gap-5">
+      <form key={kunde?.id ?? "ingen"} action={opretOrdre} className="flex flex-col gap-5">
         <input type="hidden" name="kind" value={kind} />
         {kunde && <input type="hidden" name="companyId" value={kunde.id} />}
 
@@ -202,8 +193,8 @@ export default async function NyOrdre({
 
         <Card>
           <CardHeader
-            title="Nye licenser og tilkøb"
-            description="Sæt flueben ved et produkt for at tage alle licenserne under det med, eller vælg dem enkeltvis. Subscription afregnes som antal × pris pr. md. × måneder. Brug synk-knapperne, så en ekstra licens følger kundens eksisterende aftale."
+            title="Nye licenser, tilkøb og ydelser"
+            description="Sæt flueben ved et produkt for at tage alle licenserne under det med, eller vælg dem enkeltvis. Subscription afregnes som antal × pris pr. md. × måneder. Engangsydelser afregnes som antal × pris. Brug synk-knapperne, så en ekstra licens følger kundens eksisterende aftale."
           />
           <CardBody className="p-0">
             <div className="hidden lg:grid grid-cols-[auto_1fr_70px_100px_minmax(330px,1.4fr)] gap-x-3 px-5 py-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -218,7 +209,7 @@ export default async function NyOrdre({
                 <ul className="divide-y divide-border">
                   {g.licenser.map((p) => {
                     const kl = aftaler.find((l) => l.productId === p.id) ?? kunde?.customerProducts.find((l) => l.productId === p.id) ?? null;
-                    const perpetual = p.licenseModel === "perpetual";
+                    const perpetual = erEngang(p.licenseModel);
                     const pris = perpetual ? listepris(p) : kl?.unitPriceMonth ?? listepris(p);
                     return (
                       <li key={p.id} className="px-5 py-3 grid grid-cols-[auto_1fr] lg:grid-cols-[auto_1fr_70px_100px_minmax(330px,1.4fr)] gap-x-3 gap-y-2 items-start">
@@ -278,7 +269,7 @@ export default async function NyOrdre({
                 <span>
                   Opdatér kundens aftaler
                   <span className="block text-xs text-muted-foreground">
-                    Fornyelser flytter aftalens udløb til periodens slutdato. Nye licenser registreres som tilkøb. Frie positioner rører ikke kunden.
+                    Fornyelser flytter aftalens udløb til periodens slutdato. Nye licenser registreres som tilkøb. Engangsydelser og frie positioner rører ikke kunden.
                   </span>
                 </span>
               </label>
