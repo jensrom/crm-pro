@@ -112,13 +112,18 @@ export function AppSidebar({
         className="flex items-center gap-2.5 px-4 border-b shrink-0"
         style={{ height: "var(--topbar-height)", borderColor: "hsl(var(--sidebar-border))" }}
       >
-        <div className="h-7 w-7 rounded-md bg-primary grid place-items-center text-primary-foreground text-xs font-bold">
-          CP
-        </div>
+        {brand.logo ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={brand.logo} alt="Logo" className="h-7 w-7 rounded-md object-contain bg-white/90 p-0.5 shrink-0" />
+        ) : (
+          <div className="h-7 w-7 rounded-md bg-primary grid place-items-center text-primary-foreground text-xs font-bold shrink-0">
+            {maerke}
+          </div>
+        )}
         <div className="min-w-0">
           <div className="font-serif text-sm font-semibold text-white leading-tight">CRM-Pro</div>
-          <div className="text-[10px] leading-tight" style={{ color: "hsl(var(--sidebar-fg))" }}>
-            Idus Online · DK &amp; FO
+          <div className="text-[10px] leading-tight truncate" style={{ color: "hsl(var(--sidebar-fg))" }}>
+            {undertekst}
           </div>
         </div>
       </div>
