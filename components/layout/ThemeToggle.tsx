@@ -11,9 +11,10 @@ export function ThemeToggle() {
     try {
       gemt = localStorage.getItem("crmpro-tema");
     } catch {
-      /* privat vindue eller blokeret lager — brug systemets indstilling */
+      /* privat vindue eller blokeret lager — lys tilstand */
     }
-    const start = gemt ? gemt === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    // Lys er standard. Mørk kun når brugeren selv har valgt det med knappen.
+    const start = gemt === "dark";
     setMoerk(start);
     document.documentElement.classList.toggle("dark", start);
   }, []);

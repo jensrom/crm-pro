@@ -69,7 +69,7 @@ export default async function WhitelabelSide({
                   </div>
                 )}
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-white leading-tight">CRM-Pro</div>
+                  <div className="text-sm font-semibold leading-tight" style={{ color: "hsl(var(--sidebar-fg-strong))" }}>CRM-Pro</div>
                   <div className="text-[10px] leading-tight truncate" style={{ color: "hsl(var(--sidebar-fg))" }}>
                     {undertekst}
                   </div>

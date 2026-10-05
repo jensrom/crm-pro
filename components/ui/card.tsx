@@ -1,8 +1,12 @@
 import { cn } from "@/lib/utils";
 
 export function Card({ className, children }: { className?: string; children: React.ReactNode }) {
-  // Fladt kort, kun kant — ingen skygge.
-  return <div className={cn("bg-card border border-border rounded-xl", className)}>{children}</div>;
+  // Hvidt kort med hårfin kant og en næsten usynlig skygge — løfter kortet fra den lyse baggrund.
+  return (
+    <div className={cn("bg-card border border-border rounded-xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] dark:shadow-none", className)}>
+      {children}
+    </div>
+  );
 }
 
 export function CardHeader({

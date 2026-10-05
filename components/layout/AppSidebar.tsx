@@ -121,7 +121,7 @@ export function AppSidebar({
           </div>
         )}
         <div className="min-w-0">
-          <div className="font-serif text-sm font-semibold text-white leading-tight">CRM-Pro</div>
+          <div className="font-serif text-sm font-semibold leading-tight" style={{ color: "hsl(var(--sidebar-fg-strong))" }}>CRM-Pro</div>
           <div className="text-[10px] leading-tight truncate" style={{ color: "hsl(var(--sidebar-fg))" }}>
             {undertekst}
           </div>
@@ -146,7 +146,7 @@ export function AppSidebar({
                     key={p.href}
                     href={p.href}
                     aria-current={on ? "page" : undefined}
-                    className={cn("nav-item", on ? "text-white" : "hover:text-white")}
+                    className={cn("nav-item", on ? "font-semibold" : "hover:bg-[hsl(var(--sidebar-hover-bg))] hover:!text-[hsl(var(--sidebar-fg-strong))]")}
                     style={{
                       background: on ? "hsl(var(--sidebar-active-bg))" : undefined,
                       color: on ? "hsl(var(--sidebar-active-fg))" : "hsl(var(--sidebar-fg))",
@@ -171,7 +171,7 @@ export function AppSidebar({
       <div className="p-2.5 border-t shrink-0" style={{ borderColor: "hsl(var(--sidebar-border))" }}>
         <Link
           href="/indstillinger"
-          className={cn("nav-item")}
+          className={cn("nav-item", aktiv("/indstillinger") ? "font-semibold" : "hover:bg-[hsl(var(--sidebar-hover-bg))] hover:!text-[hsl(var(--sidebar-fg-strong))]")}
           style={{
             background: aktiv("/indstillinger") ? "hsl(var(--sidebar-active-bg))" : undefined,
             color: aktiv("/indstillinger") ? "hsl(var(--sidebar-active-fg))" : "hsl(var(--sidebar-fg))",
