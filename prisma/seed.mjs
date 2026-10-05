@@ -1,4 +1,4 @@
-// Seeder CRM-Pro med de 43 danske og færøske Idus Online-kunder.
+// Seeder CRM-Pro med 43 fiktive demokunder (prisma/demo-kunder.json) — samme branchefordeling og licenser som den rigtige portefølje, men opdigtede navne og kontakter.
 //
 // Hvad scriptet gør, og lige så vigtigt: hvad det IKKE gør.
 //   Det opretter kunder, kontaktpersoner, de tre pakker og kundernes
@@ -16,7 +16,8 @@ import { dirname, join } from 'node:path';
 
 const prisma = new PrismaClient();
 const here = dirname(fileURLToPath(import.meta.url));
-const kunder = JSON.parse(readFileSync(join(here, '..', 'data', 'kunder.json'), 'utf8'));
+// Fiktive demokunder som standard. Sæt SEED_FIL for at bruge en anden fil.
+const kunder = JSON.parse(readFileSync(process.env.SEED_FIL || join(here, 'demo-kunder.json'), 'utf8'));
 
 const KONF = { 'Høj': 'hoej', 'Middel': 'middel', 'Lav': 'lav' };
 
@@ -51,8 +52,7 @@ async function main() {
     create: {
       id: 'singleton',
       dataSourceNote:
-        'Licenser og stamdata: Idus Online partnerportal, status Paid, 26. august 2026. ' +
-        'Antal ansatte og omsætning: CVR via proff.dk, estatistik.dk og ownr.dk samt årsrapporter. ' +
+        'Fiktive demodata: kunder, kontaktpersoner, adresser, CVR, mail og telefon er opdigtede. ' +
         'Størrelsestallene er baggrundsviden om virksomheden og indgår ikke i budget eller scope.',
     },
   });
@@ -97,7 +97,7 @@ async function main() {
       currencyCode: k.currencyCode,
       email: k.email,
       phone: k.phone,
-      website: k.subdomain ? `https://${k.subdomain}.idusonline.com` : null,
+      website: k.subdomain ? `https://www.${k.subdomain}.example` : null,
       employees: k.employees,
       revenueMdkk: k.revenueMdkk,
       sizeConfidence: KONF[k.sizeConfidence] ?? null,
@@ -153,3 +153,7 @@ async function main() {
   await klargoer(prisma);
   console.log('Færdig. Ingen salgsmuligheder oprettet — dem opretter du selv.');
 }
+
+main()
+  .catch((e) => { console.error(e); process.exit(1); })
+  .finally(() => prisma.$disconnect());

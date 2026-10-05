@@ -22,7 +22,7 @@ git remote add origin https://github.com/<dit-brugernavn>/crm-pro.git
 git push -u origin main
 ```
 
-`.gitignore` sørger for, at `.env`, `node_modules` og den lokale `data/kunder.json` ikke kommer med.
+`.gitignore` sørger for, at `.env`, `node_modules` og mappen `data/` (med de rigtige kunder) ikke kommer med.
 
 ### 2. Opret projektet i Vercel
 
@@ -63,8 +63,15 @@ npm install
 npx vercel login
 npx vercel link            # vælg projektet
 npx vercel env pull .env   # henter DATABASE_URL m.fl. ned i .env
-npm run db:flyt -- "D:\Claude\10_Programmer\CRM-Pro-app\CRM-Pro-data\crm-pro.db"
+npm run db:flyt -- "D:\Claude\10_Programmer\CRM-Pro-app\CRM-Pro-data\crm-pro.db" --fiktiv
 ```
+
+**`--fiktiv` gør alle kundedata fiktive undervejs.** Firmanavne, adresser, CVR, kontonumre, subdomæner,
+mail, telefon og kontaktpersoner erstattes med opdigtede (samme branche, land og licenser), og navne,
+mails og telefonnumre i fritekst — logbog, sager, notater, salgsmuligheder og ordrer — skiftes ud.
+Størrelsestal sløres. Filboksens filer springes over, fordi PDF'er og uploads kan indeholde rigtige
+data. Mail og web bruger domænet `.example`, og telefonnumre har formen `+45 00 00 xx xx`, så intet
+kan ramme en rigtig virksomhed eller person. Udelad `--fiktiv` for at flytte de rigtige data.
 
 Scriptet læser den lokale `crm-pro.db` (den ændres ikke) og skriver alt over i Neon: brugere, kunder,
 kontakter, licenser, tilkøb, sager, klippekort, logbog, notater, katalog, tilbud, ordrer og filboksens
@@ -76,8 +83,8 @@ Er der allerede kunder i Neon, stopper scriptet. `--overskriv` tømmer Neon før
 Log derefter ind på Vercel-adressen med dine sædvanlige initialer og PIN.
 
 > **Starter du forfra i stedet:** sæt `OPSAETNINGSKODE`, åbn adressen og opret den første bruger
-> (skriv koden i feltet). Kunderne fra kundefilen kan lægges ind med `npm run db:seed`
-> (kræver `data/kunder.json` lokalt).
+> (skriv koden i feltet). 43 fiktive demokunder med kontaktpersoner og licenser lægges ind med
+> `npm run db:seed` (fra `prisma/demo-kunder.json`).
 
 ---
 
@@ -119,4 +126,5 @@ produktionsdata.
 | `npm run db:push` | Lægger skemaet ud i databasen |
 | `npm run db:flyt -- "<crm-pro.db>"` | Flytter data fra den gamle lokale database til Postgres |
 | `npm run db:klargoer` | Klargør katalog, SUB-numre og superadministrator (kan køres flere gange) |
-| `npm run db:seed` | Lægger kunderne fra `data/kunder.json` ind i en tom database |
+| `npm run db:flyt -- "<crm-pro.db>" --fiktiv` | Samme, men med alle kundedata gjort fiktive |
+| `npm run db:seed` | Lægger 43 fiktive demokunder ind i en tom database |
