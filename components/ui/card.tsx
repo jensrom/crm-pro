@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 export function Card({ className, children }: { className?: string; children: React.ReactNode }) {
-  // Fladt kort, kun kant — ingen skygge. Matcher Investerings Ninja-stilen.
+  // Fladt kort, kun kant — ingen skygge.
   return <div className={cn("bg-card border border-border rounded-xl", className)}>{children}</div>;
 }
 

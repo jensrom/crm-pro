@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,83 +6,82 @@
 
 @layer base {
   :root {
-    /* Investerings Ninja-paletten — sort/hvid/beige med en dæmpet orange accent.
-       Erstatter det tidligere "Nordic Design System" arvet fra CRM-X. Se
-       Investerings Ninja's src/app/globals.css for kildepaletten (hex); her
-       som HSL-tripler, som resten af komponentbiblioteket allerede forventer. */
-    --background: 40 47% 96%;        /* paper #faf7f1 */
-    --foreground: 33 14% 12%;        /* ink #24201b */
+    /* CRM-Pro 2026 — kølig nordisk neutral med én rolig indigo-accent.
+       Neutrale grå bærer layoutet; farve bruges kun til handling og status.
+       Alle værdier er HSL-tripler, som komponentbiblioteket forventer. */
+    --background: 220 23% 97%;       /* #f6f7f9 */
+    --foreground: 224 24% 12%;       /* #171b26 */
 
-    --card: 0 0% 100%;               /* paper-raised #ffffff */
-    --card-foreground: 33 14% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 24% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 33 14% 12%;
+    --popover-foreground: 224 24% 12%;
 
-    --primary: 27 56% 51%;           /* accent #c97c3d — mild orange */
+    --primary: 240 60% 60%;          /* indigo #5b5bd6 — 4,9:1 mod hvid */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 39 40% 90%;         /* paper-sunken #f0e9dc */
-    --secondary-foreground: 35 11% 38%; /* ink-soft #6b6255 */
+    --secondary: 220 20% 94%;        /* #edeff3 */
+    --secondary-foreground: 222 14% 30%;
 
-    --muted: 39 40% 90%;
-    --muted-foreground: 35 11% 38%;
+    --muted: 220 20% 94%;
+    --muted-foreground: 220 9% 44%;  /* #646a78 */
 
-    --accent: 26 60% 41%;            /* accent-strong #a9622a */
+    --accent: 240 55% 52%;           /* #4646c8 */
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 14 45% 45%;       /* bad #a7583f */
+    --destructive: 347 72% 50%;      /* rosa-rød #db2459 */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 41 35% 84%;            /* line #e5dcc9 */
-    --input: 41 35% 84%;
-    --ring: 27 56% 51%;
+    --border: 220 16% 90%;           /* #e2e5ea */
+    --input: 220 16% 88%;
+    --ring: 240 60% 60%;
 
-    --radius: 0.6rem;
+    --radius: 0.7rem;
 
-    /* Sidebaren er altid mørk chrome, uafhængigt af lys/mørk-tema — samme
-       mønster som før, bare i ink-familien i stedet for marineblå. */
-    --sidebar-bg: 33 14% 12%;
-    --sidebar-fg: 40 20% 75%;
-    --sidebar-active-bg: 27 56% 51%;
+    /* Sidebaren er altid mørk chrome — dyb, kølig blæk i stedet for brun. */
+    --sidebar-bg: 228 22% 10%;       /* #13151f */
+    --sidebar-fg: 222 14% 70%;
+    --sidebar-active-bg: 240 60% 60%;
     --sidebar-active-fg: 0 0% 100%;
-    --sidebar-hover-bg: 33 16% 20%;
-    --sidebar-border: 33 16% 20%;
+    --sidebar-hover-bg: 228 16% 16%;
+    --sidebar-border: 228 16% 16%;
     --sidebar-width: 240px;
     --topbar-height: 56px;
   }
 
   .dark {
-    --background: 33 18% 8%;
-    --foreground: 40 25% 92%;
+    --background: 228 16% 7%;        /* #0f1015 */
+    --foreground: 220 20% 93%;
 
-    --card: 33 16% 13%;
-    --card-foreground: 40 25% 92%;
+    --card: 228 14% 10.5%;           /* #16171e */
+    --card-foreground: 220 20% 93%;
 
-    --popover: 33 16% 13%;
-    --popover-foreground: 40 25% 92%;
+    --popover: 228 14% 11%;
+    --popover-foreground: 220 20% 93%;
 
-    --primary: 27 65% 58%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 240 75% 70%;          /* #8585f0 */
+    --primary-foreground: 228 30% 10%;
 
-    --secondary: 33 14% 18%;
-    --secondary-foreground: 40 20% 85%;
+    --secondary: 228 12% 15%;
+    --secondary-foreground: 220 16% 82%;
 
-    --muted: 33 14% 18%;
-    --muted-foreground: 38 12% 65%;
+    --muted: 228 12% 15%;
+    --muted-foreground: 222 10% 62%;
 
-    --accent: 26 55% 55%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 240 70% 74%;
+    --accent-foreground: 228 30% 10%;
 
-    --destructive: 14 45% 58%;
+    --destructive: 350 80% 64%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 33 14% 22%;
-    --input: 33 14% 22%;
-    --ring: 27 65% 58%;
+    --border: 228 12% 18%;
+    --input: 228 12% 20%;
+    --ring: 240 75% 70%;
 
-    --sidebar-bg: 33 25% 7%;
-    --sidebar-border: 33 18% 16%;
+    --sidebar-bg: 228 20% 5.5%;
+    --sidebar-hover-bg: 228 14% 12%;
+    --sidebar-border: 228 14% 12%;
   }
 }
 

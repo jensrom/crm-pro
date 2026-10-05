@@ -20,13 +20,11 @@ const config: Config = {
         accent: { DEFAULT: "hsl(var(--accent))", foreground: "hsl(var(--accent-foreground))" },
         popover: { DEFAULT: "hsl(var(--popover))", foreground: "hsl(var(--popover-foreground))" },
         card: { DEFAULT: "hsl(var(--card))", foreground: "hsl(var(--card-foreground))" },
-        // Investerings Ninja-paletten: dæmpede jordfarver, ingen neon.
-        success: { DEFAULT: "#5f7d52", foreground: "#ffffff", light: "#e6ede1" },
-        warning: { DEFAULT: "#ad8b2c", foreground: "#ffffff", light: "#f2ead1" },
-        danger:  { DEFAULT: "#a7583f", foreground: "#ffffff", light: "#f2e1da" },
-        // Intet blåt i kildepaletten — "info" holdes i samme jordfarvefamilie
-        // som resten i stedet for at hente en fremmed farve ind.
-        info:    { DEFAULT: "#6b6255", foreground: "#ffffff", light: "#f0e9dc" },
+        // Signalfarver 2026: klare men dæmpede toner, læsbare i både lys og mørk.
+        success: { DEFAULT: "#0e9f6e", foreground: "#ffffff", light: "#dcf5ea" }, // smaragd
+        warning: { DEFAULT: "#d97706", foreground: "#ffffff", light: "#fdf0d5" }, // rav
+        danger:  { DEFAULT: "#e11d48", foreground: "#ffffff", light: "#ffe4ea" }, // rosa-rød
+        info:    { DEFAULT: "#0284c7", foreground: "#ffffff", light: "#dff1fb" }, // himmelblå
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -35,9 +33,9 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["Inter", "ui-sans-serif", "system-ui", "-apple-system", "sans-serif"],
-        // Til mærket og de store nøgletal — samme brug som i Investerings
-        // Ninja: aldrig til brødtekst eller almindelige labels.
-        serif: ['"Source Serif 4"', "Georgia", '"Times New Roman"', "serif"],
+        // "serif" er display-skriften til mærket og de store nøgletal: Inter Tight.
+        // Navnet beholdes, så eksisterende font-serif-klasser følger med.
+        serif: ['"Inter Tight"', "Inter", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       keyframes: {
         "fade-in": { from: { opacity: "0", transform: "translateY(4px)" }, to: { opacity: "1", transform: "translateY(0)" } },
