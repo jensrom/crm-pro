@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Check, ExternalLink, Flame, LifeBuoy, ListChecks, Mail, Phone, Plus, Scissors, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, ExternalLink, Flame, LifeBuoy, ListChecks, Mail, Minus, PackagePlus, Phone, Plus, Scissors, Trash2, Undo2 } from "lucide-react";
 import { GemValg } from "@/components/ui/gem-valg";
 import { GemtAf } from "@/components/ui/gemt-af";
 import { Card, CardBody, CardHeader, EmptyState } from "@/components/ui/card";
@@ -26,12 +26,36 @@ import { KundestatusKort } from "@/components/kunder/Kundestatus";
 import { Filboks } from "@/components/kunder/Filboks";
 import { hentFiler } from "@/app/actions/filer";
 import { cn } from "@/lib/utils";
+import { licensGrupper, licensmodel, listepris } from "@/lib/katalog";
+import { LicensOptions } from "@/components/produkter/LicensOptions";
+import { fortrydLicensaendring, registrerLicensaendring } from "@/app/actions/tilkoeb";
+import { hentSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export default async function KundeSide({ params }: { params: Promise<{ id: string }> }) {
+const TILKOEB_BESKED: Record<string, { tekst: string; fejl?: boolean }> = {
+  gemt: { tekst: "Licensændringen er registreret, og licensantallet er opdateret." },
+  fortrudt: { tekst: "Registreringen er fortrudt, og licensantallet er sat tilbage." },
+  mangler: { tekst: "Vælg en licens og et antal større end 0.", fejl: true },
+  "for-mange": { tekst: "Kunden har ikke så mange licenser at reducere.", fejl: true },
+};
+
+function iDag() {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+export default async function KundeSide({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ tilkoeb?: string }>;
+}) {
   const { id } = await params;
-  const [kunde, produkter, filer] = await Promise.all([
+  const { tilkoeb } = await searchParams;
+  const [kunde, grupper, filer, mig] = await Promise.all([
     db.company.findUnique({
       where: { id },
       include: {
@@ -43,13 +67,20 @@ export default async function KundeSide({ params }: { params: Promise<{ id: stri
         logEntries: { orderBy: [{ pinned: "desc" }, { createdAt: "desc" }], take: 60 },
         activities: { where: { completedAt: null }, orderBy: { dueDate: "asc" }, take: 10 },
         notes_: { orderBy: [{ completedAt: "asc" }, { position: "asc" }], take: 25 },
+        licenseChanges: {
+          include: { product: { select: { name: true } } },
+          orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+          take: 50,
+        },
       },
     }),
-    db.product.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } }),
+    licensGrupper(),
     hentFiler(id),
+    hentSession(),
   ]);
 
   if (!kunde) notFound();
+  const tkBesked = tilkoeb ? TILKOEB_BESKED[tilkoeb] : null;
 
   // Stale Prisma Client (sandbox kan ikke regenerere) kender endnu ikke isHot/hotSetBy.
   const hot = kunde as any;
@@ -254,7 +285,7 @@ export default async function KundeSide({ params }: { params: Promise<{ id: stri
                   <Label htmlFor="dp">Pakke</Label>
                   <Select id="dp" name="productId" defaultValue="">
                     <option value="">Ingen</option>
-                    {produkter.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    <LicensOptions grupper={grupper} />
                   </Select>
                 </div>
                 <div>
@@ -272,8 +303,9 @@ export default async function KundeSide({ params }: { params: Promise<{ id: stri
             <CardHeader title="Pakke og licenser" description="Vælg pakke, ret antal licenser, og sæt en aftalt pris hvis kunden ikke kører på listeprisen." />
             <CardBody className="flex flex-col gap-4">
               {kunde.customerProducts.map((l) => {
+                const perpetual = l.product.licenseModel === "perpetual";
                 const pris = gaeldendeMaanedspris(l.unitPriceMonth, l.product);
-                const aar = pris == null ? null : l.seats * pris * 12;
+                const aar = pris == null || perpetual ? null : l.seats * pris * 12;
                 return (
                   <form key={l.id} action={gemLicenslinje.bind(null, kunde.id)} className="rounded-lg border border-border p-4 flex flex-col gap-3">
                     <input type="hidden" name="linjeId" value={l.id} />
@@ -283,7 +315,9 @@ export default async function KundeSide({ params }: { params: Promise<{ id: stri
                         {l.product.name}
                       </div>
                       <div className="text-xs text-muted-foreground tabular">
-                        {pris == null ? "ingen pris" : `${kroner(pris)}/bruger/md.`}
+                        {perpetual
+                          ? `Perpetual · ${listepris(l.product) != null ? `${kroner(listepris(l.product))} pr. licens` : "ingen pris"}`
+                          : pris == null ? "ingen pris" : `${kroner(pris)}/bruger/md.`}
                         {aar != null && ` · ${kroner(aar)}/år`}
                       </div>
                     </div>
@@ -291,7 +325,7 @@ export default async function KundeSide({ params }: { params: Promise<{ id: stri
                       <div className="col-span-2">
                         <Label htmlFor={`p-${l.id}`}>Pakke</Label>
                         <Select id={`p-${l.id}`} name="productId" defaultValue={l.productId}>
-                          {produkter.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          <LicensOptions grupper={grupper} medtag={l.product} />
                         </Select>
                       </div>
                       <div><Label htmlFor={`s-${l.id}`}>Tildelte</Label><Input id={`s-${l.id}`} name="seats" type="number" min={0} defaultValue={l.seats} /></div>
@@ -326,7 +360,7 @@ export default async function KundeSide({ params }: { params: Promise<{ id: stri
                   <div className="col-span-2">
                     <Label htmlFor="np">Pakke</Label>
                     <Select id="np" name="productId" required>
-                      {produkter.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      <LicensOptions grupper={grupper} />
                     </Select>
                   </div>
                   <div><Label htmlFor="ns">Tildelte</Label><Input id="ns" name="seats" type="number" min={0} defaultValue={1} /></div>
@@ -334,6 +368,88 @@ export default async function KundeSide({ params }: { params: Promise<{ id: stri
                   <div className="col-span-2 sm:col-span-4 flex justify-end"><Button size="sm" type="submit">Tilføj</Button></div>
                 </form>
               </details>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <div id="tilkoeb" className="scroll-mt-24" />
+            <CardHeader
+              title={<span className="flex items-center gap-2"><PackagePlus className="h-4 w-4" />Tilkøb og licensændringer</span>}
+              description="Registrér tilkøb eller reduktion. Licensantallet på linjen opdateres, og posten gemmes i historikken og logbogen."
+              action={<Link href={`/tilkoeb?kunde=${kunde.id}`} className="text-xs font-medium text-primary hover:underline">Alle tilkøb</Link>}
+            />
+            <CardBody className="p-0">
+              {tkBesked && (
+                <div className={cn("mx-5 mt-4 rounded-lg px-3 py-2 text-sm", tkBesked.fejl ? "bg-danger/[0.08] text-danger" : "bg-success/[0.08]")}>
+                  {tkBesked.tekst}
+                </div>
+              )}
+              <form action={registrerLicensaendring.bind(null, kunde.id)} className="px-5 py-4 grid grid-cols-2 sm:grid-cols-6 gap-3 items-end border-b border-border">
+                <div className="col-span-2 sm:col-span-3">
+                  <Label htmlFor="tk-l">Licens</Label>
+                  <Select id="tk-l" name="productId" required>
+                    <LicensOptions grupper={grupper} />
+                  </Select>
+                </div>
+                <div className="sm:col-span-2">
+                  <Label htmlFor="tk-r">Type</Label>
+                  <Select id="tk-r" name="retning" defaultValue="tilkoeb">
+                    <option value="tilkoeb">Tilkøb (+)</option>
+                    <option value="reduktion">Reduktion (−)</option>
+                  </Select>
+                </div>
+                <div><Label htmlFor="tk-a">Antal</Label><Input id="tk-a" name="antal" type="number" min={1} defaultValue={1} required /></div>
+                <div className="sm:col-span-2"><Label htmlFor="tk-d">Dato</Label><Input id="tk-d" name="date" type="date" defaultValue={iDag()} /></div>
+                <div className="sm:col-span-2">
+                  <Label htmlFor="tk-p">Pris pr. licens (kr.)</Label>
+                  <Input id="tk-p" name="unitPrice" inputMode="decimal" placeholder="tom = aftalt pris / listepris" />
+                </div>
+                <div className="col-span-2 sm:col-span-2"><Label htmlFor="tk-n">Note</Label><Input id="tk-n" name="note" placeholder="fx ordre 1234" /></div>
+                <div className="col-span-2 sm:col-span-6 flex justify-end"><Button size="sm" type="submit">Registrér</Button></div>
+              </form>
+
+              {kunde.licenseChanges.length === 0 ? (
+                <div className="px-5"><EmptyState title="Ingen tilkøb registreret" icon={PackagePlus} /></div>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {kunde.licenseChanges.map((c) => {
+                    const perpetual = c.licenseModel === "perpetual";
+                    const vaerdi = c.unitPrice == null ? null : c.quantity * c.unitPrice * (perpetual ? 1 : 12);
+                    return (
+                      <li key={c.id} className="px-5 py-2.5 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium flex items-center gap-1.5">
+                            {c.quantity > 0
+                              ? <Plus className="h-3.5 w-3.5 text-success shrink-0" />
+                              : <Minus className="h-3.5 w-3.5 text-danger shrink-0" />}
+                            <span className="tabular">{Math.abs(c.quantity)}</span> × {c.product.name}
+                          </div>
+                          <div className="text-xs text-muted-foreground tabular">
+                            {datoKort(c.date)} · {c.seatsBefore} → {c.seatsAfter} licenser
+                            {c.unitPrice != null && ` · ${kroner(c.unitPrice)} ${licensmodel(c.licenseModel).enhed}`}
+                            {c.createdBy && ` · ${c.createdBy}`}
+                          </div>
+                          {c.note && <p className="text-xs text-muted-foreground mt-0.5">{c.note}</p>}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {vaerdi != null && (
+                            <span className={cn("text-xs tabular", vaerdi < 0 ? "text-danger" : "text-foreground")}>
+                              {vaerdi > 0 ? "+" : ""}{kroner(vaerdi)}{perpetual ? " engang" : "/år"}
+                            </span>
+                          )}
+                          {mig?.erAdmin && (
+                            <form action={fortrydLicensaendring.bind(null, c.id)}>
+                              <button type="submit" title="Fortryd — sletter posten og sætter licensantallet tilbage" aria-label="Fortryd registrering" className="p-1 rounded text-muted-foreground hover:text-danger">
+                                <Undo2 className="h-3.5 w-3.5" />
+                              </button>
+                            </form>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </CardBody>
           </Card>
 

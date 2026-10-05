@@ -15,6 +15,7 @@ import {
   Scissors,
   Settings,
   Flame,
+  PackagePlus,
 } from "lucide-react";
 
 type NavItem = { label: string; href: string; icon: React.ElementType };
@@ -38,6 +39,7 @@ const SEKTIONER: { sektion: string; punkter: NavItem[] }[] = [
     punkter: [
       { label: "Pipeline", href: "/pipeline", icon: KanbanSquare },
       { label: "Produkter", href: "/produkter", icon: Package },
+      { label: "Tilkøb", href: "/tilkoeb", icon: PackagePlus },
     ],
   },
   {
@@ -68,10 +70,13 @@ export function AppSidebar({
   brand,
   hotAntal = 0,
   opdatering = null,
+  visIndstillinger = false,
 }: {
   brand: Brand;
   hotAntal?: number;
   opdatering?: OpdateringInfo;
+  /** Kun superadministratorer ser Indstillinger */
+  visIndstillinger?: boolean;
 }) {
   const sti = usePathname();
   const soegeparametre = useSearchParams();
@@ -153,6 +158,7 @@ export function AppSidebar({
         ))}
       </nav>
 
+      {visIndstillinger && (
       <div className="p-2.5 border-t shrink-0" style={{ borderColor: "hsl(var(--sidebar-border))" }}>
         <Link
           href="/indstillinger"
@@ -172,6 +178,7 @@ export function AppSidebar({
           )}
         </Link>
       </div>
+      )}
     </aside>
   );
 }

@@ -1,46 +1,55 @@
 import Link from "next/link";
-import { Check, Package, Plus } from "lucide-react";
+import { Boxes, Check, Package, Settings2 } from "lucide-react";
 import { Card, CardBody, CardHeader, EmptyState, StatCard } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input, Label, Select, Textarea } from "@/components/ui/input";
-import { GemtAf } from "@/components/ui/gemt-af";
+import { Select } from "@/components/ui/input";
 import { db } from "@/lib/db";
+import { hentSession } from "@/lib/auth";
 import { kroner, procent, tal } from "@/lib/format";
 import { gaeldendeMaanedspris } from "@/lib/pricing";
-import { gemProdukt, opretProdukt } from "@/app/actions/produkter";
+import { licensmodel, listepris } from "@/lib/katalog";
 import { flytFlereLinjer } from "@/app/actions/produkter";
 import { skiftPakke } from "@/app/actions/kunder";
 import { BatchFlyt } from "@/components/produkter/BatchFlyt";
-import { StilVaelger } from "@/components/produkter/StilVaelger";
-import { ProduktMaerke, ProduktNavn } from "@/lib/produktstil";
+import { ProduktMaerke } from "@/lib/produktstil";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 const BESKEDER: Record<string, string> = {
-  flyttet: "Kunderne er flyttet til produktet.",
+  flyttet: "Kunderne er flyttet til licensen.",
 };
 
 export default async function ProdukterSide({
   searchParams,
 }: {
-  searchParams: Promise<{ pakke?: string; besked?: string; ny?: string }>;
+  searchParams: Promise<{ pakke?: string; besked?: string }>;
 }) {
-  const { pakke, besked, ny } = await searchParams;
+  const { pakke, besked } = await searchParams;
 
-  const produkter = await db.product.findMany({
-    include: {
-      customerProducts: {
-        include: { company: { select: { id: true, name: true, country: true } } },
+  const [produkter, familier, mig] = await Promise.all([
+    db.product.findMany({
+      include: {
+        customerProducts: {
+          include: { company: { select: { id: true, name: true, country: true } } },
+        },
+        _count: { select: { deals: true } },
       },
-      _count: { select: { deals: true } },
-    },
-    orderBy: [{ isActive: "desc" }, { sortOrder: "asc" }],
-  });
+      orderBy: [{ isActive: "desc" }, { sortOrder: "asc" }],
+    }),
+    db.productFamily.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
+    hentSession(),
+  ]);
 
-  const opretter = ny === "1";
-  const valgt = opretter ? null : produkter.find((p) => p.id === pakke) ?? produkter[0];
+  // Licenserne grupperet under deres produkt, i katalogets rækkefølge.
+  const grupper = [
+    ...familier.map((f) => ({ id: f.id, navn: f.name, licenser: produkter.filter((p) => p.familyId === f.id) })),
+    { id: "uden", navn: "Uden produkt", licenser: produkter.filter((p) => p.familyId == null) },
+  ].filter((g) => g.licenser.length > 0);
+  const ordnet = grupper.flatMap((g) => g.licenser);
+
+  const valgt = ordnet.find((p) => p.id === pakke) ?? ordnet[0];
 
   const alleLinjer = produkter.flatMap((p) => p.customerProducts.map((l) => ({ ...l, produkt: p })));
   const samletLicenser = alleLinjer.reduce((s, l) => s + l.seats, 0);
@@ -59,124 +68,101 @@ export default async function ProdukterSide({
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Produkter" value={tal(produkter.filter((p) => p.isActive).length)} sub={`${produkter.filter((p) => !p.isActive).length} arkiveret`} />
+        <StatCard label="Aktive licenstyper" value={tal(produkter.filter((p) => p.isActive).length)} sub={`${tal(familier.length)} produkter`} />
         <StatCard label="Licenser i alt" value={tal(samletLicenser)} sub="på tværs af produkter" />
-        <StatCard label="Årlig licensværdi" value={kroner(samletVaerdi)} sub="nuværende licenser" highlight />
+        <StatCard label="Årlig licensværdi" value={kroner(samletVaerdi)} sub="subscription, nuværende licenser" highlight />
         <StatCard label="Linjer uden pris" value={tal(udenPris)} sub={udenPris ? "tæller ikke med i værdien" : "alt er prissat"} />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[300px_1fr] items-start">
-        {/* Venstre: produktlisten */}
-        <div className="flex flex-col gap-3">
-          {produkter.map((p) => {
-            const licenser = p.customerProducts.reduce((s, l) => s + l.seats, 0);
-            const aktiv = !opretter && p.id === valgt?.id;
-            return (
-              <Link
-                key={p.id}
-                href={`/produkter?pakke=${p.id}`}
-                className={cn(
-                  "block rounded-xl border px-4 py-3.5 transition-colors",
-                  aktiv ? "border-primary bg-primary/[0.06]" : "border-border bg-card hover:bg-secondary/60",
-                  !p.isActive && "opacity-60"
-                )}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className={cn("flex items-center gap-2 min-w-0 text-sm font-semibold", aktiv && "text-primary")}>
-                    <ProduktMaerke icon={p.icon} color={p.color} size="md" />
-                    <span className="truncate">{p.name}</span>
-                  </span>
-                  {aktiv && <Check className="h-4 w-4 text-primary shrink-0" />}
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground tabular">
-                  {p.pricePerUserMonth != null ? `${kroner(p.pricePerUserMonth)} pr. bruger/md.` : "ingen pris sat"}
-                </div>
-                <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground tabular">
-                  <span>{p.customerProducts.length} kunder</span>
-                  <span>·</span>
-                  <span>{licenser} licenser</span>
-                  {!p.isActive && <Badge variant="muted">Arkiveret</Badge>}
-                </div>
-              </Link>
-            );
-          })}
+        {/* Venstre: kataloget */}
+        <div className="flex flex-col gap-4">
+          {grupper.map((g) => (
+            <div key={g.id} className="flex flex-col gap-2">
+              <div className="px-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                <Boxes className="h-3.5 w-3.5" /> {g.navn}
+              </div>
+              {g.licenser.map((p) => {
+                const licenser = p.customerProducts.reduce((s, l) => s + l.seats, 0);
+                const aktiv = p.id === valgt?.id;
+                const pris = listepris(p);
+                return (
+                  <Link
+                    key={p.id}
+                    href={`/produkter?pakke=${p.id}`}
+                    className={cn(
+                      "block rounded-xl border px-4 py-3 transition-colors",
+                      aktiv ? "border-primary bg-primary/[0.06]" : "border-border bg-card hover:bg-secondary/60",
+                      !p.isActive && "opacity-60"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={cn("flex items-center gap-2 min-w-0 text-sm font-semibold", aktiv && "text-primary")}>
+                        <ProduktMaerke icon={p.icon} color={p.color} size="md" />
+                        <span className="truncate">{p.name}</span>
+                      </span>
+                      {aktiv && <Check className="h-4 w-4 text-primary shrink-0" />}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground tabular">
+                      {pris != null ? `${kroner(pris)} ${licensmodel(p.licenseModel).enhed}` : "ingen pris sat"}
+                    </div>
+                    <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground tabular">
+                      <span>{p.customerProducts.length} kunder</span>
+                      <span>·</span>
+                      <span>{licenser} licenser</span>
+                      {p.licenseModel === "perpetual" && <Badge variant="warning">Perpetual</Badge>}
+                      {!p.isActive && <Badge variant="muted">Arkiveret</Badge>}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
 
-          <Link
-            href="/produkter?ny=1"
-            className={cn(
-              "flex items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-3 text-sm font-medium transition-colors",
-              opretter ? "border-primary text-primary bg-primary/[0.06]" : "border-border text-muted-foreground hover:bg-secondary/60"
-            )}
-          >
-            <Plus className="h-4 w-4" /> Nyt produkt
-          </Link>
+          {mig?.erSuperAdmin && (
+            <Link
+              href="/indstillinger/katalog"
+              className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary/60"
+            >
+              <Settings2 className="h-4 w-4" /> Rediger katalog
+            </Link>
+          )}
         </div>
 
-        {/* Højre: opret eller rediger */}
+        {/* Højre: den valgte licens og kunderne på den */}
         <div className="flex flex-col gap-5">
-          {opretter ? (
-            <Card>
-              <CardHeader title="Nyt produkt" description="Navn og pris er det eneste der skal til. Resten kan du udfylde senere." />
-              <CardBody>
-                <form action={opretProdukt} className="grid sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2"><Label htmlFor="n">Navn</Label><Input id="n" name="name" required placeholder="fx Enterprise" /></div>
-                  <div><Label htmlFor="pr">Pris pr. bruger/md. (kr.)</Label><Input id="pr" name="pricePerUserMonth" inputMode="decimal" placeholder="fx 895" /></div>
-                  <div><Label htmlFor="sk">Varenummer</Label><Input id="sk" name="sku" placeholder="valgfrit" /></div>
-                  <div><Label htmlFor="ti">Nøgle</Label><Input id="ti" name="tier" placeholder="fx enterprise" /></div>
-                  <div><Label htmlFor="so">Sortering</Label><Input id="so" name="sortOrder" type="number" placeholder="rækkefølge i listen" /></div>
-                  <div className="sm:col-span-2"><Label htmlFor="de">Beskrivelse</Label><Textarea id="de" name="description" className="min-h-[70px]" /></div>
-                  <div className="sm:col-span-2 border-t border-border pt-4"><StilVaelger /></div>
-                  <div className="sm:col-span-2 flex justify-end gap-2">
-                    <Link href="/produkter"><Button variant="secondary" type="button">Fortryd</Button></Link>
-                    <Button type="submit">Opret produkt</Button>
-                  </div>
-                </form>
-              </CardBody>
-            </Card>
-          ) : !valgt ? (
+          {!valgt ? (
             <Card>
               <CardBody>
-                <EmptyState title="Ingen produkter endnu" icon={Package} description="Opret det første med knappen til venstre." />
+                <EmptyState
+                  title="Ingen licenser endnu"
+                  icon={Package}
+                  description="Produkter og licenser oprettes af en superadministrator under Indstillinger → Katalog."
+                />
               </CardBody>
             </Card>
           ) : (
             <>
               <Card>
                 <CardHeader
-                  title={<span className="flex items-center gap-2"><ProduktMaerke icon={valgt.icon} color={valgt.color} size="md" />Rediger {valgt.name}</span>}
-                  description="Navn, pris, mærke og farve er dit at bestemme."
-                />
-                <CardBody>
-                  <form action={gemProdukt.bind(null, valgt.id)} className="grid sm:grid-cols-2 gap-4">
-                    <div className="sm:col-span-2"><Label htmlFor="en">Navn</Label><Input id="en" name="name" defaultValue={valgt.name} required /></div>
-                    <div><Label htmlFor="epr">Pris pr. bruger/md. (kr.)</Label><Input id="epr" name="pricePerUserMonth" inputMode="decimal" defaultValue={valgt.pricePerUserMonth ?? ""} placeholder="tom = ingen pris" /></div>
-                    <div><Label htmlFor="esk">Varenummer</Label><Input id="esk" name="sku" defaultValue={valgt.sku ?? ""} /></div>
-                    <div><Label htmlFor="eti">Nøgle</Label><Input id="eti" name="tier" defaultValue={valgt.tier} /></div>
-                    <div><Label htmlFor="eso">Sortering</Label><Input id="eso" name="sortOrder" type="number" defaultValue={valgt.sortOrder} /></div>
-                    <div className="sm:col-span-2"><Label htmlFor="ede">Beskrivelse</Label><Textarea id="ede" name="description" defaultValue={valgt.description ?? ""} className="min-h-[70px]" /></div>
-                    <div className="sm:col-span-2 border-t border-border pt-4"><StilVaelger valgtIkon={valgt.icon} valgtFarve={valgt.color} /></div>
-                    <label className="sm:col-span-2 flex items-center gap-2 text-sm">
-                      <input type="checkbox" name="isActive" defaultChecked={valgt.isActive} className="h-4 w-4 rounded border-input accent-[hsl(var(--primary))]" />
-                      Aktivt — vises når du vælger pakke på en kunde eller en sag
-                    </label>
-                    <div className="sm:col-span-2 flex justify-between items-center pt-1">
-                      <Link href={`/indstillinger/produkter?slet=${valgt.id}`} className="text-xs text-muted-foreground hover:text-danger underline underline-offset-2">
-                        Slet produkt
+                  title={<span className="flex items-center gap-2"><ProduktMaerke icon={valgt.icon} color={valgt.color} size="md" />{valgt.name}</span>}
+                  description={
+                    `${licensmodel(valgt.licenseModel).label} · ` +
+                    (listepris(valgt) != null ? `${kroner(listepris(valgt))} ${licensmodel(valgt.licenseModel).enhed}` : "ingen pris") +
+                    (valgt.sku ? ` · ${valgt.sku}` : "")
+                  }
+                  action={
+                    mig?.erSuperAdmin ? (
+                      <Link href={`/indstillinger/katalog?licens=${valgt.id}`}>
+                        <Button size="sm" variant="secondary"><Settings2 className="h-3.5 w-3.5" /> Rediger i katalog</Button>
                       </Link>
-                      <div className="flex items-center gap-4">
-                        <GemtAf af={valgt.updatedBy} tid={valgt.updatedAt} />
-                        <Button type="submit">Gem ændringer</Button>
-                      </div>
-                    </div>
-                    <p className="sm:col-span-2 text-xs text-muted-foreground">
-                      Sletning foregår under <Link href="/indstillinger/produkter" className="text-primary hover:underline">Indstillinger → Produkter</Link>,
-                      hvor du først bliver bedt om at vælge hvad der skal ske med kundernes licenslinjer.
-                    </p>
-                  </form>
-                </CardBody>
+                    ) : undefined
+                  }
+                />
+                {valgt.description && <CardBody className="text-sm text-muted-foreground">{valgt.description}</CardBody>}
               </Card>
 
-              <ProduktKunder valgt={valgt} produkter={produkter} />
+              <ProduktKunder valgt={valgt} produkter={ordnet} />
             </>
           )}
         </div>

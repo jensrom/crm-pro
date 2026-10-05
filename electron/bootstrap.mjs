@@ -75,7 +75,10 @@ try {
 
   // Nyere tabeller på en ældre database — tilføj det der mangler.
   const mangler = [];
-  for (const t of ["users", "tickets", "hour_bundles", "time_logs", "log_entries", "customer_notes", "ticket_comments"]) {
+  for (const t of [
+    "users", "tickets", "hour_bundles", "time_logs", "log_entries", "customer_notes", "ticket_comments",
+    "attachments", "product_families", "product_prices", "license_changes",
+  ]) {
     if (!(await tabelFindes(t))) mangler.push(t);
   }
   if (mangler.length) {
@@ -94,9 +97,19 @@ try {
   // Nyere kolonner på en ældre database. SQLite kan tilføje en kolonne uden at
   // røre rækkerne, så det her er ufarligt at køre hver gang.
   const KOLONNER = {
-    companies: [["updatedBy", "TEXT"]],
+    companies: [
+      ["updatedBy", "TEXT"],
+      ["isHot", "BOOLEAN NOT NULL DEFAULT false"],
+      ["hotSince", "DATETIME"],
+      ["hotSetBy", "TEXT"],
+    ],
     contacts: [["updatedBy", "TEXT"]],
-    products: [["updatedBy", "TEXT"]],
+    products: [
+      ["updatedBy", "TEXT"],
+      ["familyId", "TEXT"],
+      ["licenseModel", "TEXT NOT NULL DEFAULT 'sub'"],
+      ["oneTimePrice", "REAL"],
+    ],
     customer_products: [["updatedBy", "TEXT"]],
     deals: [["updatedBy", "TEXT"]],
     activities: [["updatedBy", "TEXT"]],
@@ -142,6 +155,50 @@ try {
       });
     }
     log(`${PAKKER.length} pakker oprettet`);
+  }
+
+  // 2b. Katalog: licenserne skal hænge under et produkt. Første gang lægges
+  //     alle eksisterende licenser under produktet "Idus", og deres nuværende
+  //     pris skrives ind som første post i prishistorikken.
+  if ((await db.productFamily.count()) === 0) {
+    await db.productFamily.create({
+      data: { id: "fam-idus", name: "Idus", description: "Idus Online", sortOrder: 1 },
+    });
+    log('produktet "Idus" oprettet i kataloget');
+  }
+  const uplacerede = await db.product.findMany({ where: { familyId: null }, select: { id: true } });
+  if (uplacerede.length) {
+    const foerste = await db.productFamily.findFirst({ orderBy: { sortOrder: "asc" } });
+    await db.product.updateMany({ where: { familyId: null }, data: { familyId: foerste.id } });
+    log(`${uplacerede.length} licenser lagt under "${foerste.name}"`);
+  }
+  const udenHistorik = await db.product.findMany({ where: { prices: { none: {} } } });
+  for (const p of udenHistorik) {
+    const pris = p.licenseModel === "perpetual" ? p.oneTimePrice : p.pricePerUserMonth;
+    await db.productPrice.create({
+      data: {
+        productId: p.id,
+        price: pris,
+        validFrom: p.createdAt,
+        appliedAt: new Date(),
+        note: "Pris da kataloget blev oprettet",
+      },
+    });
+  }
+  if (udenHistorik.length) log(`prishistorik startet for ${udenHistorik.length} licenser`);
+
+  // 2c. Superadministrator. Hele Indstillinger kræver rollen, så der skal
+  //     altid være mindst én. Findes der ingen, bliver den ældste aktive
+  //     administrator det.
+  if ((await db.user.count()) > 0 && (await db.user.count({ where: { role: "superadmin", isActive: true } })) === 0) {
+    const aeldste = await db.user.findFirst({
+      where: { role: "admin", isActive: true },
+      orderBy: { createdAt: "asc" },
+    });
+    if (aeldste) {
+      await db.user.update({ where: { id: aeldste.id }, data: { role: "superadmin" } });
+      log(`${aeldste.initials} er gjort til superadministrator`);
+    }
   }
 
   // 3. Kunder

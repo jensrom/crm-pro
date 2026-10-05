@@ -116,7 +116,7 @@ export default async function ProduktIndstillinger({
               )}
 
               <div className="flex justify-end gap-2">
-                <Link href="/indstillinger/produkter"><Button variant="secondary" type="button">Fortryd</Button></Link>
+                <Link href={`/indstillinger/katalog?licens=${tilSletning.id}`}><Button variant="secondary" type="button">Fortryd</Button></Link>
                 <Button variant="danger" type="submit">Slet produktet</Button>
               </div>
             </form>
@@ -126,9 +126,9 @@ export default async function ProduktIndstillinger({
 
       <Card>
         <CardHeader
-          title="Produkter"
-          description="Alt om priser, mærker og navne redigerer du under Produkter. Her sletter du dem."
-          action={<Link href="/produkter" className="text-xs font-medium text-primary hover:underline">Rediger produkter</Link>}
+          title="Arkivér og slet licenser"
+          description="Navne, priser og mærker redigerer du i Katalog. Her arkiverer og sletter du licenser."
+          action={<Link href="/indstillinger/katalog" className="text-xs font-medium text-primary hover:underline">Til katalog</Link>}
         />
         <CardBody className="p-0">
           {produkter.length === 0 ? (
@@ -165,7 +165,7 @@ export default async function ProduktIndstillinger({
                       </td>
                       <td className="px-5 py-2">
                         <div className="flex items-center justify-end gap-1.5">
-                          <Link href={`/produkter?pakke=${p.id}`} title="Rediger">
+                          <Link href={`/indstillinger/katalog?licens=${p.id}`} title="Rediger">
                             <Button size="sm" variant="ghost" type="button" className="px-2">
                               <Pencil className="h-3.5 w-3.5" />
                               <span className="sr-only">Rediger {p.name}</span>

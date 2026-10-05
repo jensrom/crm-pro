@@ -1,7 +1,8 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { hashPin, kraevAdmin, ryddSession, saetSession, tjekPin } from "@/lib/auth";
+import { hashPin, kraevSuperAdmin, ryddSession, saetSession, tjekPin } from "@/lib/auth";
+import { tolkRolle } from "@/lib/roller";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -48,7 +49,8 @@ export async function opretFoersteAdmin(formData: FormData) {
       initials: initialer,
       name: navn,
       email: txt(formData.get("email")),
-      role: "admin",
+      // Den første bruger skal kunne komme ind i Indstillinger.
+      role: "superadmin",
       pinHash: hashPin(pin),
     },
   });
@@ -59,7 +61,7 @@ export async function opretFoersteAdmin(formData: FormData) {
 // ---------- Administration ----------
 
 export async function opretBruger(formData: FormData) {
-  await kraevAdmin();
+  await kraevSuperAdmin();
   const initialer = txt(formData.get("initials"))?.toUpperCase();
   const navn = txt(formData.get("name"));
   const pin = txt(formData.get("pin"));
@@ -76,7 +78,7 @@ export async function opretBruger(formData: FormData) {
       email: txt(formData.get("email")),
       phone: txt(formData.get("phone")),
       title: txt(formData.get("title")),
-      role: formData.get("role") === "admin" ? "admin" : "bruger",
+      role: tolkRolle(formData.get("role")),
       pinHash: hashPin(pin),
     },
   });
@@ -85,15 +87,16 @@ export async function opretBruger(formData: FormData) {
 }
 
 export async function gemBruger(id: string, formData: FormData) {
-  const mig = await kraevAdmin();
+  await kraevSuperAdmin();
   const navn = txt(formData.get("name"));
-  const nyRolle = formData.get("role") === "admin" ? "admin" : "bruger";
+  const nyRolle = tolkRolle(formData.get("role"));
   const aktiv = formData.get("isActive") === "on";
 
-  // En administrator må ikke fjerne sin egen adgang og låse alle ude.
-  if (id === mig.id && (nyRolle !== "admin" || !aktiv)) {
-    const andreAdmins = await db.user.count({ where: { role: "admin", isActive: true, NOT: { id } } });
-    if (andreAdmins === 0) redirect("/indstillinger/brugere?fejl=sidste-admin");
+  // Der skal altid være mindst én aktiv superadministrator — ellers kan
+  // ingen komme ind i Indstillinger igen.
+  if (nyRolle !== "superadmin" || !aktiv) {
+    const andre = await db.user.count({ where: { role: "superadmin", isActive: true, NOT: { id } } });
+    if (andre === 0) redirect("/indstillinger/brugere?fejl=sidste-admin");
   }
 
   await db.user.update({
@@ -112,7 +115,7 @@ export async function gemBruger(id: string, formData: FormData) {
 }
 
 export async function nulstilPin(id: string, formData: FormData) {
-  await kraevAdmin();
+  await kraevSuperAdmin();
   const pin = txt(formData.get("pin"));
   if (!pin || !PIN_MOENSTER.test(pin)) redirect("/indstillinger/brugere?fejl=pin");
   await db.user.update({ where: { id }, data: { pinHash: hashPin(pin) } });
@@ -120,10 +123,10 @@ export async function nulstilPin(id: string, formData: FormData) {
 }
 
 export async function sletBruger(id: string) {
-  const mig = await kraevAdmin();
+  const mig = await kraevSuperAdmin();
   if (id === mig.id) redirect("/indstillinger/brugere?fejl=sig-selv");
-  const andreAdmins = await db.user.count({ where: { role: "admin", isActive: true, NOT: { id } } });
-  if (andreAdmins === 0) redirect("/indstillinger/brugere?fejl=sidste-admin");
+  const andre = await db.user.count({ where: { role: "superadmin", isActive: true, NOT: { id } } });
+  if (andre === 0) redirect("/indstillinger/brugere?fejl=sidste-admin");
   await db.user.delete({ where: { id } });
   revalidatePath("/indstillinger/brugere");
   redirect("/indstillinger/brugere?besked=slettet");

@@ -3,6 +3,7 @@
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { kraevBruger, kraevSuperAdmin } from "@/lib/auth";
 
 const txt = (v: FormDataEntryValue | null) => {
   const s = typeof v === "string" ? v.trim() : "";
@@ -21,48 +22,11 @@ function opfrisk() {
   revalidatePath("/kunder");
   revalidatePath("/pipeline");
   revalidatePath("/indstillinger");
-}
-
-export async function opretProdukt(formData: FormData) {
-  const name = txt(formData.get("name"));
-  if (!name) return;
-  const sidste = await db.product.findFirst({ orderBy: { sortOrder: "desc" } });
-  const p = await db.product.create({
-    data: {
-      name,
-      description: txt(formData.get("description")),
-      sku: txt(formData.get("sku")),
-      tier: txt(formData.get("tier")) ?? "egen",
-      icon: txt(formData.get("icon")) ?? "package",
-      color: txt(formData.get("color")) ?? "graa",
-      pricePerUserMonth: num(formData.get("pricePerUserMonth")),
-      sortOrder: Math.round(num(formData.get("sortOrder")) ?? (sidste?.sortOrder ?? 0) + 1),
-    },
-  });
-  opfrisk();
-  redirect(`/produkter?pakke=${p.id}`);
-}
-
-export async function gemProdukt(id: string, formData: FormData) {
-  const name = txt(formData.get("name"));
-  await db.product.update({
-    where: { id },
-    data: {
-      ...(name ? { name } : {}),
-      description: txt(formData.get("description")),
-      sku: txt(formData.get("sku")),
-      tier: txt(formData.get("tier")) ?? "egen",
-      icon: txt(formData.get("icon")) ?? "package",
-      color: txt(formData.get("color")) ?? "graa",
-      pricePerUserMonth: num(formData.get("pricePerUserMonth")),
-      sortOrder: Math.round(num(formData.get("sortOrder")) ?? 0),
-      isActive: formData.get("isActive") === "on",
-    },
-  });
-  opfrisk();
+  revalidatePath("/indstillinger/katalog");
 }
 
 export async function skiftAktiv(id: string, aktiv: boolean) {
+  await kraevSuperAdmin();
   await db.product.update({ where: { id }, data: { isActive: aktiv } });
   opfrisk();
 }
@@ -72,6 +36,7 @@ export async function skiftAktiv(id: string, aktiv: boolean) {
  * Linjer der allerede ligger på målproduktet springes over.
  */
 export async function flytFlereLinjer(formData: FormData) {
+  await kraevBruger();
   const productId = txt(formData.get("productId"));
   const ids = formData.getAll("linjeId").filter((v): v is string => typeof v === "string" && v !== "");
   if (!productId || ids.length === 0) return;
@@ -95,6 +60,7 @@ export async function flytFlereLinjer(formData: FormData) {
  * Sager der peger på produktet mister blot produktreferencen; selve sagen består.
  */
 export async function sletProduktEndeligt(id: string, formData: FormData) {
+  await kraevSuperAdmin();
   const flytTil = txt(formData.get("flytTil"));
   const sletLinjer = formData.get("sletLinjer") === "on";
 
@@ -119,5 +85,5 @@ export async function sletProduktEndeligt(id: string, formData: FormData) {
   await db.product.delete({ where: { id } });
 
   opfrisk();
-  redirect(`/indstillinger/produkter?besked=slettet&navn=${encodeURIComponent(produkt.name)}`);
+  redirect(`/indstillinger/katalog?besked=licens-slettet&navn=${encodeURIComponent(produkt.name)}`);
 }

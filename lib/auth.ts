@@ -46,7 +46,10 @@ export type Session = {
   initials: string;
   name: string;
   role: string;
+  /** admin eller superadmin */
   erAdmin: boolean;
+  /** Kun superadmin har adgang til Indstillinger (katalog, brugere, database …) */
+  erSuperAdmin: boolean;
 };
 
 export async function hentSession(): Promise<Session | null> {
@@ -64,7 +67,8 @@ export async function hentSession(): Promise<Session | null> {
     initials: bruger.initials,
     name: bruger.name,
     role: bruger.role,
-    erAdmin: bruger.role === "admin",
+    erAdmin: bruger.role === "admin" || bruger.role === "superadmin",
+    erSuperAdmin: bruger.role === "superadmin",
   };
 }
 
@@ -80,9 +84,16 @@ export async function kraevBruger(): Promise<Session> {
   redirect("/login");
 }
 
-/** Kræver administrator. Alt under Indstillinger går igennem her. */
+/** Kræver administrator (admin eller superadmin). */
 export async function kraevAdmin(): Promise<Session> {
   const s = await kraevBruger();
   if (!s.erAdmin) redirect("/ingen-adgang");
+  return s;
+}
+
+/** Kræver superadministrator. Alt under Indstillinger går igennem her. */
+export async function kraevSuperAdmin(): Promise<Session> {
+  const s = await kraevBruger();
+  if (!s.erSuperAdmin) redirect("/ingen-adgang");
   return s;
 }

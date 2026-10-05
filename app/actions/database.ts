@@ -3,7 +3,7 @@
 import { copyFileSync, existsSync, statSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import { revalidatePath } from "next/cache";
-import { antalBrugere, kraevAdmin } from "@/lib/auth";
+import { antalBrugere, kraevSuperAdmin } from "@/lib/auth";
 import { databaseSti, dataMappe, gemDatabaseSti, tjekSti } from "@/lib/config";
 import { db } from "@/lib/db";
 import { findBackup, gendan, lavBackup, sletBackup as fjernFil } from "@/lib/backup";
@@ -22,7 +22,7 @@ const txt = (v: FormDataEntryValue | null) => {
  * programmet genstartes, fordi datakilden læses ved opstart.
  */
 export async function gemDatabaseplacering(formData: FormData) {
-  await kraevAdmin();
+  await kraevSuperAdmin();
 
   const nySti = txt(formData.get("databasePath"));
   if (!nySti) redirect("/indstillinger/database?fejl=tom");
@@ -56,7 +56,7 @@ export async function gemDatabaseplacering(formData: FormData) {
 
 /** Tager en kopi af databasen som den ser ud lige nu. */
 export async function tagBackup() {
-  const mig = await kraevAdmin();
+  const mig = await kraevSuperAdmin();
 
   let filnavn: string;
   try {
@@ -77,7 +77,7 @@ export async function tagBackup() {
  * listen — mærket "før gendannelse".
  */
 export async function gendanBackup(formData: FormData) {
-  const mig = await kraevAdmin();
+  const mig = await kraevSuperAdmin();
 
   const valgt = txt(formData.get("filnavn"));
   if (!valgt) redirect("/indstillinger/database?fejl=vaelg");
@@ -105,7 +105,7 @@ export async function gendanBackup(formData: FormData) {
 }
 
 export async function sletBackup(formData: FormData) {
-  await kraevAdmin();
+  await kraevSuperAdmin();
   const valgt = txt(formData.get("filnavn"));
   if (!valgt) redirect("/indstillinger/database?fejl=vaelg");
   const b = findBackup(valgt);

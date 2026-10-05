@@ -3,6 +3,7 @@
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { kraevSuperAdmin } from "@/lib/auth";
 
 const txt = (v: FormDataEntryValue | null) => {
   const s = typeof v === "string" ? v.trim() : "";
@@ -19,6 +20,7 @@ function opfrisk() {
 }
 
 export async function gemWhitelabel(formData: FormData) {
+  await kraevSuperAdmin();
   const data: {
     brandSubtitle: string | null;
     brandMarkText: string | null;
@@ -54,6 +56,7 @@ export async function gemWhitelabel(formData: FormData) {
 }
 
 export async function gemDatagrundlag(formData: FormData) {
+  await kraevSuperAdmin();
   const note = txt(formData.get("dataSourceNote"));
   await db.settings.upsert({
     where: { id: "singleton" },

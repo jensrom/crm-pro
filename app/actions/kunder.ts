@@ -85,14 +85,6 @@ export async function sletLicenslinje(id: string) {
   opfrisk(linje.companyId);
 }
 
-export async function gemPakkepris(produktId: string, formData: FormData) {
-  await db.product.update({
-    where: { id: produktId },
-    data: { pricePerUserMonth: num(formData.get("pricePerUserMonth")) },
-  });
-  opfrisk();
-}
-
 /** Sætter kundens tilstand og noterer hvornår og hvorfor. */
 export async function skiftKundestatus(id: string, formData: FormData) {
   await db.company.update({

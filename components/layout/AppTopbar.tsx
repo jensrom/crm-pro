@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, ShieldCheck } from "lucide-react";
+import { Crown, LogOut, ShieldCheck } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { Opdatering } from "./Opdatering";
 import { logUd } from "@/app/actions/auth";
@@ -14,12 +14,13 @@ const TITLER: Record<string, string> = {
   "/kontakter": "Kontakter",
   "/pipeline": "Pipeline",
   "/produkter": "Produkter",
+  "/tilkoeb": "Tilkøb",
   "/teknik": "Teknik",
   "/aktiviteter": "Aktiviteter",
   "/indstillinger": "Indstillinger",
 };
 
-export type TopbarBruger = { initials: string; name: string; erAdmin: boolean };
+export type TopbarBruger = { initials: string; name: string; erAdmin: boolean; erSuperAdmin?: boolean };
 
 export function AppTopbar({ bruger }: { bruger: TopbarBruger }) {
   const sti = usePathname();
@@ -46,9 +47,9 @@ export function AppTopbar({ bruger }: { bruger: TopbarBruger }) {
       <div className="ml-auto flex items-center gap-3">
         <span
           className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground"
-          title={bruger.erAdmin ? `${bruger.name} — administrator` : bruger.name}
+          title={bruger.erSuperAdmin ? `${bruger.name} — superadministrator` : bruger.erAdmin ? `${bruger.name} — administrator` : bruger.name}
         >
-          {bruger.erAdmin && <ShieldCheck className="h-3.5 w-3.5 text-primary" />}
+          {bruger.erSuperAdmin ? <Crown className="h-3.5 w-3.5 text-primary" /> : bruger.erAdmin && <ShieldCheck className="h-3.5 w-3.5 text-primary" />}
           <span className="font-medium text-foreground tracking-wide">{bruger.initials}</span>
           <span className="hidden md:inline">{bruger.name}</span>
         </span>

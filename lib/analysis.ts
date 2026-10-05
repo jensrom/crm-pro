@@ -49,7 +49,7 @@ type Linje = {
   seats: number;
   activeSeats: number;
   unitPriceMonth: number | null;
-  product: { pricePerUserMonth: number | null } | null;
+  product: { pricePerUserMonth: number | null; licenseModel?: string | null } | null;
 };
 
 export function noegletal(linjer: Linje[]): KundeNoegletal {

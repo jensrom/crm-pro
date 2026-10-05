@@ -12,13 +12,15 @@ export const PAKKER = [
   { tier: "large",  navn: "Large",  pris: 695, sortOrder: 3 },
 ] as const;
 
-export type PakkeInfo = { pricePerUserMonth: number | null } | null | undefined;
+export type PakkeInfo = { pricePerUserMonth: number | null; licenseModel?: string | null } | null | undefined;
 
 /** Prisen der gælder for en kundes linje: aftalt pris slår pakkens listepris. */
 export function gaeldendeMaanedspris(
   unitPriceMonth: number | null | undefined,
   produkt: PakkeInfo
 ): number | null {
+  // Perpetual-licenser er købt én gang og har ingen løbende månedspris.
+  if (produkt?.licenseModel === "perpetual") return 0;
   if (unitPriceMonth != null) return unitPriceMonth;
   return produkt?.pricePerUserMonth ?? null;
 }

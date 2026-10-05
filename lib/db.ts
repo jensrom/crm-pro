@@ -8,7 +8,7 @@ import { laesSessionKiks } from "@/lib/sessionkiks";
  */
 const STEMPLEDE = new Set([
   "Company", "Contact", "Product", "CustomerProduct", "Deal",
-  "Activity", "User", "Ticket", "HourBundle", "CustomerNote", "Settings",
+  "Activity", "User", "Ticket", "HourBundle", "CustomerNote", "Settings", "ProductFamily",
 ]);
 
 const SKRIVNINGER = new Set(["create", "createMany", "update", "updateMany", "upsert"]);

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, KeyRound, ShieldCheck, Trash2, UserPlus } from "lucide-react";
+import { AlertTriangle, Crown, KeyRound, ShieldCheck, Trash2, UserPlus } from "lucide-react";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { hentSession } from "@/lib/auth";
 import { dato } from "@/lib/format";
 import { gemBruger, nulstilPin, opretBruger, sletBruger } from "@/app/actions/auth";
 import { cn } from "@/lib/utils";
+import { ROLLER } from "@/lib/roller";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ const FEJL: Record<string, string> = {
   mangler: "Initialer, navn og PIN skal udfyldes.",
   pin: "PIN skal være 4–8 cifre.",
   initialer: "De initialer er allerede i brug.",
-  "sidste-admin": "Der skal altid være mindst én aktiv administrator tilbage.",
+  "sidste-admin": "Der skal altid være mindst én aktiv superadministrator tilbage — ellers kan ingen komme ind i Indstillinger.",
   "sig-selv": "Du kan ikke slette din egen bruger.",
 };
 
@@ -80,8 +81,10 @@ export default async function BrugerSide({
                     </td>
                     <td className="px-3 py-2.5 text-muted-foreground text-xs break-all">{b.email ?? "–"}</td>
                     <td className="px-3 py-2.5">
-                      {b.role === "admin"
-                        ? <Badge variant="default"><ShieldCheck className="h-3 w-3 mr-1 inline" />Administrator</Badge>
+                      {b.role === "superadmin"
+                        ? <Badge variant="default"><Crown className="h-3 w-3 mr-1 inline" />Superadministrator</Badge>
+                        : b.role === "admin"
+                        ? <Badge variant="info"><ShieldCheck className="h-3 w-3 mr-1 inline" />Administrator</Badge>
                         : <Badge variant="muted">Bruger</Badge>}
                       {!b.isActive && <Badge variant="muted" className="ml-1.5">Spærret</Badge>}
                     </td>
@@ -119,8 +122,7 @@ export default async function BrugerSide({
                 <div>
                   <Label htmlFor="role">Rolle</Label>
                   <Select id="role" name="role" defaultValue={under.role}>
-                    <option value="bruger">Bruger</option>
-                    <option value="admin">Administrator</option>
+                    {ROLLER.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
                   </Select>
                 </div>
                 <label className="sm:col-span-2 flex items-center gap-2 text-sm">
@@ -166,8 +168,7 @@ export default async function BrugerSide({
               <div>
                 <Label htmlFor="nrole">Rolle</Label>
                 <Select id="nrole" name="role" defaultValue="bruger">
-                  <option value="bruger">Bruger</option>
-                  <option value="admin">Administrator</option>
+                  {ROLLER.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
                 </Select>
               </div>
               <div className="sm:col-span-2 flex justify-end"><Button type="submit"><UserPlus className="h-3.5 w-3.5" /> Opret bruger</Button></div>
@@ -175,6 +176,11 @@ export default async function BrugerSide({
           </CardBody>
         </Card>
       )}
+
+      <p className="text-xs text-muted-foreground max-w-prose">
+        <b>Superadministrator</b> har adgang til hele Indstillinger — katalog, brugere, whitelabel, database og
+        opdatering. <b>Administrator</b> og <b>Bruger</b> arbejder i CRM'et, men kan ikke åbne Indstillinger.
+      </p>
 
       <p className="text-xs text-muted-foreground max-w-prose">
         PIN'en gemmes som en scrypt-hash med eget salt — hverken du eller nogen anden kan læse den ud af databasen.

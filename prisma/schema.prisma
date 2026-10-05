@@ -77,6 +77,7 @@ model Company {
   timeLogs         TimeLog[]
   notes_           CustomerNote[]
   attachments      Attachment[]
+  licenseChanges   LicenseChange[]
 
   @@index([isActive])
   @@index([customerStatus])
@@ -140,11 +141,40 @@ model Attachment {
 }
 
 // ============================================================
-// PRODUKTER OG PAKKER
+// KATALOG — produkt → licenser
+// Et produkt (fx "Idus") er en familie; licenserne under det (fx "Idus
+// Online Basic") er det kunderne har linjer på. Styres under Indstillinger →
+// Katalog, som kun superadministratorer kan se.
 // ============================================================
 
+model ProductFamily {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  sortOrder   Int     @default(0)
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  /// Initialer på den der gemte sidst. Tom = ukendt (fx indlæst data).
+  updatedBy String?
+
+  products Product[]
+
+  @@index([isActive, sortOrder])
+  @@map("product_families")
+}
+
+/// Én licens i kataloget. Tabellen hedder stadig "products", fordi kundelinjer,
+/// salgsmuligheder og sager allerede peger på den.
 model Product {
   id          String  @id @default(cuid())
+  /// Produktet licensen hører under. Tom = ikke placeret endnu.
+  familyId    String?
+  /// sub = abonnement (pris pr. bruger pr. måned) | perpetual = købt én gang
+  licenseModel String @default("sub")
+  /// Engangspris pr. licens. Kun for perpetual.
+  oneTimePrice Float?
   name        String
   description String?
   sku         String?
@@ -164,12 +194,68 @@ model Product {
   /// Initialer på den der gemte sidst. Tom = ukendt (fx indlæst data).
   updatedBy String?
 
+  family           ProductFamily?  @relation(fields: [familyId], references: [id], onDelete: SetNull)
   customerProducts CustomerProduct[]
   deals            Deal[]
   tickets          Ticket[]
+  prices           ProductPrice[]
+  licenseChanges   LicenseChange[]
 
   @@index([isActive, sortOrder])
+  @@index([familyId])
   @@map("products")
+}
+
+/// Prishistorik. Hver prisændring er en række; den nyeste der er trådt i kraft
+/// er den der står på licensen. Ændringer med fremtidig dato venter, til
+/// datoen er nået (appliedAt sættes, når prisen er lagt over på licensen).
+model ProductPrice {
+  id        String   @id @default(cuid())
+  productId String
+  /// Ny pris. For sub: pr. bruger pr. måned. For perpetual: engangspris pr. licens.
+  price     Float?
+  validFrom DateTime
+  appliedAt DateTime?
+  note      String?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, validFrom])
+  @@index([appliedAt])
+  @@map("product_prices")
+}
+
+/// Tilkøb og reduktioner af licenser på en kunde. Hver post flytter kundens
+/// licensantal på linjen og bliver liggende som historik.
+model LicenseChange {
+  id        String @id @default(cuid())
+  companyId String
+  productId String
+
+  /// Positiv = tilkøb, negativ = reduktion
+  quantity    Int
+  seatsBefore Int
+  seatsAfter  Int
+  /// Prisen pr. licens på tidspunktet (sub: pr. md., perpetual: engang)
+  unitPrice   Float?
+  /// Licensmodellen på tidspunktet, så historikken ikke skifter betydning
+  licenseModel String @default("sub")
+  date        DateTime @default(now())
+  note        String?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, date])
+  @@index([productId, date])
+  @@index([date])
+  @@map("license_changes")
 }
 
 model CustomerProduct {
@@ -283,7 +369,7 @@ model User {
   email    String?
   phone    String?
   title    String?
-  /// admin | bruger
+  /// superadmin | admin | bruger — kun superadmin har adgang til Indstillinger
   role     String  @default("bruger")
   pinHash  String
   isActive Boolean @default(true)

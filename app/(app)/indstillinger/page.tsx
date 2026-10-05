@@ -3,6 +3,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { hentIndstillinger } from "@/lib/analysis";
 import { db } from "@/lib/db";
 import { kroner, tal } from "@/lib/format";
+import { licensmodel, listepris } from "@/lib/katalog";
 
 export const dynamic = "force-dynamic";
 
@@ -39,16 +40,16 @@ export default async function IndstillingerSide() {
 
       <Card>
         <CardHeader
-          title="Pakkepriser"
-          description="Listepriser pr. bruger pr. måned. Rettes under Produkter."
-          action={<Link href="/produkter" className="text-xs font-medium text-primary hover:underline">Til produkter</Link>}
+          title="Listepriser"
+          description="Aktive licenser. Priser ændres med en prisændring i Katalog."
+          action={<Link href="/indstillinger/katalog" className="text-xs font-medium text-primary hover:underline">Til katalog</Link>}
         />
         <CardBody className="flex flex-col gap-2.5">
           {produkter.map((p) => (
             <div key={p.id} className="flex items-center justify-between gap-4 text-sm">
               <span>{p.name}</span>
               <span className="tabular">
-                {p.pricePerUserMonth != null ? `${kroner(p.pricePerUserMonth)} / bruger / md.` : "ingen pris"}
+                {listepris(p) != null ? `${kroner(listepris(p))} ${licensmodel(p.licenseModel).enhed}` : "ingen pris"}
               </span>
             </div>
           ))}

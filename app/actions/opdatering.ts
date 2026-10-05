@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { kraevAdmin } from "@/lib/auth";
+import { kraevSuperAdmin } from "@/lib/auth";
 import { gemOpdateringsSti } from "@/lib/config";
 
 const txt = (v: FormDataEntryValue | null) => {
@@ -16,7 +16,7 @@ const txt = (v: FormDataEntryValue | null) => {
  * at man skal grave i konfigurationsfilen manuelt.
  */
 export async function gemOpdateringsplacering(formData: FormData) {
-  await kraevAdmin();
+  await kraevSuperAdmin();
 
   const nySti = txt(formData.get("updateManifestPath"));
   gemOpdateringsSti(nySti ?? "");
