@@ -499,8 +499,6 @@ export async function lavSalgsdokument(d: {
       .replace(/%KONTAKTPERSON%/gi, d.modtager.att ?? "")
       .replace(/%BRUGERENS NAVN%/gi, d.saelger.navn ?? "");
 
-  const INDRYK = MARGIN + 100; // kolonnen positionernes tekst står i
-  const BELOEB_X = A4.b - MARGIN; // beløb højrestilles her
 
   // ---------- Hoved: modtager til venstre, sælger og dokumentdata til højre ----------
   const hTop = dok.y;
@@ -555,55 +553,93 @@ export async function lavSalgsdokument(d: {
     dok.y -= 6;
   }
 
-  // ---------- Positioner ----------
+  // ---------- Positioner: tabel med Pos. · Beskrivelse · Antal · Pris · Beløb ----------
+  const FULD = A4.b - 2 * MARGIN;
+  const PAD = 6;
+  const kol = { pos: 30, antal: 48, pris: 92, beloeb: 92 };
+  const xPos = MARGIN;
+  const xBesk = xPos + kol.pos;
+  const bBesk = FULD - kol.pos - kol.antal - kol.pris - kol.beloeb;
+  const xAntal = xBesk + bBesk;
+  const xPris = xAntal + kol.antal;
+  const xBeloeb = xPris + kol.pris;
+  const hoejreKant = A4.b - MARGIN;
+
+  const tabelHoved = () => {
+    dok.side.drawRectangle({ x: MARGIN, y: dok.y - 22, width: FULD, height: 22, color: FLADE });
+    const y = dok.y - 14.5;
+    const t = { str: 7.5, fed: true, farve: GRAA };
+    dok.skriv("POS.", xPos + PAD, y, t);
+    dok.skriv("BESKRIVELSE", xBesk + PAD, y, t);
+    dok.skriv("ANTAL", xAntal + kol.antal - PAD, y, { ...t, hoejre: true });
+    dok.skriv("PRIS", xPris + kol.pris - PAD, y, { ...t, hoejre: true });
+    dok.skriv("BELØB", xBeloeb + kol.beloeb - PAD, y, { ...t, hoejre: true });
+    dok.y -= 22;
+  };
+
+  dok.plads(60);
+  dok.y -= 6;
+  tabelHoved();
+
   d.linjer.forEach((l, i) => {
-    const pos = i + 1;
     const beloeb = linjebeloeb(l);
-    dok.plads(80);
-    dok.y -= 16;
-    const posTekst = `Pos. ${pos}:`;
-    dok.skriv(posTekst, MARGIN, dok.y - 11, { str: 11, fed: true });
-    dok.side.drawLine({
-      start: { x: MARGIN, y: dok.y - 13.5 },
-      end: { x: MARGIN + dok.bredde(posTekst, 11, true), y: dok.y - 13.5 },
-      thickness: 0.8,
-      color: ORANGE,
-    });
-    const navnLinjer = dok.ombryd(l.beskrivelse, BELOEB_X - INDRYK, 11, true);
-    navnLinjer.forEach((t, j) => dok.skriv(t, INDRYK, dok.y - 11 - j * 14.5, { str: 11, fed: true }));
-    dok.y -= navnLinjer.length * 14.5 + 10;
+    const tekstB = bBesk - 2 * PAD;
+    const navn = dok.ombryd(l.beskrivelse, tekstB, 10, true);
+    const detaljer = l.detaljer ? dok.ombryd(flet(l.detaljer), tekstB, 8.5) : [];
+    const ekstra: string[] = [];
+    if (l.maaneder && l.fra && l.til) ekstra.push(`Periode ${datoTekst(l.fra)} – ${datoTekst(l.til)} (${l.maaneder} mdr.)`);
+    else if (l.maaneder) ekstra.push(`${l.maaneder} måneder`);
+    const ekstraL = ekstra.flatMap((t) => dok.ombryd(t, tekstB, 8.5));
 
-    if (l.detaljer) {
-      dok.afsnit(flet(l.detaljer), { str: 10, x: INDRYK });
-      dok.y -= 6;
+    const h = 10 + navn.length * 13 + (detaljer.length ? 3 + detaljer.length * 11 : 0) + (ekstraL.length ? 3 + ekstraL.length * 11 : 0) + 8;
+    if (dok.plads(Math.min(h, 600))) tabelHoved();
+
+    const top = dok.y;
+    let y = top - 10 - 9;
+    // Talkolonner på første linje
+    dok.skriv(String(i + 1), xPos + PAD, y, { str: 9.5, farve: GRAA });
+    dok.skriv(String(l.antal), xAntal + kol.antal - PAD, y, { str: 9.5, hoejre: true });
+    if (l.enhedspris != null) {
+      dok.skriv(kr(l.enhedspris), xPris + kol.pris - PAD, y, { str: 9.5, hoejre: true });
+      if (l.maaneder) dok.skriv("pr. md.", xPris + kol.pris - PAD, y - 11, { str: 8, farve: GRAA, hoejre: true });
     }
+    dok.skriv(l.enhedspris == null ? "" : kr(beloeb), xBeloeb + kol.beloeb - PAD, y, { str: 9.5, fed: true, hoejre: true });
 
-    const linjer: string[] = [];
-    if (l.maaneder) {
-      if (l.fra && l.til) linjer.push(`Periode: ${datoTekst(l.fra)} - ${datoTekst(l.til)} (${l.maaneder} måneder).`);
-      if (l.enhedspris != null)
-        linjer.push(`${l.antal} ${l.antal === 1 ? "licens" : "licenser"} à ${kr(l.enhedspris)} pr. måned.`);
-      linjer.push(`Det samlede beløb for perioden på ${l.maaneder} måneder er ${kr(beloeb)}`);
-    } else if (l.enhedspris != null && l.antal > 1) {
-      linjer.push(`${l.antal} stk. à ${kr(l.enhedspris)}`);
+    // Beskrivelsen
+    navn.forEach((t, j) => dok.skriv(t, xBesk + PAD, y - j * 13, { str: 10, fed: true }));
+    y -= navn.length * 13;
+    if (ekstraL.length) {
+      y -= 3;
+      ekstraL.forEach((t) => { dok.skriv(t, xBesk + PAD, y, { str: 8.5, farve: GRAA }); y -= 11; });
     }
-    for (const t of linjer) dok.afsnit(t, { str: 10, x: INDRYK });
-
-    dok.plads(24);
-    dok.y -= 8;
-    dok.skriv(`Pris netto pos. ${pos}`, INDRYK, dok.y - 10.5, { str: 10.5, fed: true });
-    dok.skriv(kr(beloeb), BELOEB_X, dok.y - 10.5, { str: 10.5, fed: true, hoejre: true });
-    dok.y -= 18;
+    if (detaljer.length) {
+      y -= 3;
+      for (const t of detaljer) {
+        if (y < 92) {
+          dok.nySide();
+          tabelHoved();
+          y = dok.y - 12;
+        }
+        dok.skriv(t, xBesk + PAD, y, { str: 8.5, farve: GRAA });
+        y -= 11;
+      }
+    }
+    dok.y = Math.min(y + 9 - 8, top - h);
+    dok.side.drawLine({ start: { x: MARGIN, y: dok.y }, end: { x: hoejreKant, y: dok.y }, thickness: 0.6, color: LINJE });
   });
 
-  // ---------- Samlet ----------
+  // ---------- Total ----------
   const total = d.linjer.reduce((s, l) => s + linjebeloeb(l), 0);
-  dok.plads(40);
-  dok.y -= 14;
-  dok.side.drawRectangle({ x: MARGIN, y: dok.y - 26, width: A4.b - 2 * MARGIN, height: 26, color: FLADE });
-  dok.skriv(d.linjer.length > 1 ? `Samlet pris netto pos. 1 - ${d.linjer.length}` : "Samlet pris netto", MARGIN + 8, dok.y - 17, { str: 11, fed: true });
-  dok.skriv(kr(total), BELOEB_X - 8, dok.y - 17, { str: 11, fed: true, hoejre: true });
+  dok.plads(50);
+  dok.y -= 8;
+  const tx = xPris - 40;
+  dok.side.drawRectangle({ x: tx, y: dok.y - 26, width: hoejreKant - tx, height: 26, color: FLADE });
+  dok.side.drawRectangle({ x: tx, y: dok.y - 26, width: 2.5, height: 26, color: ORANGE });
+  dok.skriv("I alt ekskl. moms", tx + 12, dok.y - 17, { str: 10.5, fed: true });
+  dok.skriv(kr(total), hoejreKant - PAD, dok.y - 17, { str: 10.5, fed: true, hoejre: true });
   dok.y -= 34;
+  dok.skriv("Alle beløb er i danske kroner ekskl. moms.", hoejreKant - PAD, dok.y - 8, { str: 8, farve: GRAA, hoejre: true });
+  dok.y -= 22;
 
   if (d.note) {
     dok.y -= 4;
