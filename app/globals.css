@@ -6,87 +6,87 @@
 
 @layer base {
   :root {
-    /* CRM-Pro 2026 — kølig nordisk neutral med én rolig indigo-accent.
-       Neutrale grå bærer layoutet; farve bruges kun til handling og status.
+    /* CRM-Pro 2026 — dæmpet neutral grå. Ingen ren hvid, ingen ren sort og
+       ingen farvetone i fladerne; farve er forbeholdt status og signaler.
        Alle værdier er HSL-tripler, som komponentbiblioteket forventer. */
-    --background: 220 30% 98.4%;     /* #f9fafc — luftig, næsten hvid */
-    --foreground: 224 24% 12%;       /* #171b26 */
+    --background: 220 6% 94.5%;      /* #eff0f1 */
+    --foreground: 220 7% 20%;        /* #30333a — blødere end sort */
 
-    --card: 0 0% 100%;
-    --card-foreground: 224 24% 12%;
+    --card: 220 8% 98%;              /* #f9f9fa — off-white */
+    --card-foreground: 220 7% 20%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 224 24% 12%;
+    --popover: 220 8% 98%;
+    --popover-foreground: 220 7% 20%;
 
-    --primary: 240 60% 60%;          /* indigo #5b5bd6 — 4,9:1 mod hvid */
-    --primary-foreground: 0 0% 100%;
+    --primary: 220 7% 24%;           /* grafit #383b42 */
+    --primary-foreground: 220 8% 97%;
 
-    --secondary: 220 24% 95.5%;      /* #f1f3f7 */
-    --secondary-foreground: 222 14% 30%;
+    --secondary: 220 6% 90.5%;       /* #e5e6e8 */
+    --secondary-foreground: 220 6% 28%;
 
-    --muted: 220 24% 95.5%;
-    --muted-foreground: 220 9% 44%;  /* #646a78 */
+    --muted: 220 6% 90.5%;
+    --muted-foreground: 220 5% 45%;  /* #6c6f76 */
 
-    --accent: 240 55% 52%;           /* #4646c8 */
-    --accent-foreground: 0 0% 100%;
+    --accent: 220 6% 32%;
+    --accent-foreground: 220 8% 97%;
 
-    --destructive: 347 72% 50%;      /* rosa-rød #db2459 */
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 352 45% 48%;      /* dæmpet rød #b1434f */
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 220 18% 91.5%;         /* #e6e9ee */
-    --input: 220 16% 88%;
-    --ring: 240 60% 60%;
+    --border: 220 6% 86.5%;          /* #dbdcdf */
+    --input: 220 6% 84%;
+    --ring: 220 5% 55%;
 
     --radius: 0.7rem;
 
-    /* Lys sidebar: hvid flade, aktivt punkt som blød indigo-tone. */
-    --sidebar-bg: 0 0% 100%;
-    --sidebar-fg: 222 12% 40%;       /* #5a6070 */
-    --sidebar-fg-strong: 224 24% 12%;
-    --sidebar-active-bg: 240 75% 96%; /* #eeeefd */
-    --sidebar-active-fg: 240 55% 50%; /* #3d3dc6 */
-    --sidebar-hover-bg: 220 24% 96%;
-    --sidebar-border: 220 18% 91.5%;
+    /* Sidebaren: en tone mørkere end indholdet, aktivt punkt som grå flade. */
+    --sidebar-bg: 220 6% 92%;        /* #e9eaec */
+    --sidebar-fg: 220 5% 40%;
+    --sidebar-fg-strong: 220 8% 17%;
+    --sidebar-active-bg: 220 6% 85%; /* #d6d8db */
+    --sidebar-active-fg: 220 9% 15%;
+    --sidebar-hover-bg: 220 6% 88.5%;
+    --sidebar-border: 220 6% 86.5%;
     --sidebar-width: 240px;
     --topbar-height: 56px;
   }
 
   .dark {
-    --background: 228 16% 7%;        /* #0f1015 */
-    --foreground: 220 20% 93%;
+    --background: 220 5% 11%;        /* #1b1c1e — grafit, ikke sort */
+    --foreground: 220 6% 85%;        /* #d6d8dc — ikke ren hvid */
 
-    --card: 228 14% 10.5%;           /* #16171e */
-    --card-foreground: 220 20% 93%;
+    --card: 220 5% 14%;              /* #222326 */
+    --card-foreground: 220 6% 85%;
 
-    --popover: 228 14% 11%;
-    --popover-foreground: 220 20% 93%;
+    --popover: 220 5% 15%;
+    --popover-foreground: 220 6% 85%;
 
-    --primary: 240 75% 70%;          /* #8585f0 */
-    --primary-foreground: 228 30% 10%;
+    --primary: 220 6% 80%;           /* lys grafit */
+    --primary-foreground: 220 6% 12%;
 
-    --secondary: 228 12% 15%;
-    --secondary-foreground: 220 16% 82%;
+    --secondary: 220 5% 19%;
+    --secondary-foreground: 220 6% 78%;
 
-    --muted: 228 12% 15%;
-    --muted-foreground: 222 10% 62%;
+    --muted: 220 5% 19%;
+    --muted-foreground: 220 4% 58%;
 
-    --accent: 240 70% 74%;
-    --accent-foreground: 228 30% 10%;
+    --accent: 220 5% 72%;
+    --accent-foreground: 220 6% 12%;
 
-    --destructive: 350 80% 64%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 352 50% 62%;
+    --destructive-foreground: 220 6% 12%;
 
-    --border: 228 12% 18%;
-    --input: 228 12% 20%;
-    --ring: 240 75% 70%;
+    --border: 220 5% 21%;
+    --input: 220 5% 24%;
+    --ring: 220 4% 50%;
 
-    --sidebar-bg: 228 16% 8.5%;
-    --sidebar-fg: 222 10% 64%;
-    --sidebar-fg-strong: 220 20% 95%;
-    --sidebar-active-bg: 240 40% 20%;
-    --sidebar-active-fg: 240 90% 84%;
-    --sidebar-hover-bg: 228 14% 13%;
-    --sidebar-border: 228 12% 15%;
+    --sidebar-bg: 220 5% 9%;
+    --sidebar-fg: 220 4% 60%;
+    --sidebar-fg-strong: 220 6% 88%;
+    --sidebar-active-bg: 220 5% 18%;
+    --sidebar-active-fg: 220 6% 90%;
+    --sidebar-hover-bg: 220 5% 14%;
+    --sidebar-border: 220 5% 15%;
   }
 }
 

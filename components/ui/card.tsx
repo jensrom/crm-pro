@@ -1,9 +1,9 @@
 import { cn } from "@/lib/utils";
 
 export function Card({ className, children }: { className?: string; children: React.ReactNode }) {
-  // Hvidt kort med hårfin kant og en næsten usynlig skygge — løfter kortet fra den lyse baggrund.
+  // Off-white kort med hårfin kant og en næsten usynlig skygge.
   return (
-    <div className={cn("bg-card border border-border rounded-xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] dark:shadow-none", className)}>
+    <div className={cn("bg-card border border-border rounded-xl shadow-[0_1px_2px_rgba(20,22,26,0.035)] dark:shadow-none", className)}>
       {children}
     </div>
   );

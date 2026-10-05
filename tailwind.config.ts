@@ -20,11 +20,11 @@ const config: Config = {
         accent: { DEFAULT: "hsl(var(--accent))", foreground: "hsl(var(--accent-foreground))" },
         popover: { DEFAULT: "hsl(var(--popover))", foreground: "hsl(var(--popover-foreground))" },
         card: { DEFAULT: "hsl(var(--card))", foreground: "hsl(var(--card-foreground))" },
-        // Signalfarver 2026: klare men dæmpede toner, læsbare i både lys og mørk.
-        success: { DEFAULT: "#0e9f6e", foreground: "#ffffff", light: "#dcf5ea" }, // smaragd
-        warning: { DEFAULT: "#d97706", foreground: "#ffffff", light: "#fdf0d5" }, // rav
-        danger:  { DEFAULT: "#e11d48", foreground: "#ffffff", light: "#ffe4ea" }, // rosa-rød
-        info:    { DEFAULT: "#0284c7", foreground: "#ffffff", light: "#dff1fb" }, // himmelblå
+        // Signalfarver: dæmpede toner, der kun bruges til status og advarsler.
+        success: { DEFAULT: "#3f8a68", foreground: "#f9f9fa", light: "#e1ece6" }, // salviegrøn
+        warning: { DEFAULT: "#b07a2a", foreground: "#f9f9fa", light: "#f1e8d9" }, // okker
+        danger:  { DEFAULT: "#b1434f", foreground: "#f9f9fa", light: "#f2e1e3" }, // dæmpet rød
+        info:    { DEFAULT: "#4a7393", foreground: "#f9f9fa", light: "#e2e9ef" }, // stålblå
       },
       borderRadius: {
         lg: "var(--radius)",
