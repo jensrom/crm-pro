@@ -11,12 +11,18 @@ Kører på **Vercel** med **Postgres hos Neon**. Next.js 15 · Prisma 6 · Tailw
 
 ### 1. Læg koden på GitHub
 
-Opret et **privat** repository på GitHub (fx `crm-pro`) og push koden:
+Opret et **privat** repository på GitHub (fx `crm-pro`), og push koden fra projektmappen
+(i en almindelig Windows-terminal):
 
 ```bash
+git init -b main
+git add .
+git commit -m "CRM-Pro klar til Vercel"
 git remote add origin https://github.com/<dit-brugernavn>/crm-pro.git
 git push -u origin main
 ```
+
+`.gitignore` sørger for, at `.env`, `node_modules` og den lokale `data/kunder.json` ikke kommer med.
 
 ### 2. Opret projektet i Vercel
 
