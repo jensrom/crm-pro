@@ -35,10 +35,20 @@ export default async function BrugerSide({
   searchParams: Promise<{ rediger?: string; besked?: string; fejl?: string }>;
 }) {
   const { rediger, besked, fejl } = await searchParams;
-  const [brugere, mig] = await Promise.all([
-    db.user.findMany({ orderBy: [{ isActive: "desc" }, { initials: "asc" }] }),
+  const [brugere, mig, profiler] = await Promise.all([
+    db.user.findMany({ orderBy: [{ isActive: "desc" }, { initials: "asc" }], include: { senderProfile: { select: { name: true } } } }),
     hentSession(),
+    db.senderProfile.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true, isDefault: true } }),
   ]);
+  const AfdelingValg = ({ id, valgt }: { id: string; valgt?: string | null }) => (
+    <div>
+      <Label htmlFor={id}>Afdeling (afsender på tilbud og ordrer)</Label>
+      <Select id={id} name="senderProfileId" defaultValue={valgt ?? ""}>
+        <option value="">{profiler.find((p) => p.isDefault) ? `Standard (${profiler.find((p) => p.isDefault)!.name})` : "Ingen — fælles oplysninger"}</option>
+        {profiler.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+      </Select>
+    </div>
+  );
   const under = rediger ? brugere.find((b) => b.id === rediger) : null;
 
   return (
@@ -77,7 +87,9 @@ export default async function BrugerSide({
                     <td className="px-3 py-2.5">
                       {b.name}
                       {b.id === mig?.id && <span className="ml-2 text-xs text-muted-foreground">(dig)</span>}
-                      {b.title && <div className="text-xs text-muted-foreground">{b.title}</div>}
+                      {(b.title || b.senderProfile) && (
+                  <div className="text-xs text-muted-foreground">{[b.title, b.senderProfile?.name].filter(Boolean).join(" · ")}</div>
+                )}
                     </td>
                     <td className="px-3 py-2.5 text-muted-foreground text-xs break-all">{b.email ?? "–"}</td>
                     <td className="px-3 py-2.5">
@@ -120,6 +132,7 @@ export default async function BrugerSide({
                 <div><Label htmlFor="phone">Tlf. direkte</Label><Input id="phone" name="phone" defaultValue={under.phone ?? ""} /></div>
                 <div><Label htmlFor="mobile">Tlf. mobil</Label><Input id="mobile" name="mobile" defaultValue={under.mobile ?? ""} /></div>
                 <div><Label htmlFor="title">Stilling</Label><Input id="title" name="title" defaultValue={under.title ?? ""} /></div>
+                <AfdelingValg id="afd" valgt={under.senderProfileId} />
                 <div>
                   <Label htmlFor="role">Rolle</Label>
                   <Select id="role" name="role" defaultValue={under.role}>
@@ -167,6 +180,7 @@ export default async function BrugerSide({
               <div><Label htmlFor="nphone">Tlf. direkte</Label><Input id="nphone" name="phone" /></div>
               <div><Label htmlFor="nmobile">Tlf. mobil</Label><Input id="nmobile" name="mobile" /></div>
               <div><Label htmlFor="ntitle">Stilling</Label><Input id="ntitle" name="title" /></div>
+              <AfdelingValg id="nafd" />
               <div>
                 <Label htmlFor="nrole">Rolle</Label>
                 <Select id="nrole" name="role" defaultValue="bruger">

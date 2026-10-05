@@ -192,6 +192,7 @@ export async function opretOrdre(formData: FormData) {
       validUntil: kind === "tilbud" ? fraIso(txt(formData.get("validUntil"))) ?? plusDage(orderDate, 30) : null,
       note: txt(formData.get("note")),
       vatRate: num(formData.get("vatRate")) ?? 25,
+      senderProfileId: txt(formData.get("senderProfileId")),
       createdBy: mig.initials,
       lines: { create: linjer },
     },
@@ -227,6 +228,7 @@ export async function tilbudTilOrdre(tilbudId: string, formData: FormData) {
       note: t.note,
       vatRate: t.vatRate,
       sourceOrderId: t.id,
+      senderProfileId: t.senderProfileId,
       createdBy: mig.initials,
       lines: {
         create: t.lines.map(({ id: _id, orderId: _o, ...l }) => l),

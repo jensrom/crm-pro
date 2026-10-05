@@ -28,7 +28,7 @@ export async function ordrePdf(orderId: string) {
 
   const bytes = await lavSalgsdokument({
     kind: o.kind,
-    afsender: await hentAfsender(),
+    afsender: await hentAfsender(o.senderProfileId),
     saelger: {
       navn: saelger?.name ?? o.createdBy ?? null,
       mail: saelger?.email ?? null,

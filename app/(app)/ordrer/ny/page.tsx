@@ -7,7 +7,8 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { GruppeFlueben } from "@/components/dokumenter/GruppeFlueben";
 import { PeriodeFelter, type SynkMaal } from "@/components/dokumenter/PeriodeFelter";
 import { db } from "@/lib/db";
-import { ANTAL_FRIE_LINJER, subNr } from "@/lib/dokumenter";
+import { ANTAL_FRIE_LINJER, brugerensProfilId, subNr } from "@/lib/dokumenter";
+import { kraevBruger } from "@/lib/auth";
 import { erEngang, hentKatalog, licensmodel, listepris } from "@/lib/katalog";
 import { KundeVaelger } from "@/components/dokumenter/KundeVaelger";
 import { aftaleUdloeb, dagTekst, fornyelsesPeriode, isoDag, plusDage } from "@/lib/perioder";
@@ -53,6 +54,11 @@ export default async function NyOrdre({
         })
       : null,
     hentKatalog({ kunAktive: true }),
+  ]);
+  const mig = await kraevBruger();
+  const [profiler, minProfil] = await Promise.all([
+    db.senderProfile.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true, department: true } }),
+    brugerensProfilId(mig.id),
   ]);
 
   const grupper = [
@@ -138,6 +144,16 @@ export default async function NyOrdre({
             <div className="flex flex-col gap-4">
               <div><Label htmlFor="re">Mail</Label><Input id="re" name="recipientEmail" type="email" defaultValue={kontakt?.email ?? kunde?.email ?? ""} /></div>
               <div><Label htmlFor="rr">Deres rekv. nr. / PO</Label><Input id="rr" name="reference" /></div>
+              {profiler.length > 0 && (
+                <div>
+                  <Label htmlFor="sp">Afsender (afdeling)</Label>
+                  <Select id="sp" name="senderProfileId" defaultValue={minProfil ?? ""}>
+                    <option value="">Fælles afsenderoplysninger</option>
+                    {profiler.map((p) => <option key={p.id} value={p.id}>{p.department ? `${p.name} — ${p.department}` : p.name}</option>)}
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1.5">Navn, mail og telefon på sælgeren er dine egne fra Brugere.</p>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label htmlFor="od">{kind === "tilbud" ? "Tilbudsdato" : "Ordredato"}</Label><Input id="od" name="orderDate" type="date" defaultValue={isoDag(nu)} /></div>

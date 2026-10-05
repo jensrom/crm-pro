@@ -385,6 +385,8 @@ model User {
   /// Mobilnummer — står på tilbud og ordrebekræftelser
   mobile   String?
   title    String?
+  /// Afdelingen brugeren hører til — vælger afsenderprofil på tilbud og ordrer
+  senderProfileId String?
   /// superadmin | admin | bruger — kun superadmin har adgang til Indstillinger
   role     String  @default("bruger")
   pinHash  String
@@ -400,8 +402,42 @@ model User {
   /// Initialer på den der gemte sidst. Tom = ukendt (fx indlæst data).
   updatedBy String?
 
+  senderProfile SenderProfile? @relation(fields: [senderProfileId], references: [id], onDelete: SetNull)
+
   @@index([isActive])
   @@map("users")
+}
+
+/// Afsenderprofil / afdeling, fx Horsens og Glostrup. Felter der står tomme,
+/// hentes fra de fælles afsenderoplysninger under Indstillinger → Dokumenter.
+model SenderProfile {
+  id          String  @id @default(cuid())
+  /// Kort navn i lister, fx "Horsens"
+  name        String
+  /// Afdeling i dokumenthovedet, fx "Novotek A/S, Horsens"
+  department  String?
+  companyName String?
+  cvr         String?
+  address     String?
+  zipCity     String?
+  country     String?
+  email       String?
+  phone       String?
+  website     String?
+  bankInfo    String?
+  /// Bruges når hverken brugeren eller dokumentet har en profil
+  isDefault   Boolean @default(false)
+  sortOrder   Int     @default(0)
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  users  User[]
+  orders Order[]
+
+  @@map("sender_profiles")
 }
 
 // ============================================================
@@ -660,12 +696,15 @@ model Order {
 
   /// Filboks-posten PDF'en blev gemt som (kun når ordren har en kunde)
   attachmentId String?
+  /// Afsenderprofilen dokumentet er udstedt fra (afdeling, adresse, brevfod)
+  senderProfileId String?
 
   createdAt DateTime @default(now())
   createdBy String?
 
-  company Company?    @relation(fields: [companyId], references: [id], onDelete: SetNull)
-  lines   OrderLine[]
+  company       Company?       @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  senderProfile SenderProfile? @relation(fields: [senderProfileId], references: [id], onDelete: SetNull)
+  lines         OrderLine[]
 
   @@unique([kind, number])
   @@index([companyId])

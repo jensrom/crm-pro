@@ -78,19 +78,40 @@ export type Afsender = {
   logo: string | null;
 };
 
-export async function hentAfsender(): Promise<Afsender> {
-  const s = await db.settings.findUnique({ where: { id: "singleton" } });
+/** Profilen der gælder: den valgte, ellers standardprofilen, ellers ingen. */
+async function findProfil(profilId: string | null | undefined) {
+  if (profilId) {
+    const p = await db.senderProfile.findUnique({ where: { id: profilId } });
+    if (p) return p;
+  }
+  return db.senderProfile.findFirst({ where: { isDefault: true, isActive: true } });
+}
+
+/** Brugerens afdeling, ellers standardprofilen. Bruges som forvalg på nye dokumenter. */
+export async function brugerensProfilId(brugerId: string) {
+  const u = await db.user.findUnique({ where: { id: brugerId }, select: { senderProfileId: true } });
+  if (u?.senderProfileId) return u.senderProfileId;
+  const std = await db.senderProfile.findFirst({ where: { isDefault: true, isActive: true }, select: { id: true } });
+  return std?.id ?? null;
+}
+
+/**
+ * Afsender til dokumenterne. Afsenderprofilen (afdelingen) vinder; felter den
+ * ikke udfylder, kommer fra de fælles oplysninger under Indstillinger → Dokumenter.
+ */
+export async function hentAfsender(profilId?: string | null): Promise<Afsender> {
+  const [s, p] = await Promise.all([db.settings.findUnique({ where: { id: "singleton" } }), findProfil(profilId)]);
   return {
-    navn: s?.docCompanyName ?? "Afsender ikke udfyldt",
-    afdeling: s?.docDepartment ?? null,
-    cvr: s?.docCvr ?? null,
-    adresse: s?.docAddress ?? null,
-    postby: s?.docZipCity ?? null,
-    land: s?.docCountry ?? null,
-    mail: s?.docEmail ?? null,
-    telefon: s?.docPhone ?? null,
-    web: s?.docWebsite ?? null,
-    bank: s?.docBankInfo ?? null,
+    navn: p?.companyName ?? s?.docCompanyName ?? "Afsender ikke udfyldt",
+    afdeling: p?.department ?? s?.docDepartment ?? null,
+    cvr: p?.cvr ?? s?.docCvr ?? null,
+    adresse: p?.address ?? s?.docAddress ?? null,
+    postby: p?.zipCity ?? s?.docZipCity ?? null,
+    land: p?.country ?? s?.docCountry ?? null,
+    mail: p?.email ?? s?.docEmail ?? null,
+    telefon: p?.phone ?? s?.docPhone ?? null,
+    web: p?.website ?? s?.docWebsite ?? null,
+    bank: p?.bankInfo ?? s?.docBankInfo ?? null,
     betaling: s?.docPaymentTerms ?? null,
     moms: s?.docVatRate ?? 25,
     bevisTekst: s?.docCertText ?? null,

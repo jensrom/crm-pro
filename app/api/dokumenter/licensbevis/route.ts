@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { hentSession } from "@/lib/auth";
-import { filnavn, fraIsoDato, hentAfsender, sikrSubNumre, subNr } from "@/lib/dokumenter";
+import { brugerensProfilId, filnavn, fraIsoDato, hentAfsender, sikrSubNumre, subNr } from "@/lib/dokumenter";
 import { licensmodel } from "@/lib/katalog";
 import { lavLicensbevis } from "@/lib/pdf";
 import { gemDokumentIFilboks } from "@/lib/filer";
@@ -54,7 +54,7 @@ export async function GET(req: Request) {
   const udstedt = new Date();
   const reference = linjer.length === 1 ? linjer[0].sub : `${linjer[0].sub} m.fl.`;
   const bytes = await lavLicensbevis({
-    afsender: await hentAfsender(),
+    afsender: await hentAfsender(await brugerensProfilId(session.id)),
     kunde: {
       navn: kunde.name,
       adresse: kunde.address,

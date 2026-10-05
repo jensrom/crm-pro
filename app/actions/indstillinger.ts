@@ -96,3 +96,67 @@ export async function gemDokumentindstillinger(formData: FormData) {
   revalidatePath("/indstillinger/dokumenter");
   redirect("/indstillinger/dokumenter?besked=gemt");
 }
+
+// ============================================================
+// AFSENDERPROFILER (afdelinger, fx Horsens og Glostrup)
+// ============================================================
+
+const DOK = "/indstillinger/dokumenter";
+
+function profilData(formData: FormData) {
+  return {
+    department: txt(formData.get("department")),
+    companyName: txt(formData.get("companyName")),
+    cvr: txt(formData.get("cvr")),
+    address: txt(formData.get("address")),
+    zipCity: txt(formData.get("zipCity")),
+    country: txt(formData.get("country")),
+    email: txt(formData.get("email")),
+    phone: txt(formData.get("phone")),
+    website: txt(formData.get("website")),
+    bankInfo: txt(formData.get("bankInfo")),
+  };
+}
+
+export async function opretAfsenderprofil(formData: FormData) {
+  const mig = await kraevSuperAdmin();
+  const name = txt(formData.get("name"));
+  if (!name) redirect(`${DOK}?fejl=profil-navn`);
+  const isDefault = formData.get("isDefault") === "on" || (await db.senderProfile.count()) === 0;
+  const sidste = await db.senderProfile.findFirst({ orderBy: { sortOrder: "desc" } });
+  await db.$transaction(async (tx) => {
+    if (isDefault) await tx.senderProfile.updateMany({ data: { isDefault: false } });
+    await tx.senderProfile.create({
+      data: { name, ...profilData(formData), isDefault, sortOrder: (sidste?.sortOrder ?? 0) + 1, updatedBy: mig.initials },
+    });
+  });
+  revalidatePath(DOK);
+  revalidatePath("/indstillinger/brugere");
+  redirect(`${DOK}?besked=profil-oprettet#profiler`);
+}
+
+export async function gemAfsenderprofil(id: string, formData: FormData) {
+  const mig = await kraevSuperAdmin();
+  const name = txt(formData.get("name"));
+  if (!name) redirect(`${DOK}?fejl=profil-navn#profiler`);
+  const isDefault = formData.get("isDefault") === "on";
+  await db.$transaction(async (tx) => {
+    if (isDefault) await tx.senderProfile.updateMany({ where: { NOT: { id } }, data: { isDefault: false } });
+    await tx.senderProfile.update({
+      where: { id },
+      data: { name, ...profilData(formData), isDefault, isActive: formData.get("isActive") === "on", updatedBy: mig.initials },
+    });
+  });
+  revalidatePath(DOK);
+  revalidatePath("/indstillinger/brugere");
+  redirect(`${DOK}?besked=profil-gemt#profiler`);
+}
+
+/** Sletter profilen. Brugere og dokumenter der pegede på den, falder tilbage til standardprofilen. */
+export async function sletAfsenderprofil(id: string) {
+  await kraevSuperAdmin();
+  await db.senderProfile.delete({ where: { id } });
+  revalidatePath(DOK);
+  revalidatePath("/indstillinger/brugere");
+  redirect(`${DOK}?besked=profil-slettet#profiler`);
+}

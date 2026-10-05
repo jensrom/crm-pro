@@ -17,7 +17,7 @@ export async function GET(req: Request) {
   const [
     settings, users, productFamilies, products, productPrices, companies, contacts, customerProducts,
     licenseChanges, deals, activities, tickets, ticketComments, hourBundles, timeLogs, customerNotes,
-    logEntries, orders, orderLines, attachments,
+    logEntries, orders, orderLines, attachments, senderProfiles,
   ] = await Promise.all([
     db.settings.findMany(),
     db.user.findMany({ omit: { pinHash: true } }),
@@ -39,6 +39,7 @@ export async function GET(req: Request) {
     db.order.findMany(),
     db.orderLine.findMany(),
     medFiler ? db.attachment.findMany() : db.attachment.findMany({ omit: { data: true } }),
+    db.senderProfile.findMany(),
   ]);
 
   const data = {
@@ -47,7 +48,7 @@ export async function GET(req: Request) {
     tabeller: {
       settings, users, productFamilies, products, productPrices, companies, contacts, customerProducts,
       licenseChanges, deals, activities, tickets, ticketComments, hourBundles, timeLogs, customerNotes,
-      logEntries, orders, orderLines,
+      logEntries, orders, orderLines, senderProfiles,
       attachments: attachments.map((a) => {
         const d = (a as { data?: Uint8Array }).data;
         return d ? { ...a, data: Buffer.from(d).toString("base64") } : a;
