@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { kroner, tal } from "@/lib/format";
 import { STADIER } from "@/lib/labels";
 import { afsluttetDage, delPipeline } from "@/lib/pipeline";
+import { cn } from "@/lib/utils";
 import { flytStadie, opretSag, sletSag } from "@/app/actions/salg";
 
 export const dynamic = "force-dynamic";
@@ -47,7 +48,7 @@ export default async function OpportunitiesSide({ searchParams }: { searchParams
         <StatCard label="Åbne opportunities" value={tal(aabne.length)} sub={<Link href="/leads" className="hover:text-primary">{tal(leads.length)} leads venter på kvalificering →</Link>} />
         <StatCard label="Licenser i spil" value={tal(licenserISpil)} sub="på åbne opportunities" />
         <StatCard label="Vægtet årsværdi" value={vaegtet > 0 ? kroner(vaegtet) : "–"} sub="sandsynlighed × årsværdi" highlight />
-        <StatCard label="Vundet" value={tal(vundet.length)} sub={`${tal(vundet.reduce((s, d) => s + (d.seatDelta ?? 0), 0))} licenser`} />
+        <StatCard tone="success" label="Vundet" value={tal(vundet.length)} sub={`${tal(vundet.reduce((s, d) => s + (d.seatDelta ?? 0), 0))} licenser`} />
       </div>
 
       {ryddet.length > 0 && (
@@ -64,17 +65,28 @@ export default async function OpportunitiesSide({ searchParams }: { searchParams
           return (
             <div key={st.key} className="flex flex-col gap-2.5 min-w-0">
               <div className="flex items-baseline justify-between px-1">
-                <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{st.label}</h2>
+                <h2 className={cn("text-xs font-semibold uppercase tracking-wide", st.key === "vundet" ? "text-success" : "text-muted-foreground")}>{st.label}</h2>
                 <span className="text-xs text-muted-foreground tabular">{iStadie.length}</span>
               </div>
               <div className="flex flex-col gap-2.5">
-                {iStadie.map((s) => (
-                  <div key={s.id} className="bg-card border border-border rounded-lg p-3 flex flex-col gap-2">
-                    <Link href={`/kunder/${s.company.id}`} className="text-sm font-medium hover:text-primary leading-tight">
+                {iStadie.map((s) => {
+                  const vundetKort = s.stage === "vundet";
+                  return (
+                  <div
+                    key={s.id}
+                    className={cn(
+                      "border rounded-lg p-3 flex flex-col gap-2",
+                      vundetKort ? "bg-success/[0.07] border-success/35" : "bg-card border-border"
+                    )}
+                  >
+                    <Link
+                      href={`/kunder/${s.company.id}`}
+                      className={cn("text-sm leading-tight", vundetKort ? "font-bold text-success hover:underline" : "font-medium hover:text-primary")}
+                    >
                       {s.company.name}
                     </Link>
-                    <p className="text-xs text-muted-foreground leading-snug">{s.title}</p>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground tabular">
+                    <p className={cn("text-xs leading-snug", vundetKort ? "font-semibold text-success/90" : "text-muted-foreground")}>{s.title}</p>
+                    <div className={cn("flex items-center justify-between text-xs tabular", vundetKort ? "font-semibold text-success/90" : "text-muted-foreground")}>
                       <span>{s.seatDelta ? `${s.seatDelta} lic.` : "–"}{s.product ? ` · ${s.product.name}` : ""}</span>
                       <span>{vaerdi(s) != null ? kroner(vaerdi(s)) : `${s.probability} %`}</span>
                     </div>
@@ -101,7 +113,8 @@ export default async function OpportunitiesSide({ searchParams }: { searchParams
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
                 {iStadie.length === 0 && (
                   <div className="rounded-lg border border-dashed border-border px-3 py-5 text-center text-xs text-muted-foreground">
                     Tom

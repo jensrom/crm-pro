@@ -40,16 +40,25 @@ export function StatCard({
   value,
   sub,
   highlight,
+  tone,
 }: {
   label: string;
   value: React.ReactNode;
   sub?: React.ReactNode;
   highlight?: boolean;
+  /** Farvetone til kort der skal skille sig ud, fx vundne salg. */
+  tone?: "success";
 }) {
   return (
-    <div className={cn("bg-card border border-border rounded-xl px-5 py-4", highlight && "border-primary/40 bg-primary/[0.04]")}>
-      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className={cn("mt-1 font-serif text-2xl font-semibold tabular", highlight && "text-primary")}>{value}</div>
+    <div
+      className={cn(
+        "bg-card border border-border rounded-xl px-5 py-4",
+        highlight && "border-primary/40 bg-primary/[0.04]",
+        tone === "success" && "border-success/35 bg-success/[0.07]"
+      )}
+    >
+      <div className={cn("text-xs font-medium uppercase tracking-wide", tone === "success" ? "text-success" : "text-muted-foreground")}>{label}</div>
+      <div className={cn("mt-1 font-serif text-2xl font-semibold tabular", highlight && "text-primary", tone === "success" && "font-bold text-success")}>{value}</div>
       {sub && <div className="mt-0.5 text-xs text-muted-foreground tabular">{sub}</div>}
     </div>
   );

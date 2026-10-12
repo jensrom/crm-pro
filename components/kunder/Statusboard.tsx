@@ -367,12 +367,12 @@ function AfsluttetKort({ sag: d, dage, nu }: { sag: Sag; dage: number; nu: Date 
   const v = sagsVaerdi(d);
   const tilbage = dageTilOprydning(d.closedAt, dage, nu);
   return (
-    <article className={cn("bg-card border rounded-lg p-3 flex flex-col gap-1.5", vundet ? "border-success/30" : "border-border opacity-80")}>
+    <article className={cn("border rounded-lg p-3 flex flex-col gap-1.5", vundet ? "bg-success/[0.07] border-success/35" : "bg-card border-border opacity-80")}>
       <div className="flex items-start justify-between gap-2">
-        <h4 className="text-sm font-medium leading-snug min-w-0 break-words">{d.title}</h4>
+        <h4 className={cn("text-sm leading-snug min-w-0 break-words", vundet ? "font-bold text-success" : "font-medium")}>{d.title}</h4>
         <Badge variant={vundet ? "success" : "muted"} className="shrink-0 text-[10px] px-1.5">{vundet ? "Vundet" : "Tabt"}</Badge>
       </div>
-      <div className="text-xs text-muted-foreground tabular">
+      <div className={cn("text-xs tabular", vundet ? "font-semibold text-success/90" : "text-muted-foreground")}>
         {v != null ? `${kroner(v)}/år` : "ingen værdi"}{d.seatDelta ? ` · ${d.seatDelta} lic.` : ""}
       </div>
       {!vundet && d.lostReason && <p className="text-xs text-muted-foreground leading-snug">{d.lostReason}</p>}
