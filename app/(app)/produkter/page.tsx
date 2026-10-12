@@ -3,15 +3,11 @@ import { Boxes, Check, Package, Settings2 } from "lucide-react";
 import { Card, CardBody, CardHeader, EmptyState, StatCard } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/input";
 import { db } from "@/lib/db";
 import { hentSession } from "@/lib/auth";
-import { kroner, procent, tal } from "@/lib/format";
+import { kroner, tal } from "@/lib/format";
 import { gaeldendeMaanedspris } from "@/lib/pricing";
 import { licensmodel, listepris } from "@/lib/katalog";
-import { flytFlereLinjer } from "@/app/actions/produkter";
-import { skiftPakke } from "@/app/actions/kunder";
-import { BatchFlyt } from "@/components/produkter/BatchFlyt";
 import { ProduktMaerke } from "@/lib/produktstil";
 import { cn } from "@/lib/utils";
 
@@ -31,9 +27,7 @@ export default async function ProdukterSide({
   const [produkter, familier, mig] = await Promise.all([
     db.product.findMany({
       include: {
-        customerProducts: {
-          include: { company: { select: { id: true, name: true, country: true } } },
-        },
+        customerProducts: { select: { seats: true, unitPriceMonth: true } },
         _count: { select: { deals: true } },
       },
       orderBy: [{ isActive: "desc" }, { sortOrder: "asc" }],
@@ -107,7 +101,7 @@ export default async function ProdukterSide({
                       {pris != null ? `${kroner(pris)} ${licensmodel(p.licenseModel).enhed}` : "ingen pris sat"}
                     </div>
                     <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground tabular">
-                      <span>{p.customerProducts.length} kunder</span>
+                      <span>{p.customerProducts.length} {p.customerProducts.length === 1 ? "kunde" : "kunder"}</span>
                       <span>·</span>
                       <span>{licenser} licenser</span>
                       {p.licenseModel === "perpetual" && <Badge variant="warning">Perpetual</Badge>}
@@ -130,7 +124,7 @@ export default async function ProdukterSide({
           )}
         </div>
 
-        {/* Højre: den valgte licens og kunderne på den */}
+        {/* Højre: den valgte licens. Hvem der har den, ses på kunden selv. */}
         <div className="flex flex-col gap-5">
           {!valgt ? (
             <Card>
@@ -162,115 +156,10 @@ export default async function ProdukterSide({
                 />
                 {valgt.description && <CardBody className="text-sm text-muted-foreground">{valgt.description}</CardBody>}
               </Card>
-
-              <ProduktKunder valgt={valgt} produkter={ordnet} />
             </>
           )}
         </div>
       </div>
     </div>
-  );
-}
-
-type Produkt = Awaited<ReturnType<typeof db.product.findMany>> extends (infer T)[] ? T : never;
-
-async function ProduktKunder({ valgt, produkter }: { valgt: any; produkter: any[] }) {
-  const rows = [...valgt.customerProducts].sort((a: any, b: any) => b.seats - a.seats);
-  const licenser = rows.reduce((s: number, l: any) => s + l.seats, 0);
-  const aktive = rows.reduce((s: number, l: any) => s + l.activeSeats, 0);
-  const vaerdi = rows.reduce((s: number, l: any) => {
-    const pris = gaeldendeMaanedspris(l.unitPriceMonth, valgt);
-    return s + (pris == null ? 0 : l.seats * pris * 12);
-  }, 0);
-
-  return (
-    <>
-      <Card>
-        <CardBody className="grid gap-4 sm:grid-cols-4">
-          <div><div className="text-xs uppercase tracking-wide text-muted-foreground">Kunder</div><div className="text-xl font-semibold tabular">{tal(rows.length)}</div></div>
-          <div><div className="text-xs uppercase tracking-wide text-muted-foreground">Licenser</div><div className="text-xl font-semibold tabular">{tal(licenser)}</div></div>
-          <div><div className="text-xs uppercase tracking-wide text-muted-foreground">Udnyttelse</div><div className="text-xl font-semibold tabular">{procent(licenser ? aktive / licenser : null, 1)}</div></div>
-          <div><div className="text-xs uppercase tracking-wide text-muted-foreground">Årsværdi</div><div className="text-xl font-semibold tabular">{vaerdi > 0 ? kroner(vaerdi) : "–"}</div></div>
-        </CardBody>
-      </Card>
-
-      <Card>
-        <CardHeader
-          title="Kunder på dette produkt"
-          description="Sæt flueben og flyt flere på én gang med bjælken nederst, eller flyt en enkelt i dens egen dropdown. Antal licenser rettes på kundens egen side."
-        />
-        <CardBody className="p-0">
-          {rows.length === 0 ? (
-            <EmptyState title="Ingen kunder på produktet" icon={Package} description="Vælg produktet på en kunde for at flytte den herover." />
-          ) : (
-            <BatchFlyt
-              action={flytFlereLinjer}
-              nuvaerende={valgt.id}
-              produkter={produkter.filter((p: any) => p.isActive).map((p: any) => ({ id: p.id, name: p.name }))}
-            >
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground border-b border-border">
-                    <th className="pl-5 pr-2 py-2.5 font-medium w-9"><span className="sr-only">Vælg</span></th>
-                    <th className="px-3 py-2.5 font-medium">Kunde</th>
-                    <th className="px-3 py-2.5 font-medium">Land</th>
-                    <th className="px-3 py-2.5 font-medium text-right">Licenser</th>
-                    <th className="px-3 py-2.5 font-medium text-right">Aktive</th>
-                    <th className="px-3 py-2.5 font-medium text-right">Årsværdi</th>
-                    <th className="px-5 py-2.5 font-medium">Flyt til produkt</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {rows.map((l: any) => {
-                    const pris = gaeldendeMaanedspris(l.unitPriceMonth, valgt);
-                    const aarsvaerdi = pris == null ? null : l.seats * pris * 12;
-                    return (
-                      <tr key={l.id} className="hover:bg-secondary/60">
-                        <td className="pl-5 pr-2 py-2.5">
-                          <input
-                            type="checkbox"
-                            name="linjeId"
-                            value={l.id}
-                            aria-label={`Vælg ${l.company.name}`}
-                            className="h-4 w-4 rounded border-input accent-[hsl(var(--primary))]"
-                          />
-                        </td>
-                        <td className="px-3 py-2.5">
-                          <Link href={`/kunder/${l.company.id}`} className="font-medium hover:text-primary">{l.company.name}</Link>
-                          {l.unitPriceMonth != null && <Badge variant="info" className="ml-2">Aftalt pris</Badge>}
-                        </td>
-                        <td className="px-3 py-2.5 text-muted-foreground">{l.company.country}</td>
-                        <td className="px-3 py-2.5 text-right tabular">{l.seats}</td>
-                        <td className={cn("px-3 py-2.5 text-right tabular", l.activeSeats >= l.seats && "text-danger font-semibold")}>{l.activeSeats}</td>
-                        <td className="px-3 py-2.5 text-right tabular">{aarsvaerdi == null ? "–" : kroner(aarsvaerdi)}</td>
-                        <td className="px-5 py-2">
-                          <form
-                            action={async (fd: FormData) => {
-                              "use server";
-                              const nyt = fd.get("productId");
-                              if (typeof nyt === "string" && nyt && nyt !== valgt.id) await skiftPakke(l.id, nyt);
-                            }}
-                            className="flex items-center gap-2"
-                          >
-                            <Select name="productId" defaultValue={valgt.id} aria-label={`Flyt ${l.company.name}`} className="w-44 h-8 text-xs">
-                              {produkter.filter((p) => p.isActive || p.id === valgt.id).map((p) => (
-                                <option key={p.id} value={p.id}>{p.name}</option>
-                              ))}
-                            </Select>
-                            <Button size="sm" variant="secondary" type="submit">Flyt</Button>
-                          </form>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            </BatchFlyt>
-          )}
-        </CardBody>
-      </Card>
-    </>
   );
 }
