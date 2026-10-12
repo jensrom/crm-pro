@@ -391,7 +391,8 @@ model User {
   title    String?
   /// Afdelingen brugeren hører til — vælger afsenderprofil på tilbud og ordrer
   senderProfileId String?
-  /// superadmin | admin | bruger — kun superadmin har adgang til Indstillinger
+  /// superadmin | admin | tekniker_plus | tekniker | saelger_plus | saelger (se lib/roller.ts).
+  /// Ældre "bruger" behandles som admin.
   role     String  @default("bruger")
   pinHash  String
   isActive Boolean @default(true)

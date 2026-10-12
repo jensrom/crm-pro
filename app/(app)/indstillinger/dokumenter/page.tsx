@@ -1,3 +1,4 @@
+import { sikrAfdelinger } from "@/lib/afdelinger";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,7 @@ function ProfilFelter({ p, fx }: { p?: Profil; fx: string }) {
 export const dynamic = "force-dynamic";
 
 export default async function DokumentIndstillinger({ searchParams }: { searchParams: Promise<{ besked?: string; fejl?: string }> }) {
+  try { await sikrAfdelinger(); } catch { /* må ikke vælte siden */ }
   const { besked, fejl } = await searchParams;
   const [s, profiler] = await Promise.all([
     db.settings.findUnique({ where: { id: "singleton" } }),

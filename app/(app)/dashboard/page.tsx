@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { kraevBruger } from "@/lib/auth";
+import { kanLaese } from "@/lib/roller";
 import { Info, TriangleAlert } from "lucide-react";
 import { Card, CardBody, CardHeader, StatCard } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +16,9 @@ import { ProduktMaerke, findFarve } from "@/lib/produktstil";
 export const dynamic = "force-dynamic";
 
 export default async function Dashboard() {
+  // Uden salg ryger man direkte til teknik-dashboardet (fx en Tekniker).
+  const mig = await kraevBruger();
+  if (!kanLaese(mig.ret.salg)) redirect(kanLaese(mig.ret.teknik) ? "/dashboard/teknik" : "/kunder");
   const [{ kunder, indstillinger }, aabneSager, pakker, hotte] = await Promise.all([
     hentKunderMedNoegletal(),
     db.deal.findMany({

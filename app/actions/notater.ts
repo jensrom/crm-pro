@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { hentSession, kraevBruger } from "@/lib/auth";
+import { hentSession, kraevAdmin, kraevBruger, kraevLeads, kraevSkriv } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 const txt = (v: FormDataEntryValue | null) => {
@@ -14,6 +14,19 @@ const dato = (v: FormDataEntryValue | null) => {
 };
 
 const KOLONNER = ["nu", "naeste", "venter", "faerdig"];
+
+/**
+ * Notater følger deres spor: salgsnotater kræver Sælger-adgang (leads) eller
+ * skriveadgang til salg, tekniknotater kræver skriveadgang til teknik.
+ */
+async function kraevSpor(track: string | null | undefined) {
+  return track === "teknik" ? kraevSkriv("teknik") : kraevLeads();
+}
+
+async function kraevNotat(id: string) {
+  const n = await db.customerNote.findUnique({ where: { id }, select: { track: true } });
+  return kraevSpor(n?.track);
+}
 
 function opfrisk(kundeId?: string | null) {
   revalidatePath("/notater");
@@ -32,7 +45,7 @@ async function oeversteHul(lane: string) {
 }
 
 export async function opretNotat(formData: FormData) {
-  await kraevBruger();
+  await kraevSpor(String(formData.get("track")));
   const title = txt(formData.get("title"));
   if (!title) return;
   const lane = KOLONNER.includes(String(formData.get("lane"))) ? String(formData.get("lane")) : "nu";
@@ -56,7 +69,8 @@ export async function opretNotat(formData: FormData) {
 }
 
 export async function gemNotat(id: string, formData: FormData) {
-  await kraevBruger();
+  await kraevNotat(id);
+  await kraevSpor(String(formData.get("track")));
   const lane = KOLONNER.includes(String(formData.get("lane"))) ? String(formData.get("lane")) : "nu";
   const nuvaerende = await db.customerNote.findUnique({ where: { id }, select: { completedAt: true } });
 
@@ -78,7 +92,7 @@ export async function gemNotat(id: string, formData: FormData) {
 
 /** Afkrydsning. Færdige kort flytter selv over i Færdig-kolonnen. */
 export async function skiftFaerdig(id: string, faerdig: boolean) {
-  await kraevBruger();
+  await kraevNotat(id);
   const n = await db.customerNote.update({
     where: { id },
     data: faerdig
@@ -93,7 +107,7 @@ export async function skiftFaerdig(id: string, faerdig: boolean) {
  * Positionerne skrives om for hele kolonnen, så de altid er sammenhængende.
  */
 export async function flytNotat(id: string, lane: string, indeks: number) {
-  await kraevBruger();
+  await kraevNotat(id);
   if (!KOLONNER.includes(lane)) return;
 
   const kort = await db.customerNote.findUnique({ where: { id } });
@@ -126,21 +140,27 @@ export async function flytNotat(id: string, lane: string, indeks: number) {
 }
 
 export async function sletNotat(id: string) {
-  await kraevBruger();
+  await kraevNotat(id);
   const n = await db.customerNote.delete({ where: { id } });
   opfrisk(n.companyId);
 }
 
 /** Rydder Færdig-kolonnen. */
 export async function ryddFaerdige() {
-  await kraevBruger();
+  await kraevAdmin();
   await db.customerNote.deleteMany({ where: { lane: "faerdig" } });
   opfrisk();
 }
 
 /** Rydder Færdig-kolonnen for én kunde. */
 export async function ryddFaerdigeForKunde(kundeId: string) {
-  await kraevBruger();
-  await db.customerNote.deleteMany({ where: { lane: "faerdig", companyId: kundeId } });
+  const mig = await kraevBruger();
+  // Ryd kun de spor brugeren selv må skrive i.
+  const spor = [
+    ...(mig.ret.leads || mig.ret.salg === "skriv" ? ["salg"] : []),
+    ...(mig.ret.teknik === "skriv" ? ["teknik"] : []),
+  ];
+  if (spor.length === 0) return;
+  await db.customerNote.deleteMany({ where: { lane: "faerdig", companyId: kundeId, track: { in: spor } } });
   opfrisk(kundeId);
 }

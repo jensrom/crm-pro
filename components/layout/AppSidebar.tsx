@@ -81,13 +81,19 @@ export function AppSidebar({
   hotAntal = 0,
   opdatering = null,
   visIndstillinger = false,
+  omraader = { salg: true, teknik: true },
 }: {
   brand: Brand;
   hotAntal?: number;
   opdatering?: OpdateringInfo;
   /** Kun superadministratorer ser Indstillinger */
   visIndstillinger?: boolean;
+  /** Hvilke områder brugerens rolle giver adgang til */
+  omraader?: { salg: boolean; teknik: boolean };
 }) {
+  const synlige = SEKTIONER.filter((s) =>
+    s.sektion === "Salg" || s.sektion === "Arbejde" ? omraader.salg : s.sektion === "Teknik" ? omraader.teknik : true
+  );
   const sti = usePathname();
   const soegeparametre = useSearchParams();
   const aktiv = (href: string) => {
@@ -135,7 +141,7 @@ export function AppSidebar({
       </div>
 
       <nav className="flex-1 overflow-y-auto py-3 px-2.5 flex flex-col gap-4">
-        {SEKTIONER.map((s) => (
+        {synlige.map((s) => (
           <div key={s.sektion}>
             <div
               className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest"

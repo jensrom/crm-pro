@@ -13,6 +13,7 @@ export function KundestatusKort({
   sat,
   gemtAf,
   gemtTid,
+  kanSkrive = true,
 }: {
   kundeId: string;
   status: string | null;
@@ -20,6 +21,7 @@ export function KundestatusKort({
   sat: Date | null;
   gemtAf?: string | null;
   gemtTid?: Date | null;
+  kanSkrive?: boolean;
 }) {
   const s = findKundestatus(status);
 
@@ -31,6 +33,7 @@ export function KundestatusKort({
       />
       <CardBody>
         <form action={skiftKundestatus.bind(null, kundeId)} className="flex flex-col gap-3">
+          <fieldset disabled={!kanSkrive} className="contents">
           <div className="flex flex-wrap gap-1.5">
             {KUNDESTATUS.map((k) => (
               <label key={k.key} className="cursor-pointer">
@@ -50,6 +53,7 @@ export function KundestatusKort({
             <GemtAf af={gemtAf} tid={gemtTid} />
             <Button size="sm" type="submit" className="ml-auto">Gem tilstand</Button>
           </div>
+        </fieldset>
         </form>
       </CardBody>
     </Card>

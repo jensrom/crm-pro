@@ -31,6 +31,7 @@ import { licensGrupper, licensmodel, listepris } from "@/lib/katalog";
 import { LicensOptions } from "@/components/produkter/LicensOptions";
 import { fortrydLicensaendring, registrerLicensaendring } from "@/app/actions/tilkoeb";
 import { hentSession } from "@/lib/auth";
+import { kanLaese, kanSkrive, rettigheder } from "@/lib/roller";
 import { dokNr, isoDato, sikrSubNumre, subNr } from "@/lib/dokumenter";
 import { aftaleUdloeb, dagTekst } from "@/lib/perioder";
 import { ordreTotal } from "@/lib/ordre-pdf";
@@ -59,10 +60,6 @@ export default async function KundeSide({
 }) {
   const { id } = await params;
   const { tilkoeb, fil, fane: faneParam, ryddede, spor, rediger, linje } = await searchParams;
-  const FANER = ["salg", "produkter", "teknik", "notater"] as const;
-  type Fane = (typeof FANER)[number];
-  // Kommer man fra et tilkøb uden fane i URL'en, er det produktfanen man skal tilbage til.
-  const fane: Fane = FANER.includes(faneParam as Fane) ? (faneParam as Fane) : tilkoeb ? "produkter" : "salg";
   await sikrSubNumre(id);
   const [kunde, grupper, filer, mig, indst] = await Promise.all([
     db.company.findUnique({
@@ -91,6 +88,19 @@ export default async function KundeSide({
   ]);
 
   if (!kunde) notFound();
+
+  // Rettigheder (lib/roller.ts). Fanerne følger rollen: en Tekniker ser kun Teknik og
+  // Notater, en Sælger kun Salg, Produkter og Notater.
+  const ret = rettigheder(mig?.role);
+  const salgL = kanLaese(ret.salg), salgS = kanSkrive(ret.salg);
+  const teknikL = kanLaese(ret.teknik), teknikS = kanSkrive(ret.teknik);
+  const kunderS = kanSkrive(ret.kunder);
+  const ALLE_FANER = ["salg", "produkter", "teknik", "notater"] as const;
+  type Fane = (typeof ALLE_FANER)[number];
+  const FANER = ALLE_FANER.filter((f) => (f === "salg" || f === "produkter" ? salgL : f === "teknik" ? teknikL : true));
+  // Kommer man fra et tilkøb uden fane i URL'en, er det produktfanen man skal tilbage til.
+  const oensket = (faneParam ?? (tilkoeb ? "produkter" : "salg")) as Fane;
+  const fane: Fane = FANER.includes(oensket) ? oensket : FANER[0];
   const tkBesked = tilkoeb ? TILKOEB_BESKED[tilkoeb] : null;
 
   // Stale Prisma Client (sandbox kan ikke regenerere) kender endnu ikke isHot/hotSetBy.
@@ -244,6 +254,7 @@ export default async function KundeSide({
           )}
         </div>
         <div className="flex items-center gap-2">
+          {teknikS && (
           <form action={skiftHot.bind(null, kunde.id, !hot.isHot)}>
             <Button
               variant={hot.isHot ? "primary" : "secondary"}
@@ -255,12 +266,15 @@ export default async function KundeSide({
               <Flame className="h-3.5 w-3.5" /> {hot.isHot ? "Hot" : "Marker Hot"}
             </Button>
           </form>
-          <Link href={`/kunder/${kunde.id}/rediger`}><Button variant="secondary" size="sm">Rediger</Button></Link>
+          )}
+          {kunderS && <Link href={`/kunder/${kunde.id}/rediger`}><Button variant="secondary" size="sm">Rediger</Button></Link>}
+          {mig?.erAdmin && (
           <Link href={`/kunder/${kunde.id}/slet`}>
             <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-danger">
               <Trash2 className="h-3.5 w-3.5" /> Slet
             </Button>
           </Link>
+          )}
         </div>
       </div>
 
@@ -272,11 +286,13 @@ export default async function KundeSide({
             {procent(n.udnyttelse)}{n.ledige < 0 ? " — overforbrug" : n.ledige === 0 ? " — ingen ledige" : ` · ${n.ledige} ledige`}
           </div>
         </div>
+        {salgL && (
         <div className="bg-card border border-primary/40 bg-primary/[0.04] rounded-xl px-5 py-4">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Årlig licensværdi</div>
           <div className="mt-1 text-2xl font-semibold tabular text-primary">{n.aarsvaerdi > 0 ? kroner(n.aarsvaerdi) : "–"}</div>
           <div className="mt-0.5 text-xs text-muted-foreground">{n.udenPris > 0 ? "pakke mangler pris" : "på nuværende licenser"}</div>
         </div>
+        )}
         <div className="bg-card border border-border rounded-xl px-5 py-4">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Åbne sager</div>
           <div className="mt-1 text-2xl font-semibold tabular">{tal(aabneSager.length)}</div>
@@ -301,6 +317,7 @@ export default async function KundeSide({
         teknik={aabneSager.length}
         notater={aabneNotater}
         produkter={kunde.customerProducts.length}
+        faner={FANER}
       />
 
       {fane === "produkter" && (
@@ -354,6 +371,7 @@ export default async function KundeSide({
                   })}
                 </ul>
               )}
+              {salgS && (
               <div className="p-4 border-t border-border">
               <details className="rounded-lg border border-dashed border-border p-4">
                 <summary className="cursor-pointer text-sm font-medium">Tilføj pakke</summary>
@@ -370,6 +388,7 @@ export default async function KundeSide({
                 </form>
               </details>
               </div>
+              )}
             </CardBody>
           </Card>
 
@@ -382,14 +401,17 @@ export default async function KundeSide({
                   action={<Link href={`/kunder/${kunde.id}?fane=produkter`} scroll={false} className="text-xs font-medium text-muted-foreground hover:text-foreground">Luk</Link>}
                 />
                 <CardBody className="flex flex-col gap-4">
-                  {linjeFormular(valgtLinje)}
+                  {/* Læseadgang: samme felter, men låst. */}
+                  <fieldset disabled={!salgS} className="contents">{linjeFormular(valgtLinje)}</fieldset>
                   <div className="flex flex-wrap gap-2">
                     <Link href={`/kunder/${kunde.id}/licensbevis?linje=${valgtLinje.id}`}>
                       <Button size="sm" variant="secondary"><FileBadge className="h-3.5 w-3.5" /> Licensbevis</Button>
                     </Link>
+                    {salgS && (
                     <Link href={`/ordrer/ny?type=ordre&kunde=${kunde.id}`}>
                       <Button size="sm" variant="ghost"><FileText className="h-3.5 w-3.5" /> Ny ordre</Button>
                     </Link>
+                    )}
                   </div>
                 </CardBody>
               </Card>
@@ -460,7 +482,7 @@ export default async function KundeSide({
                   {tkBesked.tekst}
                 </div>
               )}
-              <form action={registrerLicensaendring.bind(null, kunde.id)} className="px-5 py-4 grid grid-cols-2 sm:grid-cols-6 gap-3 items-end border-b border-border">
+              {salgS && <form action={registrerLicensaendring.bind(null, kunde.id)} className="px-5 py-4 grid grid-cols-2 sm:grid-cols-6 gap-3 items-end border-b border-border">
                 <div className="col-span-2 sm:col-span-3">
                   <Label htmlFor="tk-l">Licens</Label>
                   <Select id="tk-l" name="productId" required>
@@ -482,7 +504,7 @@ export default async function KundeSide({
                 </div>
                 <div className="col-span-2 sm:col-span-2"><Label htmlFor="tk-n">Note</Label><Input id="tk-n" name="note" placeholder="fx ordre 1234" /></div>
                 <div className="col-span-2 sm:col-span-6 flex justify-end"><Button size="sm" type="submit">Registrér</Button></div>
-              </form>
+              </form>}
 
               {kunde.licenseChanges.length === 0 ? (
                 <div className="px-5"><EmptyState title="Ingen tilkøb registreret" icon={PackagePlus} /></div>
@@ -534,7 +556,7 @@ export default async function KundeSide({
         </div>
       )}
 
-      {fane === "notater" && <NotatFane kundeId={kunde.id} spor={spor} rediger={rediger} />}
+      {fane === "notater" && <NotatFane kundeId={kunde.id} spor={spor} rediger={rediger} ret={ret} />}
 
       {fane === "salg" && (
         <Statusboard
@@ -544,6 +566,8 @@ export default async function KundeSide({
           dage={dage}
           visRyddede={ryddede === "1"}
           bevaegelser={bevaegelser}
+          kanSkrive={salgS}
+          kanOpretteLead={salgS || ret.leads}
         />
       )}
 
@@ -570,7 +594,7 @@ export default async function KundeSide({
                   </Link>
                 ))}
               </div>
-              <div className="flex flex-wrap gap-2">
+              {salgS && <div className="flex flex-wrap gap-2">
                 <Link href={`/ordrer/ny?type=tilbud&kunde=${kunde.id}`}>
                   <Button size="sm" variant="secondary"><FileText className="h-3.5 w-3.5" /> Nyt tilbud</Button>
                 </Link>
@@ -582,7 +606,7 @@ export default async function KundeSide({
                     <Button size="sm" variant="ghost"><RefreshCw className="h-3.5 w-3.5" /> Forny {navn}</Button>
                   </Link>
                 ))}
-              </div>
+              </div>}
               {kunde.orders.length > 0 && (
                 <ul className="divide-y divide-border border-t border-border">
                   {kunde.orders.map((o) => (
@@ -612,9 +636,11 @@ export default async function KundeSide({
               action={
                 <div className="flex items-center gap-3">
                   <Link href={`/teknik/sager?kunde=${kunde.id}`} className="text-xs font-medium text-primary hover:underline">Alle sager</Link>
+                  {teknikS && (
                   <Link href={`/teknik/sager/ny?kunde=${kunde.id}`}>
                     <Button size="sm" variant="secondary"><Plus className="h-3.5 w-3.5" /> Ny sag</Button>
                   </Link>
+                  )}
                 </div>
               }
             />
@@ -721,14 +747,15 @@ export default async function KundeSide({
             </>
           )}
 
-          <Filboks companyId={kunde.id} filer={filer} forStor={fil === "for-stor"} />
+          <Filboks companyId={kunde.id} filer={filer} forStor={fil === "for-stor"} kanSkrive={kunderS} />
         </div>
 
         {/* Højre: fælles for Salg og Teknik — logbogen først */}
         <div className="flex flex-col gap-5">
-          <Logbog kundeId={kunde.id} poster={kunde.logEntries} />
+          <Logbog kundeId={kunde.id} poster={kunde.logEntries} kanSkrive={kunderS || salgS || teknikS || ret.leads || ret.tid} />
 
           <KundestatusKort
+            kanSkrive={kunderS}
             kundeId={kunde.id}
             status={kunde.customerStatus}
             note={kunde.customerStatusNote}
@@ -803,16 +830,16 @@ export default async function KundeSide({
                         </div>
                         {c.email && <a href={`mailto:${c.email}`} className="text-xs text-primary hover:underline break-all">{c.email}</a>}
                       </div>
-                      <form action={sletKontakt.bind(null, c.id, kunde.id)}>
+                      {kunderS && <form action={sletKontakt.bind(null, c.id, kunde.id)}>
                         <button type="submit" aria-label={`Slet ${c.firstName}`} className="text-muted-foreground hover:text-danger p-1 rounded">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
-                      </form>
+                      </form>}
                     </li>
                   ))}
                 </ul>
               )}
-              <details className="px-5 py-4 border-t border-border">
+              {kunderS && <details className="px-5 py-4 border-t border-border">
                 <summary className="cursor-pointer text-sm font-medium">Tilføj kontakt</summary>
                 <form action={opretKontakt.bind(null, kunde.id)} className="mt-3 grid grid-cols-2 gap-3">
                   <div><Label htmlFor="kf">Fornavn</Label><Input id="kf" name="firstName" required /></div>
@@ -828,7 +855,7 @@ export default async function KundeSide({
                   </div>
                   <div className="col-span-2 flex justify-end"><Button size="sm" type="submit">Tilføj kontakt</Button></div>
                 </form>
-              </details>
+              </details>}
             </CardBody>
           </Card>
         </div>

@@ -29,12 +29,15 @@ export type Kort = {
  * "flyt til"-menu — træk-og-slip virker ikke på touch, og tastaturbrugere
  * skal kunne det samme.
  */
-export function Tavle({ kort, redigerBase }: {
+export function Tavle({ kort, redigerBase, skrivbareSpor }: {
   kort: Kort[];
+  /** Spor brugeren må ændre i. Udeladt = alle. Andre kort vises låst. */
+  skrivbareSpor?: string[];
   /** Redigér-link = redigerBase + kortets id. En streng, fordi funktioner ikke kan sendes fra server til klient. */
   redigerBase: string;
 }) {
   const redigerHref = (id: string) => `${redigerBase}${id}`;
+  const kanRette = (k: Kort) => !skrivbareSpor || skrivbareSpor.includes(k.track);
   const [liste, setListe] = useState(kort);
   const [traekker, setTraekker] = useState<string | null>(null);
   const [maal, setMaal] = useState<{ lane: string; indeks: number } | null>(null);
@@ -136,18 +139,19 @@ export function Tavle({ kort, redigerBase }: {
                     {aktivtMaal && maal?.indeks === i && <div className="h-0.5 rounded bg-primary mb-2" />}
                     <article
                       data-kort={k.id}
-                      draggable
-                      onDragStart={() => setTraekker(k.id)}
+                      draggable={kanRette(k)}
+                      onDragStart={() => kanRette(k) && setTraekker(k.id)}
                       onDragEnd={() => { setTraekker(null); setMaal(null); }}
                       className={cn(
-                        "group rounded-lg border bg-card p-3 flex flex-col gap-2 cursor-grab active:cursor-grabbing",
+                        "group rounded-lg border bg-card p-3 flex flex-col gap-2",
+                        kanRette(k) && "cursor-grab active:cursor-grabbing",
                         traekker === k.id && "opacity-40",
                         faerdig ? "border-border/60 opacity-55" : "border-border",
                         k.priority === "hoej" && !faerdig && "border-l-[3px] border-l-danger"
                       )}
                     >
                       <div className="flex items-start gap-2">
-                        <form action={skiftFaerdig.bind(null, k.id, !faerdig)} className="shrink-0 pt-0.5">
+                        {kanRette(k) && <form action={skiftFaerdig.bind(null, k.id, !faerdig)} className="shrink-0 pt-0.5">
                           <button
                             type="submit"
                             aria-label={faerdig ? `Genåbn ${k.title}` : `Markér ${k.title} som færdig`}
@@ -160,11 +164,11 @@ export function Tavle({ kort, redigerBase }: {
                           >
                             <Check className="h-3 w-3" />
                           </button>
-                        </form>
+                        </form>}
 
                         <div className="min-w-0 flex-1">
                           <Link
-                            href={redigerHref(k.id)}
+                            href={kanRette(k) ? redigerHref(k.id) : "#"}
                             className={cn(
                               "text-sm font-medium leading-snug hover:text-primary block",
                               faerdig && "line-through text-muted-foreground"
@@ -179,7 +183,7 @@ export function Tavle({ kort, redigerBase }: {
                           )}
                         </div>
 
-                        <GripVertical className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0 mt-0.5" aria-hidden />
+                        {kanRette(k) && <GripVertical className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0 mt-0.5" aria-hidden />}
                       </div>
 
                       <div className="flex flex-wrap items-center gap-1.5 text-xs">
@@ -209,7 +213,7 @@ export function Tavle({ kort, redigerBase }: {
 
                       {k.gemt && <p className="mt-1 text-[11px] text-muted-foreground/70">{k.gemt}</p>}
 
-                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                      {kanRette(k) && <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                         <select
                           aria-label={`Flyt ${k.title} til en anden kolonne`}
                           value={k.lane}
@@ -229,7 +233,7 @@ export function Tavle({ kort, redigerBase }: {
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </form>
-                      </div>
+                      </div>}
                     </article>
                   </div>
                 );

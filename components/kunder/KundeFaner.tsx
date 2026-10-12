@@ -13,6 +13,7 @@ export function KundeFaner({
   teknik,
   notater,
   produkter,
+  faner: tilladte,
 }: {
   kundeId: string;
   aktiv: "salg" | "produkter" | "teknik" | "notater";
@@ -20,6 +21,8 @@ export function KundeFaner({
   salg: number;
   teknik: number;
   notater: number;
+  /** Fanerne brugerens rolle giver adgang til */
+  faner?: readonly string[];
 }) {
   const faner = [
     { key: "salg" as const, label: "Salg", ikon: TrendingUp, antal: salg, hint: "åbne muligheder" },
@@ -28,9 +31,10 @@ export function KundeFaner({
     { key: "notater" as const, label: "Notater", ikon: ListChecks, antal: notater, hint: "åbne notater" },
   ];
 
+  const synlige = tilladte ? faner.filter((f) => tilladte.includes(f.key)) : faner;
   return (
     <nav className="flex items-center gap-1 border-b border-border" aria-label="Kundens områder">
-      {faner.map((f) => {
+      {synlige.map((f) => {
         const erAktiv = f.key === aktiv;
         const Ikon = f.ikon;
         return (

@@ -30,7 +30,7 @@ function filstoerrelse(bytes: number): string {
  * moedereferat, email, andet). Ingen klient-JS: almindelige <form
  * action={...}> ligesom resten af CRM-Pro.
  */
-export function Filboks({ companyId, filer, forStor = false }: { companyId: string; filer: FilRaekke[]; forStor?: boolean }) {
+export function Filboks({ companyId, filer, forStor = false, kanSkrive = true }: { companyId: string; filer: FilRaekke[]; forStor?: boolean; kanSkrive?: boolean }) {
   const grupper = FILKATEGORIER
     .map((kat) => ({ kat, rows: filer.filter((f) => f.category === kat) }))
     .filter((g) => g.rows.length > 0);
@@ -43,6 +43,7 @@ export function Filboks({ companyId, filer, forStor = false }: { companyId: stri
         {forStor && (
           <p className="text-sm text-danger rounded-lg bg-danger/[0.08] px-3 py-2">Filen er for stor. Grænsen er 4 MB pr. fil.</p>
         )}
+        {kanSkrive && (
         <form
           action={uploadFil.bind(null, companyId)}
           className="flex flex-wrap items-end gap-3 rounded-lg border border-dashed border-border p-4"
@@ -67,6 +68,7 @@ export function Filboks({ companyId, filer, forStor = false }: { companyId: stri
           </div>
           <Button size="sm" type="submit"><Upload className="h-3.5 w-3.5" /> Upload</Button>
         </form>
+        )}
 
         {filer.length === 0 ? (
           <EmptyState title="Ingen filer endnu" icon={Paperclip} description="Kontrakter, planer og mødereferater havner her." />
@@ -94,14 +96,14 @@ export function Filboks({ companyId, filer, forStor = false }: { companyId: stri
                           {f.uploadedBy ? ` · uploadet af ${f.uploadedBy}` : ""}
                         </p>
                       </div>
-                      <form action={flytFilKategori.bind(null, f.id)} className="flex items-center gap-1.5 shrink-0">
+                      {kanSkrive && <form action={flytFilKategori.bind(null, f.id)} className="flex items-center gap-1.5 shrink-0">
                         <Select name="category" defaultValue={f.category} aria-label="Flyt til anden kategori" className="h-8 text-xs w-36">
                           {FILKATEGORIER.map((k) => (
                             <option key={k} value={k}>{FILKATEGORI_LABEL_ENTAL[k]}</option>
                           ))}
                         </Select>
                         <Button size="sm" variant="ghost" type="submit" className="text-xs px-2">Flyt</Button>
-                      </form>
+                      </form>}
                       <a
                         href={`/api/filer/${f.id}`}
                         target="_blank"
@@ -111,11 +113,11 @@ export function Filboks({ companyId, filer, forStor = false }: { companyId: stri
                       >
                         <Download className="h-3.5 w-3.5" />
                       </a>
-                      <form action={sletFil.bind(null, f.id)} className="shrink-0">
+                      {kanSkrive && <form action={sletFil.bind(null, f.id)} className="shrink-0">
                         <button type="submit" aria-label={`Slet ${f.filename}`} className="text-muted-foreground hover:text-danger p-1.5 rounded">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
-                      </form>
+                      </form>}
                     </li>
                   ))}
                 </ul>

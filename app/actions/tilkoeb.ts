@@ -8,7 +8,7 @@
  * købt hvad, til hvilken pris og af hvem det blev registreret.
  */
 import { db } from "@/lib/db";
-import { kraevAdmin, kraevBruger } from "@/lib/auth";
+import { kraevAdmin, kraevSkriv } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { registrerLicensaendring as registrer } from "@/lib/licenser";
@@ -41,7 +41,7 @@ function opfrisk(kundeId: string) {
 }
 
 export async function registrerLicensaendring(kundeId: string, formData: FormData) {
-  const mig = await kraevBruger();
+  const mig = await kraevSkriv("salg");
   const productId = txt(formData.get("productId"));
   const antal = Math.round(num(formData.get("antal")) ?? 0);
   const reduktion = formData.get("retning") === "reduktion";

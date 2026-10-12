@@ -1,3 +1,4 @@
+import { kraevBruger, kraevSkriv, kraevAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AlertTriangle, ArrowLeft } from "lucide-react";
@@ -17,6 +18,7 @@ export default async function SletKunde({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ fejl?: string }>;
 }) {
+  await kraevAdmin();
   const { id } = await params;
   const { fejl } = await searchParams;
 

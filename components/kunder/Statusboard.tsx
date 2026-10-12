@@ -54,6 +54,8 @@ export function Statusboard({
   dage,
   visRyddede,
   bevaegelser,
+  kanSkrive = true,
+  kanOpretteLead = true,
 }: {
   kundeId: string;
   sager: Sag[];
@@ -61,6 +63,10 @@ export function Statusboard({
   dage: number;
   visRyddede: boolean;
   bevaegelser: Bevaegelse[];
+  /** Skriveadgang til salg: flytte, redigere, slette og oprette opportunities */
+  kanSkrive?: boolean;
+  /** Må oprette leads (også en ren Sælger) */
+  kanOpretteLead?: boolean;
 }) {
   const nu = new Date();
   const { aabne, afsluttet, ryddet } = delPipeline(sager, dage, nu);
@@ -103,12 +109,12 @@ export function Statusboard({
             const sum = iKolonne.reduce((s, d) => s + (sagsVaerdi(d) ?? 0), 0);
             return (
               <Kolonne key={st.key} titel={st.label} farve={KOLONNEFARVE[st.key]} antal={iKolonne.length} sum={sum}>
-                {iKolonne.map((d) => <SagsKort key={d.id} sag={d} grupper={grupper} nu={nu} />)}
+                {iKolonne.map((d) => <SagsKort key={d.id} sag={d} grupper={grupper} nu={nu} kanSkrive={kanSkrive} />)}
               </Kolonne>
             );
           })}
           <Kolonne titel="Afsluttet" farve={KOLONNEFARVE.afsluttet} antal={afsluttet.length} tom="Intet afsluttet for nylig">
-            {afsluttet.map((d) => <AfsluttetKort key={d.id} sag={d} dage={dage} nu={nu} />)}
+            {afsluttet.map((d) => <AfsluttetKort key={d.id} sag={d} dage={dage} nu={nu} kanSkrive={kanSkrive} />)}
             {ryddet.length > 0 && (
               <Link
                 href={visRyddede ? `/kunder/${kundeId}?fane=salg` : `/kunder/${kundeId}?fane=salg&ryddede=1#ryddede`}
@@ -138,11 +144,11 @@ export function Statusboard({
                   </span>
                   <span className="flex items-center gap-2 shrink-0">
                     <Badge variant={d.stage === "vundet" ? "success" : "muted"}>{stadieLabel(d.stage)}</Badge>
-                    <form action={flytStadie.bind(null, d.id, "forhandling")}>
+                    {kanSkrive && <form action={flytStadie.bind(null, d.id, "forhandling")}>
                       <button type="submit" title="Genåbn i Forhandling" aria-label={`Genåbn ${d.title}`} className="p-1 rounded text-muted-foreground hover:text-primary">
                         <RotateCcw className="h-3.5 w-3.5" />
                       </button>
-                    </form>
+                    </form>}
                   </span>
                 </li>
               ))}
@@ -173,8 +179,8 @@ export function Statusboard({
             )}
           </div>
 
-          {/* Ny mulighed */}
-          <details className="group rounded-lg border border-dashed border-border open:border-solid">
+          {/* Ny mulighed — en ren Sælger kan kun oprette leads */}
+          {kanOpretteLead && <details className="group rounded-lg border border-dashed border-border open:border-solid">
             <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium flex items-center gap-2">
               <Plus className="h-4 w-4 text-primary" /> Ny salgsmulighed
               <span className="text-xs text-muted-foreground font-normal">— dit scope, dine tal</span>
@@ -194,7 +200,7 @@ export function Statusboard({
               <div>
                 <Label htmlFor="ns-s">Stadie</Label>
                 <Select id="ns-s" name="stage" defaultValue="ny">
-                  {AABNE_STADIER.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                  {AABNE_STADIER.filter((s) => kanSkrive || s.key === "ny").map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
                 </Select>
               </div>
               <div><Label htmlFor="ns-e">Forventet luk</Label><Input id="ns-e" name="expectedCloseDate" type="date" /></div>
@@ -202,7 +208,7 @@ export function Statusboard({
               <div className="col-span-2"><Label htmlFor="ns-n">Næste skridt</Label><Input id="ns-n" name="nextStep" placeholder="fx Send tilbud fredag" /></div>
               <div className="col-span-2 flex justify-end"><Button size="sm" type="submit">Opret</Button></div>
             </form>
-          </details>
+          </details>}
         </div>
       </CardBody>
     </Card>
@@ -262,7 +268,7 @@ function IkonKnap({
   );
 }
 
-function SagsKort({ sag: d, grupper, nu }: { sag: Sag; grupper: LicensGruppe[]; nu: Date }) {
+function SagsKort({ sag: d, grupper, nu, kanSkrive }: { sag: Sag; grupper: LicensGruppe[]; nu: Date; kanSkrive: boolean }) {
   const v = sagsVaerdi(d);
   const iStadie = dageSiden(d.stageChangedAt ?? d.createdAt, nu) ?? 0;
   const overskredet = d.expectedCloseDate != null && d.expectedCloseDate < nu;
@@ -299,7 +305,7 @@ function SagsKort({ sag: d, grupper, nu }: { sag: Sag; grupper: LicensGruppe[]; 
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-1 pt-1.5 border-t border-border">
+      {kanSkrive && <div className="flex items-center justify-between gap-1 pt-1.5 border-t border-border">
         <div className="flex items-center">
           {forrige ? (
             <IkonKnap action={flytStadie.bind(null, d.id, forrige)} titel={`Tilbage til ${stadieLabel(forrige)}`}>
@@ -320,9 +326,9 @@ function SagsKort({ sag: d, grupper, nu }: { sag: Sag; grupper: LicensGruppe[]; 
             <X className="h-3.5 w-3.5" />
           </IkonKnap>
         </div>
-      </div>
+      </div>}
 
-      <details className="group -mx-3 -mb-3 border-t border-border">
+      {kanSkrive && <details className="group -mx-3 -mb-3 border-t border-border">
         <summary className="cursor-pointer list-none px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground">
           Rediger detaljer
         </summary>
@@ -357,12 +363,12 @@ function SagsKort({ sag: d, grupper, nu }: { sag: Sag; grupper: LicensGruppe[]; 
           </div>
           <GemtAf af={d.updatedBy} tid={d.updatedAt} className="text-[11px]" />
         </form>
-      </details>
+      </details>}
     </article>
   );
 }
 
-function AfsluttetKort({ sag: d, dage, nu }: { sag: Sag; dage: number; nu: Date }) {
+function AfsluttetKort({ sag: d, dage, nu, kanSkrive }: { sag: Sag; dage: number; nu: Date; kanSkrive: boolean }) {
   const vundet = d.stage === "vundet";
   const v = sagsVaerdi(d);
   const tilbage = dageTilOprydning(d.closedAt, dage, nu);
@@ -380,9 +386,11 @@ function AfsluttetKort({ sag: d, dage, nu }: { sag: Sag; dage: number; nu: Date 
         <span className="text-[11px] text-muted-foreground tabular" title={`Ryddes væk ${dage} dage efter afslutning`}>
           {d.closedAt ? datoKort(d.closedAt) : ""} · {tilbage === 0 ? "ryddes i dag" : `ryddes om ${tilbage} d.`}
         </span>
+        {kanSkrive && (
         <IkonKnap action={flytStadie.bind(null, d.id, "forhandling")} titel="Genåbn i Forhandling" className="hover:text-primary">
           <RotateCcw className="h-3.5 w-3.5" />
         </IkonKnap>
+        )}
       </div>
     </article>
   );

@@ -10,7 +10,8 @@ import { hentSession } from "@/lib/auth";
 import { dato } from "@/lib/format";
 import { gemBruger, nulstilPin, opretBruger, sletBruger } from "@/app/actions/auth";
 import { cn } from "@/lib/utils";
-import { ROLLER } from "@/lib/roller";
+import { ROLLER, normaliserRolle, rettigheder, rolleNavn } from "@/lib/roller";
+import { sikrAfdelinger } from "@/lib/afdelinger";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,8 @@ export default async function BrugerSide({
   searchParams: Promise<{ rediger?: string; besked?: string; fejl?: string }>;
 }) {
   const { rediger, besked, fejl } = await searchParams;
+  // Glostrup-afdelingen skal altid kunne vælges.
+  try { await sikrAfdelinger(); } catch { /* må ikke vælte siden */ }
   const [brugere, mig, profiler] = await Promise.all([
     db.user.findMany({ orderBy: [{ isActive: "desc" }, { initials: "asc" }], include: { senderProfile: { select: { name: true } } } }),
     hentSession(),
@@ -53,6 +56,46 @@ export default async function BrugerSide({
 
   return (
     <div className="max-w-4xl flex flex-col gap-5">
+      <Card>
+        <CardHeader title="Roller" description="Hvad hver rolle må. Ældre brugere med rollen “Bruger” behandles som Administrator, til du giver dem en ny rolle." />
+        <CardBody className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground border-b border-border">
+                  <th className="px-5 py-2.5 font-medium">Rolle</th>
+                  <th className="px-3 py-2.5 font-medium">Salg</th>
+                  <th className="px-3 py-2.5 font-medium">Teknik</th>
+                  <th className="px-3 py-2.5 font-medium">Kunder</th>
+                  <th className="px-5 py-2.5 font-medium">Særligt</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ROLLER.map((r) => {
+                  const ret = rettigheder(r.key);
+                  const niv = (n: string) => (n === "skriv" ? "Læse og skrive" : n === "laes" ? "Læse" : "—");
+                  return (
+                    <tr key={r.key} className="border-b border-border/60 last:border-0 even:bg-muted/45">
+                      <td className="px-5 py-2 font-medium whitespace-nowrap">{r.label}</td>
+                      <td className="px-3 py-2">{niv(ret.salg)}</td>
+                      <td className="px-3 py-2">{niv(ret.teknik)}</td>
+                      <td className="px-3 py-2">{niv(ret.kunder)}</td>
+                      <td className="px-5 py-2 text-xs text-muted-foreground">
+                        {[
+                          ret.indstillinger && "Systemindstillinger",
+                          ret.tid && ret.teknik !== "skriv" && "Arbejdstid på sager",
+                          ret.leads && ret.salg !== "skriv" && "Oprette leads og salgsnoter",
+                        ].filter(Boolean).join(" · ") || "–"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </CardBody>
+      </Card>
+
       {besked && BESKEDER[besked] && (
         <Card className="border-success/40 bg-success/[0.06]"><CardBody className="text-sm">{BESKEDER[besked]}</CardBody></Card>
       )}
@@ -95,9 +138,9 @@ export default async function BrugerSide({
                     <td className="px-3 py-2.5">
                       {b.role === "superadmin"
                         ? <Badge variant="default"><Crown className="h-3 w-3 mr-1 inline" />Superadministrator</Badge>
-                        : b.role === "admin"
+                        : normaliserRolle(b.role) === "admin"
                         ? <Badge variant="info"><ShieldCheck className="h-3 w-3 mr-1 inline" />Administrator</Badge>
-                        : <Badge variant="muted">Bruger</Badge>}
+                        : <Badge variant={b.role.startsWith("tekniker") ? "warning" : "muted"}>{rolleNavn(b.role)}</Badge>}
                       {!b.isActive && <Badge variant="muted" className="ml-1.5">Spærret</Badge>}
                     </td>
                     <td className="px-3 py-2.5 text-xs text-muted-foreground tabular">{b.lastLoginAt ? dato(b.lastLoginAt) : "aldrig"}</td>
@@ -135,8 +178,8 @@ export default async function BrugerSide({
                 <AfdelingValg id="afd" valgt={under.senderProfileId} />
                 <div>
                   <Label htmlFor="role">Rolle</Label>
-                  <Select id="role" name="role" defaultValue={under.role}>
-                    {ROLLER.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
+                  <Select id="role" name="role" defaultValue={normaliserRolle(under.role)}>
+                    {ROLLER.map((r) => <option key={r.key} value={r.key}>{r.label} — {r.beskrivelse}</option>)}
                   </Select>
                 </div>
                 <label className="sm:col-span-2 flex items-center gap-2 text-sm">
@@ -183,8 +226,8 @@ export default async function BrugerSide({
               <AfdelingValg id="nafd" />
               <div>
                 <Label htmlFor="nrole">Rolle</Label>
-                <Select id="nrole" name="role" defaultValue="bruger">
-                  {ROLLER.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
+                <Select id="nrole" name="role" defaultValue="saelger">
+                  {ROLLER.map((r) => <option key={r.key} value={r.key}>{r.label} — {r.beskrivelse}</option>)}
                 </Select>
               </div>
               <div className="sm:col-span-2 flex justify-end"><Button type="submit"><UserPlus className="h-3.5 w-3.5" /> Opret bruger</Button></div>

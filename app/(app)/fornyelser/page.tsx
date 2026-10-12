@@ -1,3 +1,5 @@
+import { kanSkrive } from "@/lib/roller";
+import { kraevBruger, kraevSkriv, kraevAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { RefreshCw } from "lucide-react";
 import { Card, CardBody, CardHeader, EmptyState, StatCard } from "@/components/ui/card";
@@ -15,6 +17,8 @@ const VINDUER = [30, 60, 90, 180, 365];
 
 /** Aftaler der udløber inden for den valgte horisont — med genvej til fornyelsen. */
 export default async function FornyelserSide({ searchParams }: { searchParams: Promise<{ dage?: string }> }) {
+  const mig = await kraevBruger();
+  const skriv = kanSkrive(mig.ret.salg);
   const { dage } = await searchParams;
   const vindue = VINDUER.includes(Number(dage)) ? Number(dage) : 90;
   const nu = new Date();
@@ -93,8 +97,8 @@ export default async function FornyelserSide({ searchParams }: { searchParams: P
                         <td className="px-3 py-2.5 text-right tabular">{l.termMonths} mdr.</td>
                         <td className="px-5 py-2">
                           <div className="flex justify-end gap-1.5">
-                            <Link href={`/ordrer/ny?type=tilbud&kunde=${l.companyId}&forny=${l.id}`}><Button size="sm" variant="ghost">Tilbud</Button></Link>
-                            <Link href={`/ordrer/ny?type=ordre&kunde=${l.companyId}&forny=${l.id}`}><Button size="sm" variant="secondary"><RefreshCw className="h-3.5 w-3.5" /> Lav fornyelse</Button></Link>
+                            {skriv && <Link href={`/ordrer/ny?type=tilbud&kunde=${l.companyId}&forny=${l.id}`}><Button size="sm" variant="ghost">Tilbud</Button></Link>}
+                            {skriv && <Link href={`/ordrer/ny?type=ordre&kunde=${l.companyId}&forny=${l.id}`}><Button size="sm" variant="secondary"><RefreshCw className="h-3.5 w-3.5" /> Lav fornyelse</Button></Link>}
                           </div>
                         </td>
                       </tr>

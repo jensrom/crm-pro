@@ -6,6 +6,7 @@ import { Crown, LogOut, ShieldCheck } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { Opdatering } from "./Opdatering";
 import { logUd } from "@/app/actions/auth";
+import { rolleNavn } from "@/lib/roller";
 
 const TITLER: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -22,7 +23,7 @@ const TITLER: Record<string, string> = {
   "/indstillinger": "Indstillinger",
 };
 
-export type TopbarBruger = { initials: string; name: string; erAdmin: boolean; erSuperAdmin?: boolean };
+export type TopbarBruger = { initials: string; name: string; erAdmin: boolean; erSuperAdmin?: boolean; role?: string };
 
 export function AppTopbar({ bruger }: { bruger: TopbarBruger }) {
   const sti = usePathname();
@@ -49,11 +50,12 @@ export function AppTopbar({ bruger }: { bruger: TopbarBruger }) {
       <div className="ml-auto flex items-center gap-3">
         <span
           className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground"
-          title={bruger.erSuperAdmin ? `${bruger.name} — superadministrator` : bruger.erAdmin ? `${bruger.name} — administrator` : bruger.name}
+          title={`${bruger.name} — ${rolleNavn(bruger.role ?? "")}`}
         >
           {bruger.erSuperAdmin ? <Crown className="h-3.5 w-3.5 text-primary" /> : bruger.erAdmin && <ShieldCheck className="h-3.5 w-3.5 text-primary" />}
           <span className="font-medium text-foreground tracking-wide">{bruger.initials}</span>
           <span className="hidden md:inline">{bruger.name}</span>
+          <span className="hidden lg:inline text-[11px] px-1.5 py-0.5 border border-border bg-secondary">{rolleNavn(bruger.role ?? "")}</span>
         </span>
         <Opdatering />
         <ThemeToggle />

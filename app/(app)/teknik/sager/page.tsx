@@ -1,3 +1,5 @@
+import { kanSkrive } from "@/lib/roller";
+import { kraevBruger, kraevLaes, kraevSkriv } from "@/lib/auth";
 import Link from "next/link";
 import { LifeBuoy, Plus } from "lucide-react";
 import { Card, CardBody, CardHeader, EmptyState, StatCard } from "@/components/ui/card";
@@ -19,6 +21,8 @@ export default async function SagerSide({
 }: {
   searchParams: Promise<{ status?: string; prioritet?: string; kunde?: string }>;
 }) {
+  const mig = await kraevBruger();
+  const skriv = kanSkrive(mig.ret.teknik);
   const { status, prioritet, kunde } = await searchParams;
 
   const hvor: any = {};
@@ -63,9 +67,11 @@ export default async function SagerSide({
           title="Sager"
           description="Sorteret efter prioritet, og derefter efter alder — det ældste øverst inden for hvert niveau."
           action={
+            skriv ? (
             <Link href="/teknik/sager/ny">
               <Button size="sm"><Plus className="h-3.5 w-3.5" /> Ny sag</Button>
             </Link>
+            ) : undefined
           }
         />
 
@@ -142,7 +148,7 @@ export default async function SagerSide({
                         <td className={cn("px-3 py-2.5 text-right tabular text-xs", dage > 30 && "text-danger font-semibold")}>{alderTekst(dage)}</td>
                         <td className="px-3 py-2.5 text-right tabular text-xs text-muted-foreground">{brugt > 0 ? varighed(brugt) : "–"}</td>
                         <td className="px-5 py-2">
-                          <GemValg
+                          {!skriv ? <Badge variant={findSagsstatus(s.status).variant}>{findSagsstatus(s.status).label}</Badge> : <GemValg
                             action={async (fd: FormData) => {
                               "use server";
                               const valgt = fd.get("status");
@@ -153,7 +159,7 @@ export default async function SagerSide({
                             options={SAGSSTATUS}
                             ariaLabel={`Status for ${s.title}`}
                             selectClassName="h-8 text-xs w-44"
-                          />
+                          />}
                           <GemtAf af={s.updatedBy} tid={s.updatedAt} className="mt-1 text-[11px]" />
                         </td>
                       </tr>

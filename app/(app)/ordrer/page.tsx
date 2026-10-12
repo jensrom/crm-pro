@@ -1,3 +1,5 @@
+import { kanSkrive } from "@/lib/roller";
+import { kraevBruger, kraevSkriv, kraevAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { Download, FileText, Plus, Search } from "lucide-react";
 import { Card, CardBody, CardHeader, EmptyState, StatCard } from "@/components/ui/card";
@@ -21,6 +23,8 @@ export default async function OrdrelisteSide({
 }: {
   searchParams: Promise<{ kunde?: string; besked?: string; type?: string; q?: string }>;
 }) {
+  const mig = await kraevBruger();
+  const skriv = kanSkrive(mig.ret.salg);
   const { kunde, besked, type, q } = await searchParams;
   const soeg = q?.trim() ?? "";
   const tal_ = Number(soeg.replace(/\D/g, ""));
@@ -79,7 +83,7 @@ export default async function OrdrelisteSide({
           title="Ordreliste"
           description={`${tal(ordrer.length)} dokumenter${kunde && ordrer[0]?.company ? ` for ${ordrer[0].company.name}` : ""}${soeg ? ` der matcher "${soeg}"` : ""}. PDF'en genskabes altid ud fra det gemte dokument.`}
           action={
-            <div className="flex items-center gap-2">
+            !skriv ? undefined : <div className="flex items-center gap-2">
               <Link href={`/ordrer/ny?type=tilbud${kunde ? `&kunde=${kunde}` : ""}`}><Button size="sm" variant="secondary"><Plus className="h-3.5 w-3.5" /> Tilbud</Button></Link>
               <Link href={`/ordrer/ny?type=ordre${kunde ? `&kunde=${kunde}` : ""}`}><Button size="sm"><Plus className="h-3.5 w-3.5" /> Ordrebekræftelse</Button></Link>
             </div>

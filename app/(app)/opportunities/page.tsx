@@ -1,3 +1,5 @@
+import { kanSkrive } from "@/lib/roller";
+import { kraevBruger, kraevSkriv, kraevAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { Card, CardBody, CardHeader, StatCard } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +16,8 @@ import { flytStadie, opretSag, sletSag } from "@/app/actions/salg";
 export const dynamic = "force-dynamic";
 
 export default async function OpportunitiesSide({ searchParams }: { searchParams: Promise<{ alle?: string }> }) {
+  const mig = await kraevBruger();
+  const skriv = kanSkrive(mig.ret.salg);
   const { alle } = await searchParams;
   const visAlle = alle === "1";
   const [sager, kunder, produkter, indst] = await Promise.all([
@@ -91,6 +95,7 @@ export default async function OpportunitiesSide({ searchParams }: { searchParams
                       <span>{vaerdi(s) != null ? kroner(vaerdi(s)) : `${s.probability} %`}</span>
                     </div>
                     <div className="flex flex-col gap-1.5 pt-1 border-t border-border">
+                      {skriv && (
                       <GemValg
                         action={async (fd: FormData) => {
                           "use server";
@@ -103,13 +108,16 @@ export default async function OpportunitiesSide({ searchParams }: { searchParams
                         ariaLabel={`Stadie for ${s.title}`}
                         selectClassName="h-8 text-xs min-w-0"
                       />
+                      )}
                       <div className="flex items-center justify-between gap-2">
                         <GemtAf af={s.updatedBy} tid={s.updatedAt} className="text-[11px] leading-tight min-w-0 truncate" />
+                      {skriv && (
                       <form action={async () => { "use server"; await sletSag(s.id); }} className="flex justify-end">
                         <Button type="submit" size="sm" variant="ghost" className="h-7 px-2 text-[11px] text-muted-foreground">
                           Slet
                         </Button>
                       </form>
+                      )}
                       </div>
                     </div>
                   </div>
@@ -126,6 +134,7 @@ export default async function OpportunitiesSide({ searchParams }: { searchParams
         })}
       </div>
 
+      {skriv && (
       <Card>
         <CardHeader title="Ny opportunity" description="Kvalificeret salgsmulighed. Ukvalificerede henvendelser oprettes som leads. Værdien beregnes fra pakke × licenser, hvis du ikke selv sætter den." />
         <CardBody>
@@ -163,6 +172,7 @@ export default async function OpportunitiesSide({ searchParams }: { searchParams
           </form>
         </CardBody>
       </Card>
+      )}
     </div>
   );
 }

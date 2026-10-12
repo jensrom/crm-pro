@@ -1,3 +1,5 @@
+import { kanSkrive } from "@/lib/roller";
+import { kraevBruger, kraevLaes, kraevSkriv } from "@/lib/auth";
 import Link from "next/link";
 import { Scissors, Trash2 } from "lucide-react";
 import { Card, CardBody, CardHeader, EmptyState, StatCard } from "@/components/ui/card";
@@ -18,6 +20,8 @@ export default async function KlippekortSide({
 }: {
   searchParams: Promise<{ rediger?: string }>;
 }) {
+  const mig = await kraevBruger();
+  const skriv = kanSkrive(mig.ret.teknik);
   const { rediger } = await searchParams;
 
   const [kort, kunder] = await Promise.all([
@@ -99,6 +103,7 @@ export default async function KlippekortSide({
                           <div className="mt-1 text-xs text-muted-foreground tabular">{Math.round(s.forbrugt * 100)} %</div>
                         </td>
                         <td className="px-5 py-2">
+                          {skriv && (
                           <div className="flex items-center justify-end gap-1.5">
                             <Link href={`/teknik/klippekort?rediger=${k.id}`}>
                               <Button size="sm" variant="ghost" type="button" className="text-xs px-2">Rediger</Button>
@@ -109,6 +114,7 @@ export default async function KlippekortSide({
                               </button>
                             </form>
                           </div>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -122,6 +128,7 @@ export default async function KlippekortSide({
           </CardBody>
         </Card>
 
+        {skriv && (
         <Card>
           <CardHeader title={under ? `Rediger ${kortnummer(under.number)}` : "Nyt klippekort"} />
           <CardBody>
@@ -163,6 +170,7 @@ export default async function KlippekortSide({
             )}
           </CardBody>
         </Card>
+        )}
       </div>
     </div>
   );

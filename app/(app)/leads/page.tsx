@@ -1,3 +1,5 @@
+import { kanSkrive } from "@/lib/roller";
+import { kraevBruger, kraevSkriv, kraevAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { ArrowRight, Inbox, Plus, X } from "lucide-react";
 import { Card, CardBody, CardHeader, EmptyState, StatCard } from "@/components/ui/card";
@@ -19,6 +21,9 @@ export const dynamic = "force-dynamic";
  * rykker den over i Opportunities med hele sin historik.
  */
 export default async function LeadsSide() {
+  const mig = await kraevBruger();
+  const skriv = kanSkrive(mig.ret.salg);
+  const kanLead = skriv || mig.ret.leads;
   const nu = new Date();
   const [leads, kunder, grupper, kvalificeret30] = await Promise.all([
     db.deal.findMany({
@@ -93,16 +98,20 @@ export default async function LeadsSide() {
                         </td>
                         <td className="px-5 py-2">
                           <div className="flex items-center justify-end gap-1.5">
+                            {skriv && (
                             <form action={flytStadie.bind(null, d.id, "kvalificeret")}>
                               <Button type="submit" size="sm" variant="secondary" className="h-7 px-2.5 text-xs">
                                 Kvalificér <ArrowRight className="h-3 w-3" />
                               </Button>
                             </form>
+                            )}
+                            {skriv && (
                             <form action={flytStadie.bind(null, d.id, "tabt")}>
                               <button type="submit" title="Afvis — lukkes som tabt" aria-label={`Afvis ${d.title}`} className="h-7 w-7 grid place-items-center rounded-md text-muted-foreground hover:text-danger hover:bg-secondary">
                                 <X className="h-3.5 w-3.5" />
                               </button>
                             </form>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -115,6 +124,7 @@ export default async function LeadsSide() {
         </CardBody>
       </Card>
 
+      {kanLead && (
       <Card>
         <CardHeader title="Nyt lead" description="Kun titel og kunde er påkrævet. Resten kan udfyldes, når du kvalificerer." />
         <CardBody>
@@ -141,6 +151,7 @@ export default async function LeadsSide() {
           </form>
         </CardBody>
       </Card>
+      )}
     </div>
   );
 }

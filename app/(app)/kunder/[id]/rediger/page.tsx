@@ -1,3 +1,4 @@
+import { kraevBruger, kraevSkriv, kraevAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -12,6 +13,7 @@ import { KONFIDENS, PRIORITET } from "@/lib/labels";
 export const dynamic = "force-dynamic";
 
 export default async function RedigerKunde({ params }: { params: Promise<{ id: string }> }) {
+  await kraevSkriv("kunder");
   const { id } = await params;
   const k = await db.company.findUnique({ where: { id } });
   if (!k) notFound();

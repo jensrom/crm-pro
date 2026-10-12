@@ -1,3 +1,4 @@
+import { kanSkrive, rettigheder } from "@/lib/roller";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Download, FileText, Paperclip, RefreshCw, Trash2 } from "lucide-react";
@@ -25,6 +26,7 @@ export default async function OrdreSide({ params, searchParams }: { params: Prom
     hentSession(),
   ]);
   if (!o) notFound();
+  const skriv = kanSkrive(rettigheder(mig?.role).salg);
   const [kilde, afledte] = await Promise.all([
     o.sourceOrderId ? db.order.findUnique({ where: { id: o.sourceOrderId }, select: { id: true, kind: true, number: true } }) : null,
     db.order.findMany({ where: { sourceOrderId: o.id }, select: { id: true, kind: true, number: true } }),
@@ -70,7 +72,7 @@ export default async function OrdreSide({ params, searchParams }: { params: Prom
         <Card className="border-success/40 bg-success/[0.06]"><CardBody className="text-sm">Kundens aftaler er opdateret ud fra ordren.</CardBody></Card>
       )}
 
-      {o.kind === "tilbud" && (
+      {o.kind === "tilbud" && skriv && (
         <Card className="border-primary/40 bg-primary/[0.04]">
           <CardBody>
             <form action={tilbudTilOrdre.bind(null, o.id)} className="flex flex-wrap items-center justify-between gap-3">
@@ -92,7 +94,7 @@ export default async function OrdreSide({ params, searchParams }: { params: Prom
         </Card>
       )}
 
-      {kanAnvendes && (
+      {kanAnvendes && skriv && (
         <Card>
           <CardBody>
             <form action={anvendOrdre.bind(null, o.id)} className="flex flex-wrap items-center justify-between gap-3">

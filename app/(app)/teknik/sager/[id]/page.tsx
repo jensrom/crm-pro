@@ -1,3 +1,5 @@
+import { kanSkrive } from "@/lib/roller";
+import { kraevBruger, kraevLaes, kraevSkriv } from "@/lib/auth";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Lock, Trash2 } from "lucide-react";
@@ -15,6 +17,9 @@ import { gemSag, registrerTid, skrivKommentar, sletKommentar, sletSag, sletTid }
 export const dynamic = "force-dynamic";
 
 export default async function SagsSide({ params }: { params: Promise<{ id: string }> }) {
+  const mig = await kraevBruger();
+  const skriv = kanSkrive(mig.ret.teknik);
+  const tid = mig.ret.tid;
   const { id } = await params;
   const sag = await db.ticket.findUnique({
     where: { id },
@@ -56,11 +61,13 @@ export default async function SagsSide({ params }: { params: Promise<{ id: strin
             {forfalden && <Badge variant="danger">Frist overskredet {datoKort(sag.dueAt)}</Badge>}
           </div>
         </div>
+        {skriv && (
         <form action={async () => { "use server"; await sletSag(sag.id); }}>
           <Button variant="ghost" type="submit" size="sm" className="text-muted-foreground hover:text-danger">
             <Trash2 className="h-3.5 w-3.5" /> Slet sag
           </Button>
         </form>
+        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-4">
@@ -92,6 +99,7 @@ export default async function SagsSide({ params }: { params: Promise<{ id: strin
             <CardHeader title="Sagens oplysninger" />
             <CardBody>
               <form action={gemSag.bind(null, sag.id)} className="grid sm:grid-cols-2 gap-4">
+                <fieldset disabled={!skriv} className="contents">
                 <div className="sm:col-span-2"><Label htmlFor="title">Titel</Label><Input id="title" name="title" defaultValue={sag.title} required /></div>
                 <div>
                   <Label htmlFor="status">Status</Label>
@@ -127,6 +135,7 @@ export default async function SagsSide({ params }: { params: Promise<{ id: strin
                   <GemtAf af={sag.updatedBy} tid={sag.updatedAt} className="mr-auto" />
                   <Button type="submit">Gem sag</Button>
                 </div>
+              </fieldset>
               </form>
             </CardBody>
           </Card>
@@ -134,6 +143,7 @@ export default async function SagsSide({ params }: { params: Promise<{ id: strin
           <Card>
             <CardHeader title="Noter og beskeder" description="Markér som intern, hvis det ikke er noget kunden har fået at vide." />
             <CardBody className="p-0">
+              {skriv && (
               <form action={skrivKommentar.bind(null, sag.id)} className="px-5 py-4 border-b border-border flex flex-col gap-3">
                 <Textarea name="content" required placeholder="Hvad skete der?" className="min-h-[70px]" />
                 <div className="flex items-center justify-between gap-3">
@@ -144,6 +154,7 @@ export default async function SagsSide({ params }: { params: Promise<{ id: strin
                   <Button size="sm" type="submit">Tilføj</Button>
                 </div>
               </form>
+              )}
               {sag.comments.length === 0 ? (
                 <div className="px-5"><EmptyState title="Ingen noter endnu" /></div>
               ) : (
@@ -152,11 +163,13 @@ export default async function SagsSide({ params }: { params: Promise<{ id: strin
                     <li key={k.id} className={k.isInternal ? "px-5 py-3 bg-warning/[0.05]" : "px-5 py-3"}>
                       <div className="flex items-start justify-between gap-3">
                         <p className="text-sm whitespace-pre-wrap min-w-0">{k.content}</p>
+                        {skriv && (
                         <form action={sletKommentar.bind(null, k.id, sag.id)}>
                           <button type="submit" aria-label="Slet note" className="text-muted-foreground hover:text-danger p-1 rounded shrink-0">
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </form>
+                        )}
                       </div>
                       <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                         {k.isInternal && <span className="inline-flex items-center gap-1 text-warning"><Lock className="h-3 w-3" />Intern</span>}
@@ -174,6 +187,7 @@ export default async function SagsSide({ params }: { params: Promise<{ id: strin
         <Card>
           <CardHeader title="Tidsforbrug" description="Vælg et klippekort for at trække timerne derfra." />
           <CardBody className="p-0">
+            {tid && (
             <form action={registrerTid} className="px-5 py-4 border-b border-border grid grid-cols-2 gap-3 items-end">
               <input type="hidden" name="companyId" value={sag.companyId} />
               <input type="hidden" name="ticketId" value={sag.id} />
@@ -197,6 +211,7 @@ export default async function SagsSide({ params }: { params: Promise<{ id: strin
               <div className="col-span-2"><Label htmlFor="description">Hvad lavede du?</Label><Input id="description" name="description" placeholder="valgfrit" /></div>
               <div className="col-span-2 flex justify-end"><Button size="sm" type="submit">Registrér tid</Button></div>
             </form>
+            )}
 
             {sag.timeLogs.length === 0 ? (
               <div className="px-5"><EmptyState title="Ingen tid registreret" /></div>
@@ -213,11 +228,13 @@ export default async function SagsSide({ params }: { params: Promise<{ id: strin
                       </div>
                       {t.description && <p className="text-xs text-muted-foreground mt-0.5">{t.description}</p>}
                     </div>
+                    {tid && (
                     <form action={async () => { "use server"; await sletTid(t.id); }}>
                       <button type="submit" aria-label="Slet tidspost" className="text-muted-foreground hover:text-danger p-1 rounded shrink-0">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </form>
+                    )}
                   </li>
                 ))}
               </ul>

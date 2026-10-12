@@ -20,7 +20,7 @@ type Post = {
  * Logbogen sidder øverst i højre spalte, fordi det er den man skal kunne
  * skrive i uden at lede — og det første man vil vide når man åbner en kunde.
  */
-export function Logbog({ kundeId, poster }: { kundeId: string; poster: Post[] }) {
+export function Logbog({ kundeId, poster, kanSkrive = true }: { kundeId: string; poster: Post[]; kanSkrive?: boolean }) {
   const fastgjorte = poster.filter((p) => p.pinned);
   const oevrige = poster.filter((p) => !p.pinned);
 
@@ -28,7 +28,7 @@ export function Logbog({ kundeId, poster }: { kundeId: string; poster: Post[] })
     <Card>
       <CardHeader title="Logbog" description="Det korte referat. Hvad blev der sagt, aftalt eller bemærket?" />
       <CardBody className="p-0">
-        <form action={skrivLog.bind(null, kundeId)} className="px-5 py-4 border-b border-border flex flex-col gap-2.5">
+        {kanSkrive && <form action={skrivLog.bind(null, kundeId)} className="px-5 py-4 border-b border-border flex flex-col gap-2.5">
           <Textarea name="content" required placeholder="Skriv en linje…" className="min-h-[64px]" />
           <div className="flex items-center gap-2">
             <Select name="kind" defaultValue="note" aria-label="Type" className="w-32 h-8 text-xs">
@@ -36,7 +36,7 @@ export function Logbog({ kundeId, poster }: { kundeId: string; poster: Post[] })
             </Select>
             <Button size="sm" type="submit" className="ml-auto">Skriv i logbogen</Button>
           </div>
-        </form>
+        </form>}
 
         {poster.length === 0 ? (
           <p className="px-5 py-6 text-sm text-muted-foreground">Tom endnu. Første linje bliver den vigtigste om tre måneder.</p>
@@ -46,7 +46,7 @@ export function Logbog({ kundeId, poster }: { kundeId: string; poster: Post[] })
               <li key={p.id} className={cn("px-5 py-3", p.pinned && "bg-primary/[0.04]")}>
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-sm whitespace-pre-wrap min-w-0">{p.content}</p>
-                  <div className="flex items-center gap-0.5 shrink-0">
+                  {kanSkrive && <div className="flex items-center gap-0.5 shrink-0">
                     <form action={skiftFastgjort.bind(null, p.id, kundeId, !p.pinned)}>
                       <button
                         type="submit"
@@ -62,7 +62,7 @@ export function Logbog({ kundeId, poster }: { kundeId: string; poster: Post[] })
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </form>
-                  </div>
+                  </div>}
                 </div>
                 <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                   <span>{label(LOGTYPER, p.kind)}</span>

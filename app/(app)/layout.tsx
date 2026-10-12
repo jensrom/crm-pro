@@ -2,6 +2,7 @@ import { AppSidebar } from "@/components/layout/AppSidebar";
 import { AppTopbar } from "@/components/layout/AppTopbar";
 import { hentIndstillinger } from "@/lib/analysis";
 import { kraevBruger } from "@/lib/auth";
+import { kanLaese } from "@/lib/roller";
 import { db } from "@/lib/db";
 import { anvendPlanlagtePriser } from "@/lib/katalog";
 
@@ -24,7 +25,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <AppSidebar
         brand={{ subtitle: i.brandSubtitle, markText: i.brandMarkText, logo: i.brandLogo }}
         hotAntal={hotAntal}
-        visIndstillinger={bruger.erSuperAdmin}
+        visIndstillinger={bruger.ret.indstillinger}
+        omraader={{ salg: kanLaese(bruger.ret.salg), teknik: kanLaese(bruger.ret.teknik) }}
       />
       <div className="lg:pl-[var(--sidebar-width)]">
         <AppTopbar bruger={bruger} />

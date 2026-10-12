@@ -1,3 +1,4 @@
+import { kraevLaes } from "@/lib/auth";
 import Link from "next/link";
 import { LifeBuoy, Scissors, TriangleAlert } from "lucide-react";
 import { Card, CardBody, CardHeader, EmptyState, StatCard } from "@/components/ui/card";
@@ -12,6 +13,7 @@ import { cn } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 export default async function TeknikDashboard() {
+  await kraevLaes("teknik");
   const nu = new Date();
 
   const [aabne, alle, kort, tidSum, hotte] = await Promise.all([

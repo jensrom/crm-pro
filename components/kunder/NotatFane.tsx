@@ -11,6 +11,7 @@ import { tal, tidspunkt } from "@/lib/format";
 import { NOTAT_KOLONNER, NOTAT_PRIORITET, NOTAT_SPOR } from "@/lib/labels";
 import { gemNotat, opretNotat, ryddFaerdigeForKunde } from "@/app/actions/notater";
 import { cn } from "@/lib/utils";
+import { kanLaese, kanSkrive, type Rettigheder } from "@/lib/roller";
 
 /**
  * Kundens egen notattavle (Nu / Næste / Venter / Færdig) — samme tavle som
@@ -21,22 +22,34 @@ export async function NotatFane({
   kundeId,
   spor,
   rediger,
+  ret,
 }: {
   kundeId: string;
   spor?: string;
   rediger?: string;
+  ret: Rettigheder;
 }) {
-  const filterSpor = spor === "salg" || spor === "teknik" ? spor : null;
+  // Spor brugeren må se og skrive i (lib/roller.ts).
+  const laesbare = [
+    ...(kanLaese(ret.salg) || ret.leads ? ["salg"] : []),
+    ...(kanLaese(ret.teknik) ? ["teknik"] : []),
+  ];
+  const skrivbare = [
+    ...(ret.leads || kanSkrive(ret.salg) ? ["salg"] : []),
+    ...(kanSkrive(ret.teknik) ? ["teknik"] : []),
+  ];
+  const filterSpor = (spor === "salg" || spor === "teknik") && laesbare.includes(spor) ? spor : null;
   const [notater, navne] = await Promise.all([
     db.customerNote.findMany({
-      where: { companyId: kundeId, ...(filterSpor ? { track: filterSpor } : {}) },
+      where: { companyId: kundeId, track: filterSpor ? filterSpor : { in: laesbare } },
       orderBy: { position: "asc" },
     }),
     navneOpslag(),
   ]);
 
   const basis = `/kunder/${kundeId}?fane=notater${filterSpor ? `&spor=${filterSpor}` : ""}`;
-  const under = rediger ? notater.find((n) => n.id === rediger) ?? null : null;
+  const fundet = rediger ? notater.find((n) => n.id === rediger) ?? null : null;
+  const under = fundet && skrivbare.includes(fundet.track) ? fundet : null;
   const nu = new Date();
   const aabne = notater.filter((n) => !n.completedAt);
   const forfaldne = aabne.filter((n) => n.dueAt && n.dueAt < nu).length;
@@ -68,7 +81,7 @@ export async function NotatFane({
 
   return (
     <div className="flex flex-col gap-5">
-      <Card>
+      {skrivbare.length > 0 && <Card>
         <CardHeader
           title={under ? "Rediger notat" : "Nyt notat"}
           description={under ? undefined : `${tal(aabne.length)} åbne${forfaldne ? ` · ${tal(forfaldne)} forfaldne` : ""}. Små opgaver på kunden — mærk dem Salg eller Teknik.`}
@@ -83,8 +96,8 @@ export async function NotatFane({
             </div>
             <div>
               <Label htmlFor="nf-s">Spor</Label>
-              <Select id="nf-s" name="track" defaultValue={under?.track ?? filterSpor ?? "salg"}>
-                {NOTAT_SPOR.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+              <Select id="nf-s" name="track" defaultValue={under?.track ?? (filterSpor && skrivbare.includes(filterSpor) ? filterSpor : skrivbare[0])}>
+                {NOTAT_SPOR.filter((s) => skrivbare.includes(s.key)).map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
               </Select>
             </div>
             <div>
@@ -112,10 +125,10 @@ export async function NotatFane({
             </div>
           </form>
         </CardBody>
-      </Card>
+      </Card>}
 
       <div className="flex flex-wrap items-center gap-2">
-        {[{ v: null, l: "Salg og teknik" }, ...NOTAT_SPOR.map((s) => ({ v: s.key, l: s.label }))].map((f) => (
+        {[...(laesbare.length > 1 ? [{ v: null as string | null, l: "Salg og teknik" }] : []), ...NOTAT_SPOR.filter((s) => laesbare.includes(s.key)).map((s) => ({ v: s.key as string | null, l: s.label }))].map((f) => (
           <Link
             key={f.l}
             href={`/kunder/${kundeId}?fane=notater${f.v ? `&spor=${f.v}` : ""}`}
@@ -128,7 +141,7 @@ export async function NotatFane({
             {f.l}
           </Link>
         ))}
-        {notater.some((n) => n.lane === "faerdig") && (
+        {notater.some((n) => n.lane === "faerdig" && skrivbare.includes(n.track)) && (
           <form action={ryddFaerdigeForKunde.bind(null, kundeId)} className="ml-auto">
             <Button size="sm" variant="ghost" type="submit" className="text-xs text-muted-foreground">Ryd Færdig-kolonnen</Button>
           </form>
@@ -144,7 +157,7 @@ export async function NotatFane({
           </CardBody>
         </Card>
       ) : (
-        <Tavle kort={kort} redigerBase={`${basis}&rediger=`} />
+        <Tavle kort={kort} redigerBase={`${basis}&rediger=`} skrivbareSpor={skrivbare} />
       )}
     </div>
   );

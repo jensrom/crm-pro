@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { MAKS_FILSTOERRELSE, saniterFilnavn } from "@/lib/filer";
 import { normaliserKategori } from "@/lib/attachment-categories";
-import { kraevBruger } from "@/lib/auth";
+import { kraevBruger, kraevSkriv } from "@/lib/auth";
 
 /** Alle filer på en kunde, nyeste først — uden selve indholdet. */
 export async function hentFiler(companyId: string) {
@@ -19,7 +19,7 @@ export async function hentFiler(companyId: string) {
 
 /** Modtager en fil via et almindeligt <form action={...}> og gemmer den i databasen. */
 export async function uploadFil(companyId: string, formData: FormData) {
-  const mig = await kraevBruger();
+  const mig = await kraevSkriv("kunder");
   const kunde = await db.company.findUnique({ where: { id: companyId }, select: { id: true } });
   if (!kunde) throw new Error("Kunde ikke fundet");
 
@@ -46,14 +46,14 @@ export async function uploadFil(companyId: string, formData: FormData) {
 
 /** Flytter en fil til en anden kategori — fx når en mail hører til som kontrakt. */
 export async function flytFilKategori(id: string, formData: FormData) {
-  await kraevBruger();
+  await kraevSkriv("kunder");
   const category = normaliserKategori(formData.get("category"));
   const att = await db.attachment.update({ where: { id }, data: { category }, select: { companyId: true } });
   revalidatePath(`/kunder/${att.companyId}`);
 }
 
 export async function sletFil(id: string) {
-  await kraevBruger();
+  await kraevSkriv("kunder");
   const att = await db.attachment.delete({ where: { id }, select: { companyId: true } }).catch(() => null);
   if (att) revalidatePath(`/kunder/${att.companyId}`);
 }

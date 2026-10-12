@@ -1,3 +1,4 @@
+import { kraevBruger, kraevLaes, kraevSkriv } from "@/lib/auth";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -10,6 +11,7 @@ import { opretSag } from "@/app/actions/teknik";
 export const dynamic = "force-dynamic";
 
 export default async function NySag({ searchParams }: { searchParams: Promise<{ kunde?: string }> }) {
+  await kraevSkriv("teknik");
   const { kunde } = await searchParams;
   const [kunder, produkter] = await Promise.all([
     db.company.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),

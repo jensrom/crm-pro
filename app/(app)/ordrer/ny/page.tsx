@@ -8,7 +8,7 @@ import { GruppeFlueben } from "@/components/dokumenter/GruppeFlueben";
 import { PeriodeFelter, type SynkMaal } from "@/components/dokumenter/PeriodeFelter";
 import { db } from "@/lib/db";
 import { ANTAL_FRIE_LINJER, brugerensProfilId, subNr } from "@/lib/dokumenter";
-import { kraevBruger } from "@/lib/auth";
+import { kraevSkriv } from "@/lib/auth";
 import { erEngang, hentKatalog, licensmodel, listepris } from "@/lib/katalog";
 import { KundeVaelger } from "@/components/dokumenter/KundeVaelger";
 import { aftaleUdloeb, dagTekst, fornyelsesPeriode, isoDag, plusDage } from "@/lib/perioder";
@@ -55,7 +55,7 @@ export default async function NyOrdre({
       : null,
     hentKatalog({ kunAktive: true }),
   ]);
-  const mig = await kraevBruger();
+  const mig = await kraevSkriv("salg");
   const [profiler, minProfil] = await Promise.all([
     db.senderProfile.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true, department: true } }),
     brugerensProfilId(mig.id),

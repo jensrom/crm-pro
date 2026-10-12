@@ -1,3 +1,5 @@
+import { kanSkrive } from "@/lib/roller";
+import { kraevBruger, kraevSkriv, kraevAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { CalendarClock, Check, Undo2 } from "lucide-react";
 import { Card, CardBody, CardHeader, EmptyState, StatCard } from "@/components/ui/card";
@@ -12,6 +14,8 @@ import { opretAktivitet, skiftAktivitet, sletAktivitet } from "@/app/actions/sal
 export const dynamic = "force-dynamic";
 
 export default async function AktiviteterSide() {
+  const mig = await kraevBruger();
+  const skriv = kanSkrive(mig.ret.salg);
   const [aktiviteter, kunder] = await Promise.all([
     db.activity.findMany({
       include: { company: { select: { id: true, name: true } } },
@@ -34,6 +38,7 @@ export default async function AktiviteterSide() {
         <StatCard label="Afsluttede" value={tal(faerdige.length)} />
       </div>
 
+      {skriv && (
       <Card>
         <CardHeader title="Ny aktivitet" />
         <CardBody>
@@ -58,6 +63,7 @@ export default async function AktiviteterSide() {
           </form>
         </CardBody>
       </Card>
+      )}
 
       <Card>
         <CardHeader title={`Åbne aktiviteter (${aabne.length})`} />
@@ -70,6 +76,7 @@ export default async function AktiviteterSide() {
                 const forfalden = a.dueDate && a.dueDate < nu;
                 return (
                   <li key={a.id} className="px-5 py-3 flex items-start gap-4">
+                    {skriv && (
                     <form action={async () => { "use server"; await skiftAktivitet(a.id, true); }}>
                       <button
                         type="submit"
@@ -79,6 +86,7 @@ export default async function AktiviteterSide() {
                         <Check className="h-3.5 w-3.5" />
                       </button>
                     </form>
+                    )}
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium">{a.subject}</div>
                       <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -94,9 +102,11 @@ export default async function AktiviteterSide() {
                       </div>
                       {a.description && <p className="text-xs text-muted-foreground mt-1 max-w-prose">{a.description}</p>}
                     </div>
+                    {skriv && (
                     <form action={async () => { "use server"; await sletAktivitet(a.id); }}>
                       <Button type="submit" size="sm" variant="ghost" className="text-xs text-muted-foreground">Slet</Button>
                     </form>
+                    )}
                   </li>
                 );
               })}
@@ -117,11 +127,13 @@ export default async function AktiviteterSide() {
                     {a.company && <span className="text-xs text-muted-foreground"> · {a.company.name}</span>}
                   </div>
                   <span className="text-xs text-muted-foreground tabular shrink-0">{dato(a.completedAt)}</span>
+                  {skriv && (
                   <form action={async () => { "use server"; await skiftAktivitet(a.id, false); }}>
                     <button type="submit" aria-label="Genåbn" className="text-muted-foreground hover:text-foreground p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                       <Undo2 className="h-3.5 w-3.5" />
                     </button>
                   </form>
+                  )}
                 </li>
               ))}
             </ul>

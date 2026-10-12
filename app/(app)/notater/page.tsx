@@ -10,6 +10,8 @@ import { NOTAT_KOLONNER, NOTAT_PRIORITET, NOTAT_SPOR } from "@/lib/labels";
 import { Tavle, type Kort } from "@/components/notater/Tavle";
 import { gemNotat, opretNotat, ryddFaerdige } from "@/app/actions/notater";
 import { cn } from "@/lib/utils";
+import { kraevBruger } from "@/lib/auth";
+import { kanLaese, kanSkrive } from "@/lib/roller";
 
 export const dynamic = "force-dynamic";
 
@@ -20,8 +22,17 @@ export default async function NotatSide({
 }) {
   const { spor, kunde, rediger } = await searchParams;
 
-  const hvor: any = {};
-  if (spor === "salg" || spor === "teknik") hvor.track = spor;
+  const mig = await kraevBruger();
+  const laesbare = [
+    ...(kanLaese(mig.ret.salg) || mig.ret.leads ? ["salg"] : []),
+    ...(kanLaese(mig.ret.teknik) ? ["teknik"] : []),
+  ];
+  const skrivbare = [
+    ...(mig.ret.leads || kanSkrive(mig.ret.salg) ? ["salg"] : []),
+    ...(kanSkrive(mig.ret.teknik) ? ["teknik"] : []),
+  ];
+  const hvor: any = { track: { in: laesbare } };
+  if ((spor === "salg" || spor === "teknik") && laesbare.includes(spor)) hvor.track = spor;
   if (kunde) hvor.companyId = kunde;
 
   const [notater, alle, kunder] = await Promise.all([
@@ -30,11 +41,12 @@ export default async function NotatSide({
       include: { company: { select: { id: true, name: true } } },
       orderBy: { position: "asc" },
     }),
-    db.customerNote.findMany({ select: { lane: true, track: true, completedAt: true, dueAt: true } }),
+    db.customerNote.findMany({ where: { track: { in: laesbare } }, select: { lane: true, track: true, completedAt: true, dueAt: true } }),
     db.company.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
 
-  const under = rediger ? notater.find((n) => n.id === rediger) : null;
+  const fundet = rediger ? notater.find((n) => n.id === rediger) : null;
+  const under = fundet && skrivbare.includes(fundet.track) ? fundet : null;
   const nu = new Date();
   const aabne = alle.filter((n) => n.completedAt == null);
   const forfaldne = aabne.filter((n) => n.dueAt != null && n.dueAt < nu).length;
@@ -72,7 +84,7 @@ export default async function NotatSide({
         <StatCard label="Forfaldne" value={tal(forfaldne)} sub="dato overskredet" highlight={forfaldne > 0} />
       </div>
 
-      <Card>
+      {skrivbare.length > 0 && <Card>
         <CardHeader
           title={under ? "Rediger notat" : "Nyt notat"}
           description={under ? undefined : "Kunde og dato er valgfrit. Alt andet kan rettes bagefter."}
@@ -102,8 +114,8 @@ export default async function NotatSide({
             </div>
             <div>
               <Label htmlFor="track">Spor</Label>
-              <Select id="track" name="track" defaultValue={under?.track ?? "salg"}>
-                {NOTAT_SPOR.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+              <Select id="track" name="track" defaultValue={under?.track ?? skrivbare[0]}>
+                {NOTAT_SPOR.filter((s) => skrivbare.includes(s.key)).map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
               </Select>
             </div>
             <div>
@@ -133,7 +145,7 @@ export default async function NotatSide({
             </div>
           </form>
         </CardBody>
-      </Card>
+      </Card>}
 
       <div className="flex flex-wrap items-center gap-2">
         {[{ v: "alle", l: "Salg og teknik" }, ...NOTAT_SPOR.map((s) => ({ v: s.key, l: s.label }))].map((f) => (
@@ -155,11 +167,11 @@ export default async function NotatSide({
             Ryd kundefilter
           </Link>
         )}
-        <form action={ryddFaerdige} className="ml-auto">
+        {mig.erAdmin && <form action={ryddFaerdige} className="ml-auto">
           <Button size="sm" variant="ghost" type="submit" className="text-xs text-muted-foreground">
             Ryd Færdig-kolonnen
           </Button>
-        </form>
+        </form>}
       </div>
 
       {kort.length === 0 ? (
@@ -173,7 +185,7 @@ export default async function NotatSide({
           </CardBody>
         </Card>
       ) : (
-        <Tavle kort={kort} redigerBase={`/notater?${spor ? `spor=${spor}&` : ""}rediger=`} />
+        <Tavle kort={kort} skrivbareSpor={skrivbare} redigerBase={`/notater?${spor ? `spor=${spor}&` : ""}rediger=`} />
       )}
 
       <p className="text-xs text-muted-foreground">

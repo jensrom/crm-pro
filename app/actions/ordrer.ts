@@ -2,7 +2,7 @@
 
 import { erEngang } from "@/lib/katalog";
 import { db } from "@/lib/db";
-import { kraevAdmin, kraevBruger } from "@/lib/auth";
+import { kraevAdmin, kraevSkriv } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ANTAL_FRIE_LINJER, dokNavn, dokNr } from "@/lib/dokumenter";
@@ -92,7 +92,7 @@ async function arkiver(orderId: string, initials: string | null) {
  * Frie linjer: fri_tekst_<n>, fri_antal_<n>, fri_pris_<n>, fri_<n>_start/mdr/slut
  */
 export async function opretOrdre(formData: FormData) {
-  const mig = await kraevBruger();
+  const mig = await kraevSkriv("salg");
   const kind = formData.get("kind") === "tilbud" ? "tilbud" : "ordre";
   const companyId = txt(formData.get("companyId"));
   const tilbage = `/ordrer/ny?type=${kind}${companyId ? `&kunde=${companyId}` : ""}`;
@@ -210,7 +210,7 @@ export async function opretOrdre(formData: FormData) {
 
 /** Laver en ordrebekræftelse ud fra et tilbud — samme linjer, nyt ORD-nummer. */
 export async function tilbudTilOrdre(tilbudId: string, formData: FormData) {
-  const mig = await kraevBruger();
+  const mig = await kraevSkriv("salg");
   const t = await db.order.findUnique({ where: { id: tilbudId }, include: { lines: { orderBy: { sortOrder: "asc" } } } });
   if (!t || t.kind !== "tilbud") redirect("/ordrer");
   const ordre = await db.order.create({
@@ -246,7 +246,7 @@ export async function tilbudTilOrdre(tilbudId: string, formData: FormData) {
 
 /** Lægger en allerede oprettet ordrebekræftelse over på kundens aftaler. */
 export async function anvendOrdre(id: string) {
-  const mig = await kraevBruger();
+  const mig = await kraevSkriv("salg");
   const n = await anvendOrdrePaaKunde(id, mig.initials);
   const o = await db.order.findUnique({ where: { id }, select: { companyId: true } });
   if (o?.companyId) revalidatePath(`/kunder/${o.companyId}`);

@@ -1,6 +1,6 @@
 "use server";
 
-import { kraevBruger, kraevSuperAdmin } from "@/lib/auth";
+import { kraevLeads, kraevSkriv, kraevSuperAdmin } from "@/lib/auth";
 
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
@@ -33,12 +33,13 @@ function opfriskSalg(companyId: string) {
 }
 
 export async function opretSag(formData: FormData) {
-  const mig = await kraevBruger();
+  const stage = txt(formData.get("stage")) ?? "ny";
+  // Et lead må en Sælger selv oprette; alt længere fremme kræver skriveadgang til salg.
+  const mig = stage === "ny" ? await kraevLeads() : await kraevSkriv("salg");
   const companyId = txt(formData.get("companyId"));
   const title = txt(formData.get("title"));
   if (!companyId || !title) return;
   const forventet = txt(formData.get("expectedCloseDate"));
-  const stage = txt(formData.get("stage")) ?? "ny";
   const afsluttet = erAfsluttet(stage);
   const sandsynlighed = num(formData.get("probability"));
   await db.deal.create({
@@ -62,7 +63,7 @@ export async function opretSag(formData: FormData) {
 }
 
 export async function flytStadie(id: string, stadie: string) {
-  const mig = await kraevBruger();
+  const mig = await kraevSkriv("salg");
   if (!STADIER.some((s) => s.key === stadie)) return;
   const foer = await db.deal.findUnique({ where: { id } });
   if (!foer || foer.stage === stadie) return;
@@ -87,7 +88,7 @@ export async function flytStadie(id: string, stadie: string) {
 }
 
 export async function opdaterSag(id: string, formData: FormData) {
-  await kraevBruger();
+  await kraevSkriv("salg");
   const title = txt(formData.get("title"));
   if (!title) return;
   const forventet = txt(formData.get("expectedCloseDate"));
@@ -109,14 +110,14 @@ export async function opdaterSag(id: string, formData: FormData) {
 }
 
 export async function sletSag(id: string) {
-  const mig = await kraevBruger();
+  const mig = await kraevSkriv("salg");
   const d = await db.deal.delete({ where: { id } });
   await logSalg(d.companyId, `Salgsmulighed slettet: ${d.title}`, mig.initials);
   opfriskSalg(d.companyId);
 }
 
 export async function opretAktivitet(formData: FormData) {
-  await kraevBruger();
+  await kraevSkriv("salg");
   const subject = txt(formData.get("subject"));
   if (!subject) return;
   const forfald = txt(formData.get("dueDate"));
@@ -138,7 +139,7 @@ export async function opretAktivitet(formData: FormData) {
 }
 
 export async function skiftAktivitet(id: string, faerdig: boolean) {
-  await kraevBruger();
+  await kraevSkriv("salg");
   const a = await db.activity.update({
     where: { id },
     data: { completedAt: faerdig ? new Date() : null },
@@ -149,14 +150,14 @@ export async function skiftAktivitet(id: string, faerdig: boolean) {
 }
 
 export async function sletAktivitet(id: string) {
-  await kraevBruger();
+  await kraevSkriv("salg");
   const a = await db.activity.delete({ where: { id } });
   revalidatePath("/aktiviteter");
   if (a.companyId) revalidatePath(`/kunder/${a.companyId}`);
 }
 
 export async function gemIndstillinger(formData: FormData) {
-  await kraevBruger();
+  await kraevSuperAdmin();
   const note = txt(formData.get("dataSourceNote"));
   await db.settings.upsert({
     where: { id: "singleton" },

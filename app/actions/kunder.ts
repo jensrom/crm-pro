@@ -1,6 +1,6 @@
 "use server";
 
-import { kraevBruger } from "@/lib/auth";
+import { kraevAdmin, kraevSkriv } from "@/lib/auth";
 
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
@@ -35,7 +35,7 @@ function opfrisk(kundeId?: string | null) {
 }
 
 export async function gemKunde(id: string, formData: FormData) {
-  await kraevBruger();
+  await kraevSkriv("kunder");
   await db.company.update({
     where: { id },
     data: {
@@ -64,7 +64,7 @@ export async function gemKunde(id: string, formData: FormData) {
 
 /** Opretter eller opdaterer en licenslinje: pakke, antal licenser, aftalt pris. */
 export async function gemLicenslinje(kundeId: string, formData: FormData) {
-  await kraevBruger();
+  await kraevSkriv("salg");
   const id = txt(formData.get("linjeId"));
   const productId = txt(formData.get("productId"));
   const data = {
@@ -85,7 +85,7 @@ export async function gemLicenslinje(kundeId: string, formData: FormData) {
 
 /** Flytter en kunde til en anden pakke — fx ved opgradering. */
 export async function skiftPakke(linjeId: string, productId: string) {
-  await kraevBruger();
+  await kraevSkriv("salg");
   const linje = await db.customerProduct.update({
     where: { id: linjeId },
     data: { productId },
@@ -94,14 +94,14 @@ export async function skiftPakke(linjeId: string, productId: string) {
 }
 
 export async function sletLicenslinje(id: string) {
-  await kraevBruger();
+  await kraevSkriv("salg");
   const linje = await db.customerProduct.delete({ where: { id } });
   opfrisk(linje.companyId);
 }
 
 /** Sætter kundens tilstand og noterer hvornår og hvorfor. */
 export async function skiftKundestatus(id: string, formData: FormData) {
-  await kraevBruger();
+  await kraevSkriv("kunder");
   await db.company.update({
     where: { id },
     data: {
@@ -119,7 +119,7 @@ export async function skiftKundestatus(id: string, formData: FormData) {
  * Ingen admin-krav -- alle der er logget ind kan saette/fjerne den.
  */
 export async function skiftHot(id: string, isHot: boolean) {
-  await kraevBruger();
+  await kraevSkriv("teknik");
   const kiks = await laesSessionKiks();
   await db.company.update({
     where: { id },
@@ -140,7 +140,7 @@ export async function skiftHot(id: string, isHot: boolean) {
  * derfor kræver siden at du skriver kundens navn først.
  */
 export async function sletKunde(id: string, formData: FormData) {
-  await kraevBruger();
+  await kraevAdmin();
   const kunde = await db.company.findUnique({ where: { id }, select: { name: true } });
   if (!kunde) redirect("/kunder");
 
@@ -157,7 +157,7 @@ export async function sletKunde(id: string, formData: FormData) {
 }
 
 export async function opretKontakt(kundeId: string, formData: FormData) {
-  await kraevBruger();
+  await kraevSkriv("kunder");
   const fornavn = txt(formData.get("firstName"));
   if (!fornavn) return;
   await db.contact.create({
@@ -176,7 +176,7 @@ export async function opretKontakt(kundeId: string, formData: FormData) {
 }
 
 export async function sletKontakt(id: string, kundeId: string) {
-  await kraevBruger();
+  await kraevSkriv("kunder");
   await db.contact.delete({ where: { id } });
   revalidatePath(`/kunder/${kundeId}`);
   revalidatePath("/kontakter");

@@ -3,7 +3,7 @@
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { kraevBruger, kraevSuperAdmin } from "@/lib/auth";
+import { kraevSkriv, kraevSuperAdmin } from "@/lib/auth";
 
 const txt = (v: FormDataEntryValue | null) => {
   const s = typeof v === "string" ? v.trim() : "";
@@ -36,7 +36,7 @@ export async function skiftAktiv(id: string, aktiv: boolean) {
  * Linjer der allerede ligger på målproduktet springes over.
  */
 export async function flytFlereLinjer(formData: FormData) {
-  await kraevBruger();
+  await kraevSkriv("salg");
   const productId = txt(formData.get("productId"));
   const ids = formData.getAll("linjeId").filter((v): v is string => typeof v === "string" && v !== "");
   if (!productId || ids.length === 0) return;
