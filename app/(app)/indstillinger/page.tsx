@@ -7,17 +7,30 @@ import { licensmodel, listepris } from "@/lib/katalog";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { gemPipelineIndstilling } from "@/app/actions/salg";
+import { fjernDemodata, indlaesDemodata, taelDemodata } from "@/app/actions/demodata";
 import { STANDARD_AFSLUTTET_DAGE, afsluttetDage } from "@/lib/pipeline";
 
 export const dynamic = "force-dynamic";
 
-export default async function IndstillingerSide() {
-  const [i, antalKunder, antalSager, produkter, pipe] = await Promise.all([
+const DEMO_BESKED: Record<string, string> = {
+  indlaest: "Demodata er lagt ind.",
+  fjernet: "Demodata er fjernet. Rigtige data er ikke rørt.",
+  "ingen-kunder": "Der er ingen aktive kunder at lægge demodata på.",
+};
+
+export default async function IndstillingerSide({
+  searchParams,
+}: {
+  searchParams: Promise<{ demo?: string; antal?: string }>;
+}) {
+  const { demo, antal } = await searchParams;
+  const [i, antalKunder, antalSager, produkter, pipe, demoAntal] = await Promise.all([
     hentIndstillinger(),
     db.company.count(),
     db.deal.count(),
     db.product.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } }),
     db.settings.findUnique({ where: { id: "singleton" }, select: { pipelineDoneDays: true } }),
+    taelDemodata(),
   ]);
   const dage = afsluttetDage(pipe?.pipelineDoneDays);
 
@@ -76,6 +89,33 @@ export default async function IndstillingerSide() {
             <Button size="sm" type="submit">Gem</Button>
             <span className="text-xs text-muted-foreground pb-2">0 = forsvinder med det samme. Standard er {STANDARD_AFSLUTTET_DAGE}.</span>
           </form>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Demodata"
+          description="Fiktive sager spredt over kunderne: leads og opportunities i alle stadier, teknik-sager med forskellig status og prioritet, notater og logbogsposter. Alt demodata er mærket og kan fjernes igen uden at røre rigtige data."
+        />
+        <CardBody className="flex flex-col gap-3">
+          {demo && DEMO_BESKED[demo] && (
+            <div className="rounded-lg bg-success/[0.08] px-3 py-2 text-sm">
+              {DEMO_BESKED[demo]}{demo === "indlaest" && antal ? ` ${antal} poster oprettet.` : ""}
+            </div>
+          )}
+          <div className="flex flex-wrap items-center gap-3">
+            <form action={indlaesDemodata}>
+              <Button size="sm" type="submit">{demoAntal > 0 ? "Indlæs demodata igen" : "Indlæs demodata"}</Button>
+            </form>
+            {demoAntal > 0 && (
+              <form action={fjernDemodata}>
+                <Button size="sm" variant="secondary" type="submit">Fjern demodata</Button>
+              </form>
+            )}
+            <span className="text-xs text-muted-foreground">
+              {demoAntal > 0 ? `${tal(demoAntal)} demoposter i databasen nu.` : "Ingen demodata i databasen."}
+            </span>
+          </div>
         </CardBody>
       </Card>
 
