@@ -49,7 +49,7 @@ export function KundeFaner({
             <span
               title={`${f.antal} ${f.hint}`}
               className={cn(
-                "min-w-[1.25rem] h-5 px-1.5 rounded-full text-[11px] tabular grid place-items-center",
+                "min-w-[1.25rem] h-5 px-1.5 rounded-none text-[11px] tabular grid place-items-center",
                 erAktiv ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
               )}
             >

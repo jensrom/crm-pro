@@ -49,7 +49,7 @@ function Boks({ c, children }: { c: ReturnType<typeof farver>; children: React.R
       style={{
         background: c.flade,
         border: `1px solid ${c.kant}`,
-        borderRadius: 8,
+        borderRadius: 2,
         padding: "8px 10px",
         fontSize: 12,
         color: c.ink,
@@ -98,7 +98,7 @@ export function PakkeDiagram({
               ) : null
             }
           />
-          <Bar dataKey="licenser" radius={[4, 4, 0, 0]} maxBarSize={72}>
+          <Bar dataKey="licenser" radius={0} maxBarSize={72}>
             <LabelList dataKey="licenser" position="top" style={{ fill: c.tekst, fontSize: 11, fontWeight: 600 }} />
             {data.map((d, i) => (
               <Cell key={i} fill={d.farve} />
@@ -138,7 +138,7 @@ export function UdnyttelseDiagram({ data }: { data: { baand: string; antal: numb
               ) : null
             }
           />
-          <Bar dataKey="antal" radius={[4, 4, 0, 0]} maxBarSize={64}>
+          <Bar dataKey="antal" radius={0} maxBarSize={64}>
             <LabelList dataKey="antal" position="top" style={{ fill: c.tekst, fontSize: 11, fontWeight: 600 }} />
             {data.map((d, i) => (
               <Cell key={i} fill={d.fuld ? "#B1434F" : c.serie1} />

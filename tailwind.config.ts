@@ -26,10 +26,15 @@ const config: Config = {
         danger:  { DEFAULT: "#b1434f", foreground: "#f9f9fa", light: "#f2e1e3" }, // dæmpet rød
         info:    { DEFAULT: "#4a7393", foreground: "#f9f9fa", light: "#e2e9ef" }, // stålblå
       },
+      // Kantet stil ("arkitekt"): flader (kort, paneler) får --radius-flade,
+      // alt andet — knapper, felter, tags, rækker — står skarpt.
       borderRadius: {
+        DEFAULT: "var(--radius)",
+        sm: "var(--radius)",
+        md: "var(--radius)",
         lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        xl: "var(--radius-flade)",
+        "2xl": "var(--radius-flade)",
       },
       fontFamily: {
         sans: ["Inter", "ui-sans-serif", "system-ui", "-apple-system", "sans-serif"],

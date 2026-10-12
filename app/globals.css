@@ -37,7 +37,8 @@
     --input: 220 6% 84%;
     --ring: 220 5% 55%;
 
-    --radius: 0.7rem;
+    --radius: 0px;
+    --radius-flade: 2px;
 
     /* Sidebaren: en tone mørkere end indholdet, aktivt punkt som grå flade. */
     --sidebar-bg: 220 6% 92%;        /* #e9eaec */

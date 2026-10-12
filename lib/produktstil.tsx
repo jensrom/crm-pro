@@ -62,9 +62,9 @@ export const findFarve = (key: string | null | undefined) =>
   FARVER.find((f) => f.key === key) ?? STANDARDFARVE;
 
 const STOERRELSER = {
-  sm: { boks: 20, ikon: 12, radius: 5 },
-  md: { boks: 28, ikon: 16, radius: 7 },
-  lg: { boks: 40, ikon: 22, radius: 10 },
+  sm: { boks: 20, ikon: 12, radius: 2 },
+  md: { boks: 28, ikon: 16, radius: 2 },
+  lg: { boks: 40, ikon: 22, radius: 2 },
 } as const;
 
 /** Produktets mærke: ikonet i produktets egen farve. */

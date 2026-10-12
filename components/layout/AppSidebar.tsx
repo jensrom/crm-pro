@@ -205,7 +205,7 @@ function NavLink({ punkt: p, on, hotAntal, lille }: { punkt: NavItem; on: boolea
       <p.icon className={cn("shrink-0", lille ? "h-3.5 w-3.5" : "h-4 w-4")} />
       {p.label}
       {erHot && hotAntal > 0 && (
-        <span className="ml-auto text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-orange-500 text-white">
+        <span className="ml-auto text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded-none bg-orange-500 text-white">
           {hotAntal}
         </span>
       )}

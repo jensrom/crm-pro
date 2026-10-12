@@ -226,7 +226,7 @@ export default async function KundeSide({
             {hot.isHot && (
               <span
                 title={hot.hotSetBy ? `Markeret Hot af ${hot.hotSetBy}` : "Markeret Hot"}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-500/10 text-orange-600"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-none text-xs font-medium bg-orange-500/10 text-orange-600"
               >
                 <Flame className="h-3 w-3" /> Hot
               </span>
@@ -702,9 +702,9 @@ export default async function KundeSide({
                           {varighed(Math.max(0, s.restMin))} tilbage af {varighed(s.koebteMin)}
                         </span>
                       </div>
-                      <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden>
+                      <div className="mt-2 h-1.5 rounded-none bg-muted overflow-hidden" aria-hidden>
                         <div
-                          className={cn("h-full rounded-full", s.opbrugt ? "bg-danger" : s.naestenOpbrugt ? "bg-warning" : "bg-primary/70")}
+                          className={cn("h-full rounded-none", s.opbrugt ? "bg-danger" : s.naestenOpbrugt ? "bg-warning" : "bg-primary/70")}
                           style={{ width: `${Math.min(100, Math.round(s.forbrugt * 100))}%` }}
                         />
                       </div>
