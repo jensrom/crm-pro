@@ -324,6 +324,10 @@ model Deal {
   closedAt          DateTime?
   lostReason        String?
   notes             String?
+  /// Det næste konkrete skridt på sagen — vises på statusboardet.
+  nextStep          String?
+  /// Hvornår sagen sidst skiftede stadie. Bruges til "x dage i stadiet".
+  stageChangedAt    DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -634,6 +638,10 @@ model Settings {
   brandLogo     String?
 
   dataSourceNote String?
+
+  /// Antal dage en vundet/tabt salgsmulighed bliver stående som "Afsluttet"
+  /// på statusboardet, før den ryddes væk. Tom = 14.
+  pipelineDoneDays Int?
 
   // --- Dokumenter (licensbevis og ordrebekræftelse) ---
   docCompanyName  String?

@@ -137,3 +137,10 @@ export async function ryddFaerdige() {
   await db.customerNote.deleteMany({ where: { lane: "faerdig" } });
   opfrisk();
 }
+
+/** Rydder Færdig-kolonnen for én kunde. */
+export async function ryddFaerdigeForKunde(kundeId: string) {
+  await kraevBruger();
+  await db.customerNote.deleteMany({ where: { lane: "faerdig", companyId: kundeId } });
+  opfrisk(kundeId);
+}

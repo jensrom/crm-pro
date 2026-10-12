@@ -4,16 +4,22 @@ import { hentIndstillinger } from "@/lib/analysis";
 import { db } from "@/lib/db";
 import { kroner, tal } from "@/lib/format";
 import { licensmodel, listepris } from "@/lib/katalog";
+import { Button } from "@/components/ui/button";
+import { Input, Label } from "@/components/ui/input";
+import { gemPipelineIndstilling } from "@/app/actions/salg";
+import { STANDARD_AFSLUTTET_DAGE, afsluttetDage } from "@/lib/pipeline";
 
 export const dynamic = "force-dynamic";
 
 export default async function IndstillingerSide() {
-  const [i, antalKunder, antalSager, produkter] = await Promise.all([
+  const [i, antalKunder, antalSager, produkter, pipe] = await Promise.all([
     hentIndstillinger(),
     db.company.count(),
     db.deal.count(),
     db.product.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } }),
+    db.settings.findUnique({ where: { id: "singleton" }, select: { pipelineDoneDays: true } }),
   ]);
+  const dage = afsluttetDage(pipe?.pipelineDoneDays);
 
   return (
     <div className="max-w-3xl flex flex-col gap-5">
@@ -53,6 +59,23 @@ export default async function IndstillingerSide() {
               </span>
             </div>
           ))}
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Pipeline — oprydning"
+          description="Hvor længe en vundet eller tabt salgsmulighed står som Afsluttet på statusboardet, før den ryddes væk. Gælder kundesiden og den samlede pipeline. Intet slettes — ryddede kan altid vises igen."
+        />
+        <CardBody>
+          <form action={gemPipelineIndstilling} className="flex flex-wrap items-end gap-3">
+            <div className="w-40">
+              <Label htmlFor="pdd">Dage som afsluttet</Label>
+              <Input id="pdd" name="pipelineDoneDays" type="number" min={0} max={365} defaultValue={dage} />
+            </div>
+            <Button size="sm" type="submit">Gem</Button>
+            <span className="text-xs text-muted-foreground pb-2">0 = forsvinder med det samme. Standard er {STANDARD_AFSLUTTET_DAGE}.</span>
+          </form>
         </CardBody>
       </Card>
 

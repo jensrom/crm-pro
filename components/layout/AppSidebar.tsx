@@ -10,7 +10,7 @@ import {
   KanbanSquare,
   Package,
   CalendarClock,
-  ListChecks,
+  Inbox,
   LifeBuoy,
   Scissors,
   Settings,
@@ -20,7 +20,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 
-type NavItem = { label: string; href: string; icon: React.ElementType };
+type NavItem = { label: string; href: string; icon: React.ElementType; boern?: NavItem[]; skilleFoer?: boolean };
 
 const SEKTIONER: { sektion: string; punkter: NavItem[] }[] = [
   {
@@ -30,20 +30,26 @@ const SEKTIONER: { sektion: string; punkter: NavItem[] }[] = [
   {
     sektion: "Kunder",
     punkter: [
-      { label: "Kunder", href: "/kunder", icon: Building2 },
-      { label: "Hot", href: "/kunder?hot=1", icon: Flame },
-      { label: "Kundenotater", href: "/notater", icon: ListChecks },
-      { label: "Kontakter", href: "/kontakter", icon: Users },
+      {
+        label: "Kunder",
+        href: "/kunder",
+        icon: Building2,
+        boern: [
+          { label: "Kontakter", href: "/kontakter", icon: Users },
+          { label: "Hot", href: "/kunder?hot=1", icon: Flame },
+        ],
+      },
     ],
   },
   {
     sektion: "Salg",
     punkter: [
-      { label: "Pipeline", href: "/pipeline", icon: KanbanSquare },
-      { label: "Produkter", href: "/produkter", icon: Package },
+      { label: "Leads", href: "/leads", icon: Inbox },
+      { label: "Opportunities", href: "/opportunities", icon: KanbanSquare },
+      { label: "Ordreliste", href: "/ordrer", icon: FileText },
+      { label: "Fornyelser", href: "/fornyelser", icon: RefreshCw, skilleFoer: true },
       { label: "Tilkøb", href: "/tilkoeb", icon: PackagePlus },
-      { label: "Tilbud og ordrer", href: "/ordrer", icon: FileText },
-      { label: "Fornyelser", href: "/fornyelser", icon: RefreshCw },
+      { label: "Produkter", href: "/produkter", icon: Package },
     ],
   },
   {
@@ -139,27 +145,19 @@ export function AppSidebar({
             </div>
             <div className="flex flex-col gap-0.5">
               {s.punkter.map((p) => {
-                const on = aktiv(p.href);
-                const erHot = p.href === "/kunder?hot=1";
+                const barnAktivt = p.boern?.some((b) => aktiv(b.href)) ?? false;
                 return (
-                  <Link
-                    key={p.href}
-                    href={p.href}
-                    aria-current={on ? "page" : undefined}
-                    className={cn("nav-item", on ? "font-semibold" : "hover:bg-[hsl(var(--sidebar-hover-bg))] hover:!text-[hsl(var(--sidebar-fg-strong))]")}
-                    style={{
-                      background: on ? "hsl(var(--sidebar-active-bg))" : undefined,
-                      color: on ? "hsl(var(--sidebar-active-fg))" : "hsl(var(--sidebar-fg))",
-                    }}
-                  >
-                    <p.icon className="h-4 w-4 shrink-0" />
-                    {p.label}
-                    {erHot && hotAntal > 0 && (
-                      <span className="ml-auto text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-orange-500 text-white">
-                        {hotAntal}
-                      </span>
+                  <div key={p.href} className="flex flex-col gap-0.5">
+                    {p.skilleFoer && <div className="mx-3 my-1.5 border-t" style={{ borderColor: "hsl(var(--sidebar-border))" }} />}
+                    <NavLink punkt={p} on={aktiv(p.href) && !barnAktivt} hotAntal={hotAntal} />
+                    {p.boern && (
+                      <div className="ml-[1.35rem] pl-2 border-l flex flex-col gap-0.5" style={{ borderColor: "hsl(var(--sidebar-border))" }}>
+                        {p.boern.map((b) => (
+                          <NavLink key={b.href} punkt={b} on={aktiv(b.href)} hotAntal={hotAntal} lille />
+                        ))}
+                      </div>
                     )}
-                  </Link>
+                  </div>
                 );
               })}
             </div>
@@ -189,5 +187,28 @@ export function AppSidebar({
       </div>
       )}
     </aside>
+  );
+}
+
+function NavLink({ punkt: p, on, hotAntal, lille }: { punkt: NavItem; on: boolean; hotAntal: number; lille?: boolean }) {
+  const erHot = p.href === "/kunder?hot=1";
+  return (
+    <Link
+      href={p.href}
+      aria-current={on ? "page" : undefined}
+      className={cn("nav-item", lille && "!py-1.5 text-[13px]", on ? "font-semibold" : "hover:bg-[hsl(var(--sidebar-hover-bg))] hover:!text-[hsl(var(--sidebar-fg-strong))]")}
+      style={{
+        background: on ? "hsl(var(--sidebar-active-bg))" : undefined,
+        color: on ? "hsl(var(--sidebar-active-fg))" : "hsl(var(--sidebar-fg))",
+      }}
+    >
+      <p.icon className={cn("shrink-0", lille ? "h-3.5 w-3.5" : "h-4 w-4")} />
+      {p.label}
+      {erHot && hotAntal > 0 && (
+        <span className="ml-auto text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-orange-500 text-white">
+          {hotAntal}
+        </span>
+      )}
+    </Link>
   );
 }

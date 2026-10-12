@@ -173,7 +173,7 @@ export default async function NotatSide({
           </CardBody>
         </Card>
       ) : (
-        <Tavle kort={kort} redigerHref={(id) => `/notater?rediger=${id}${spor ? `&spor=${spor}` : ""}`} />
+        <Tavle kort={kort} redigerBase={`/notater?${spor ? `spor=${spor}&` : ""}rediger=`} />
       )}
 
       <p className="text-xs text-muted-foreground">

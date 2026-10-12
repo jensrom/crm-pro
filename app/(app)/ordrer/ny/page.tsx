@@ -107,7 +107,7 @@ export default async function NyOrdre({
     <div className="flex flex-col gap-5 max-w-6xl">
       <div>
         <Link href={kunde ? `/kunder/${kunde.id}` : "/ordrer"} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-3.5 w-3.5" /> {kunde ? kunde.name : "Tilbud og ordrer"}
+          <ArrowLeft className="h-3.5 w-3.5" /> {kunde ? kunde.name : "Ordreliste"}
         </Link>
         <h1 className="mt-1.5 text-xl font-semibold flex items-center gap-2">
           <FileText className="h-5 w-5" /> {kind === "tilbud" ? "Nyt tilbud" : "Ny ordrebekræftelse"}
@@ -293,7 +293,7 @@ export default async function NyOrdre({
             <p className="text-xs text-muted-foreground">
               {kunde
                 ? "PDF'en gemmes i kundens filboks og noteres i logbogen. Betingelser kommer fra de produkter, der er med."
-                : "Uden kunde gemmes dokumentet kun under Tilbud og ordrer."}
+                : "Uden kunde gemmes dokumentet kun i ordrelisten."}
             </p>
           </CardBody>
         </Card>

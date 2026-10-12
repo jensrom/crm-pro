@@ -77,10 +77,11 @@ export const LOGTYPER = [
   { key: "mail",     label: "Mail" },
   { key: "aftale",   label: "Aftale" },
   { key: "advarsel", label: "Advarsel" },
+  { key: "salg",     label: "Salg" },
 ] as const;
 
 export const STADIER = [
-  { key: "ny",           label: "Ny" },
+  { key: "ny",           label: "Lead" },
   { key: "kvalificeret", label: "Kvalificeret" },
   { key: "tilbud",       label: "Tilbud sendt" },
   { key: "forhandling",  label: "Forhandling" },

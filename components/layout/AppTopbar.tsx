@@ -10,13 +10,13 @@ import { logUd } from "@/app/actions/auth";
 const TITLER: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/kunder": "Kunder",
-  "/notater": "Kundenotater",
   "/kontakter": "Kontakter",
-  "/pipeline": "Pipeline",
-  "/produkter": "Produkter",
-  "/tilkoeb": "Tilkøb",
-  "/ordrer": "Tilbud og ordrer",
+  "/leads": "Leads",
+  "/opportunities": "Opportunities",
+  "/ordrer": "Ordreliste",
   "/fornyelser": "Fornyelser",
+  "/tilkoeb": "Tilkøb",
+  "/produkter": "Produkter",
   "/teknik": "Teknik",
   "/aktiviteter": "Aktiviteter",
   "/indstillinger": "Indstillinger",
@@ -27,7 +27,7 @@ export type TopbarBruger = { initials: string; name: string; erAdmin: boolean; e
 export function AppTopbar({ bruger }: { bruger: TopbarBruger }) {
   const sti = usePathname();
   const rod = "/" + (sti.split("/")[1] ?? "");
-  const titel = TITLER[rod] ?? "CRM-Pro";
+  const titel = TITLER[rod] ?? (rod === "/notater" ? "Kundenotater" : "CRM-Pro");
 
   return (
     <header

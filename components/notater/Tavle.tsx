@@ -29,7 +29,12 @@ export type Kort = {
  * "flyt til"-menu — træk-og-slip virker ikke på touch, og tastaturbrugere
  * skal kunne det samme.
  */
-export function Tavle({ kort, redigerHref }: { kort: Kort[]; redigerHref: (id: string) => string }) {
+export function Tavle({ kort, redigerBase }: {
+  kort: Kort[];
+  /** Redigér-link = redigerBase + kortets id. En streng, fordi funktioner ikke kan sendes fra server til klient. */
+  redigerBase: string;
+}) {
+  const redigerHref = (id: string) => `${redigerBase}${id}`;
   const [liste, setListe] = useState(kort);
   const [traekker, setTraekker] = useState<string | null>(null);
   const [maal, setMaal] = useState<{ lane: string; indeks: number } | null>(null);

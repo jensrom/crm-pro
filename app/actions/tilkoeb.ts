@@ -45,12 +45,12 @@ export async function registrerLicensaendring(kundeId: string, formData: FormDat
   const productId = txt(formData.get("productId"));
   const antal = Math.round(num(formData.get("antal")) ?? 0);
   const reduktion = formData.get("retning") === "reduktion";
-  const tilbage = `/kunder/${kundeId}`;
+  const tilbage = `/kunder/${kundeId}?fane=produkter`;
 
-  if (!productId || antal <= 0) redirect(`${tilbage}?tilkoeb=mangler#tilkoeb`);
+  if (!productId || antal <= 0) redirect(`${tilbage}&tilkoeb=mangler#tilkoeb`);
 
   const produkt = await db.product.findUnique({ where: { id: productId } });
-  if (!produkt) redirect(`${tilbage}?tilkoeb=mangler#tilkoeb`);
+  if (!produkt) redirect(`${tilbage}&tilkoeb=mangler#tilkoeb`);
 
   const linje = await db.customerProduct.findFirst({
     where: { companyId: kundeId, productId, isActive: true },
@@ -58,7 +58,7 @@ export async function registrerLicensaendring(kundeId: string, formData: FormDat
   });
   const foer = linje?.seats ?? 0;
   const delta = reduktion ? -antal : antal;
-  if (foer + delta < 0) redirect(`${tilbage}?tilkoeb=for-mange#tilkoeb`);
+  if (foer + delta < 0) redirect(`${tilbage}&tilkoeb=for-mange#tilkoeb`);
 
   // Prisen pr. licens: det du skriver — ellers kundens aftalte pris, ellers listeprisen.
   const perpetual = produkt.licenseModel === "perpetual";
@@ -82,7 +82,7 @@ export async function registrerLicensaendring(kundeId: string, formData: FormDat
   );
 
   opfrisk(kundeId);
-  redirect(`${tilbage}?tilkoeb=gemt#tilkoeb`);
+  redirect(`${tilbage}&tilkoeb=gemt#tilkoeb`);
 }
 
 /**
@@ -110,5 +110,5 @@ export async function fortrydLicensaendring(id: string) {
   });
 
   opfrisk(post.companyId);
-  redirect(`/kunder/${post.companyId}?tilkoeb=fortrudt#tilkoeb`);
+  redirect(`/kunder/${post.companyId}?fane=produkter&tilkoeb=fortrudt#tilkoeb`);
 }

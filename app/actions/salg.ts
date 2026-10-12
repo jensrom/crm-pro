@@ -1,9 +1,11 @@
 "use server";
 
-import { kraevBruger } from "@/lib/auth";
+import { kraevBruger, kraevSuperAdmin } from "@/lib/auth";
 
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import { STADIER } from "@/lib/labels";
+import { STADIE_SANDSYNLIGHED, afsluttetDage, erAfsluttet, stadieLabel } from "@/lib/pipeline";
 
 const txt = (v: FormDataEntryValue | null) => {
   const s = typeof v === "string" ? v.trim() : "";
@@ -16,12 +18,29 @@ const num = (v: FormDataEntryValue | null) => {
   return Number.isFinite(n) ? n : null;
 };
 
+/** Skriver en linje i kundens logbog, så bevægelser på salgssiden kan følges. */
+async function logSalg(companyId: string, tekst: string, initialer: string | null) {
+  await db.logEntry.create({
+    data: { companyId, kind: "salg", content: tekst, author: initialer },
+  });
+}
+
+function opfriskSalg(companyId: string) {
+  revalidatePath("/leads");
+  revalidatePath("/opportunities");
+  revalidatePath("/dashboard");
+  revalidatePath(`/kunder/${companyId}`);
+}
+
 export async function opretSag(formData: FormData) {
-  await kraevBruger();
+  const mig = await kraevBruger();
   const companyId = txt(formData.get("companyId"));
   const title = txt(formData.get("title"));
   if (!companyId || !title) return;
   const forventet = txt(formData.get("expectedCloseDate"));
+  const stage = txt(formData.get("stage")) ?? "ny";
+  const afsluttet = erAfsluttet(stage);
+  const sandsynlighed = num(formData.get("probability"));
   await db.deal.create({
     data: {
       companyId,
@@ -29,38 +48,71 @@ export async function opretSag(formData: FormData) {
       productId: txt(formData.get("productId")),
       seatDelta: num(formData.get("seatDelta")) ?? null,
       value: num(formData.get("value")),
-      stage: txt(formData.get("stage")) ?? "ny",
-      probability: Math.min(100, Math.max(0, Math.round(num(formData.get("probability")) ?? 10))),
+      stage,
+      probability: Math.min(100, Math.max(0, Math.round(sandsynlighed ?? STADIE_SANDSYNLIGHED[stage] ?? 10))),
       expectedCloseDate: forventet ? new Date(forventet) : null,
       notes: txt(formData.get("notes")),
+      nextStep: txt(formData.get("nextStep")),
+      stageChangedAt: new Date(),
+      closedAt: afsluttet ? new Date() : null,
     },
   });
-  revalidatePath("/pipeline");
-  revalidatePath(`/kunder/${companyId}`);
-  revalidatePath("/dashboard");
+  await logSalg(companyId, `Ny salgsmulighed: ${title} (${stadieLabel(stage)})`, mig.initials);
+  opfriskSalg(companyId);
 }
 
 export async function flytStadie(id: string, stadie: string) {
-  await kraevBruger();
-  const afsluttet = stadie === "vundet" || stadie === "tabt";
+  const mig = await kraevBruger();
+  if (!STADIER.some((s) => s.key === stadie)) return;
+  const foer = await db.deal.findUnique({ where: { id } });
+  if (!foer || foer.stage === stadie) return;
+
+  const afsluttet = erAfsluttet(stadie);
+  // Rør kun sandsynligheden hvis den stadig står på standarden for det gamle
+  // stadie — har du selv sat et tal, bliver det stående. Vundet/tabt er altid 100/0.
+  const uroert = foer.probability === STADIE_SANDSYNLIGHED[foer.stage];
+  const probability = afsluttet || uroert ? STADIE_SANDSYNLIGHED[stadie] : undefined;
+
   const d = await db.deal.update({
     where: { id },
     data: {
       stage: stadie,
+      stageChangedAt: new Date(),
       closedAt: afsluttet ? new Date() : null,
-      probability: stadie === "vundet" ? 100 : stadie === "tabt" ? 0 : undefined,
+      probability,
     },
   });
-  revalidatePath("/pipeline");
-  revalidatePath("/dashboard");
-  revalidatePath(`/kunder/${d.companyId}`);
+  await logSalg(d.companyId, `${d.title}: ${stadieLabel(foer.stage)} → ${stadieLabel(stadie)}`, mig.initials);
+  opfriskSalg(d.companyId);
+}
+
+export async function opdaterSag(id: string, formData: FormData) {
+  await kraevBruger();
+  const title = txt(formData.get("title"));
+  if (!title) return;
+  const forventet = txt(formData.get("expectedCloseDate"));
+  const sandsynlighed = num(formData.get("probability"));
+  const d = await db.deal.update({
+    where: { id },
+    data: {
+      title,
+      productId: txt(formData.get("productId")),
+      seatDelta: num(formData.get("seatDelta")),
+      value: num(formData.get("value")),
+      probability: sandsynlighed == null ? undefined : Math.min(100, Math.max(0, Math.round(sandsynlighed))),
+      expectedCloseDate: forventet ? new Date(forventet) : null,
+      nextStep: txt(formData.get("nextStep")),
+      notes: txt(formData.get("notes")),
+    },
+  });
+  opfriskSalg(d.companyId);
 }
 
 export async function sletSag(id: string) {
-  await kraevBruger();
-  await db.deal.delete({ where: { id } });
-  revalidatePath("/pipeline");
-  revalidatePath("/dashboard");
+  const mig = await kraevBruger();
+  const d = await db.deal.delete({ where: { id } });
+  await logSalg(d.companyId, `Salgsmulighed slettet: ${d.title}`, mig.initials);
+  opfriskSalg(d.companyId);
 }
 
 export async function opretAktivitet(formData: FormData) {
@@ -113,4 +165,18 @@ export async function gemIndstillinger(formData: FormData) {
   });
   revalidatePath("/indstillinger");
   revalidatePath("/dashboard");
+}
+
+export async function gemPipelineIndstilling(formData: FormData) {
+  await kraevSuperAdmin();
+  const v = num(formData.get("pipelineDoneDays"));
+  const dage = v == null ? null : afsluttetDage(v);
+  await db.settings.upsert({
+    where: { id: "singleton" },
+    update: { pipelineDoneDays: dage },
+    create: { id: "singleton", pipelineDoneDays: dage },
+  });
+  revalidatePath("/indstillinger");
+  revalidatePath("/opportunities");
+  revalidatePath("/kunder", "layout");
 }

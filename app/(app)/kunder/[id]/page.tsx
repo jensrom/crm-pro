@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Check, Download, ExternalLink, FileBadge, FileText, Flame, RefreshCw, LifeBuoy, ListChecks, Mail, Minus, PackagePlus, Phone, Plus, Scissors, Trash2, Undo2 } from "lucide-react";
-import { GemValg } from "@/components/ui/gem-valg";
+import { ArrowLeft, Check, ChevronRight, Download, ExternalLink, FileBadge, FileText, Flame, RefreshCw, LifeBuoy, ListChecks, Mail, Minus, PackagePlus, Phone, Plus, Scissors, Trash2, Undo2 } from "lucide-react";
 import { GemtAf } from "@/components/ui/gemt-af";
 import { Card, CardBody, CardHeader, EmptyState } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,9 +18,11 @@ import {
 } from "@/lib/labels";
 import { kortnummer, kortstatus, sagsnummer, varighed, alderIDage, alderTekst } from "@/lib/teknik";
 import { gemLicenslinje, opretKontakt, sletKontakt, sletLicenslinje, skiftHot } from "@/app/actions/kunder";
-import { flytStadie, opretSag as opretSalgssag } from "@/app/actions/salg";
+import { Statusboard } from "@/components/kunder/Statusboard";
+import { KundeFaner } from "@/components/kunder/KundeFaner";
+import { afsluttetDage, dageSiden, erAfsluttet } from "@/lib/pipeline";
 import { Logbog } from "@/components/kunder/Logbog";
-import { opretNotat, skiftFaerdig } from "@/app/actions/notater";
+import { NotatFane } from "@/components/kunder/NotatFane";
 import { KundestatusKort } from "@/components/kunder/Kundestatus";
 import { Filboks } from "@/components/kunder/Filboks";
 import { hentFiler } from "@/app/actions/filer";
@@ -54,12 +55,16 @@ export default async function KundeSide({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tilkoeb?: string; fil?: string }>;
+  searchParams: Promise<{ tilkoeb?: string; fil?: string; fane?: string; ryddede?: string; spor?: string; rediger?: string; linje?: string }>;
 }) {
   const { id } = await params;
-  const { tilkoeb, fil } = await searchParams;
+  const { tilkoeb, fil, fane: faneParam, ryddede, spor, rediger, linje } = await searchParams;
+  const FANER = ["salg", "produkter", "teknik", "notater"] as const;
+  type Fane = (typeof FANER)[number];
+  // Kommer man fra et tilkøb uden fane i URL'en, er det produktfanen man skal tilbage til.
+  const fane: Fane = FANER.includes(faneParam as Fane) ? (faneParam as Fane) : tilkoeb ? "produkter" : "salg";
   await sikrSubNumre(id);
-  const [kunde, grupper, filer, mig] = await Promise.all([
+  const [kunde, grupper, filer, mig, indst] = await Promise.all([
     db.company.findUnique({
       where: { id },
       include: {
@@ -71,7 +76,7 @@ export default async function KundeSide({
         hourBundles: { orderBy: { number: "desc" } },
         logEntries: { orderBy: [{ pinned: "desc" }, { createdAt: "desc" }], take: 60 },
         activities: { where: { completedAt: null }, orderBy: { dueDate: "asc" }, take: 10 },
-        notes_: { orderBy: [{ completedAt: "asc" }, { position: "asc" }], take: 25 },
+        notes_: { select: { id: true, completedAt: true } },
         licenseChanges: {
           include: { product: { select: { name: true } } },
           orderBy: [{ date: "desc" }, { createdAt: "desc" }],
@@ -82,6 +87,7 @@ export default async function KundeSide({
     licensGrupper(),
     hentFiler(id),
     hentSession(),
+    db.settings.findUnique({ where: { id: "singleton" }, select: { pipelineDoneDays: true } }),
   ]);
 
   if (!kunde) notFound();
@@ -99,6 +105,113 @@ export default async function KundeSide({
   const aabneSager = kunde.tickets.filter((t) => AABNE_SAGSSTATUS.includes(t.status as any));
   const aktiveKort = kunde.hourBundles.map((k) => ({ k, s: kortstatus(k, nu) })).filter(({ k, s }) => k.isActive && !s.udloebet);
   const restMin = aktiveKort.reduce((sum, { s }) => sum + Math.max(0, s.restMin), 0);
+
+  const dage = afsluttetDage(indst?.pipelineDoneDays);
+  const aabneMuligheder = kunde.deals.filter((d) => !erAfsluttet(d.stage));
+  const bevaegelser = kunde.logEntries
+    .filter((p) => p.kind === "salg")
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, 6);
+  const lukkedeSager = kunde.tickets
+    .filter((t) => !AABNE_SAGSSTATUS.includes(t.status as any))
+    .sort((a, b) => (b.closedAt ?? b.resolvedAt ?? b.updatedAt).getTime() - (a.closedAt ?? a.resolvedAt ?? a.updatedAt).getTime());
+  const nyligLukket = lukkedeSager.filter((t) => (dageSiden(t.closedAt ?? t.resolvedAt ?? t.updatedAt, nu) ?? 0) <= dage);
+  const aabneNotater = kunde.notes_.filter((no) => !no.completedAt).length;
+
+  type Linje = (typeof kunde.customerProducts)[number];
+  /** Redigeringsformularen for én produktlinje — vises når man klikker linjen. */
+  const linjeFormular = (l: Linje) => {
+                const perpetual = l.product.licenseModel === "perpetual";
+                const pris = gaeldendeMaanedspris(l.unitPriceMonth, l.product);
+                const aar = pris == null || perpetual ? null : l.seats * pris * 12;
+                return (
+                  <form action={gemLicenslinje.bind(null, kunde.id)} className="rounded-lg border border-border p-4 flex flex-col gap-3">
+                    <input type="hidden" name="linjeId" value={l.id} />
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm font-medium flex items-center gap-2">
+                        <ProduktMaerke icon={l.product.icon} color={l.product.color} size="md" />
+                        {l.product.name}
+                        <Badge variant="muted">{subNr(l.subNumber)}</Badge>
+                        <Link href={`/kunder/${kunde.id}/licensbevis?linje=${l.id}`} title="Licensbevis for denne licens" className="text-muted-foreground hover:text-primary">
+                          <FileBadge className="h-3.5 w-3.5" />
+                        </Link>
+                      </div>
+                      <div className="text-xs text-muted-foreground tabular">
+                        {perpetual
+                          ? `Perpetual · ${listepris(l.product) != null ? `${kroner(listepris(l.product))} pr. licens` : "ingen pris"}`
+                          : pris == null ? "ingen pris" : `${kroner(pris)}/bruger/md.`}
+                        {aar != null && ` · ${kroner(aar)}/år`}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="col-span-2">
+                        <Label htmlFor={`p-${l.id}`}>Pakke</Label>
+                        <Select id={`p-${l.id}`} name="productId" defaultValue={l.productId}>
+                          <LicensOptions grupper={grupper} medtag={l.product} />
+                        </Select>
+                      </div>
+                      <div><Label htmlFor={`s-${l.id}`}>Tildelte</Label><Input id={`s-${l.id}`} name="seats" type="number" min={0} defaultValue={l.seats} /></div>
+                      <div><Label htmlFor={`a-${l.id}`}>Aktive</Label><Input id={`a-${l.id}`} name="activeSeats" type="number" min={0} defaultValue={l.activeSeats} /></div>
+                      <div className="col-span-2">
+                        <Label htmlFor={`u-${l.id}`}>Aftalt pris pr. bruger/md.</Label>
+                        <Input id={`u-${l.id}`} name="unitPriceMonth" inputMode="decimal" defaultValue={l.unitPriceMonth ?? ""} placeholder={l.product.pricePerUserMonth != null ? `listepris ${l.product.pricePerUserMonth}` : "ingen listepris"} />
+                      </div>
+                      <div>
+                        <Label htmlFor={`sd-${l.id}`}>Startdato</Label>
+                        <Input id={`sd-${l.id}`} name="startDate" type="date" defaultValue={isoDato(l.startDate)} />
+                      </div>
+                      <div>
+                        <Label htmlFor={`b-${l.id}`}>Fakturering</Label>
+                        <Select id={`b-${l.id}`} name="billingInterval" defaultValue={l.billingInterval}>
+                          {FAKTURERING.map((i) => <option key={i.key} value={i.key}>{i.label}</option>)}
+                        </Select>
+                      </div>
+                      {!perpetual && (
+                        <>
+                          <div>
+                            <Label htmlFor={`t-${l.id}`}>Aftaleperiode</Label>
+                            <Select id={`t-${l.id}`} name="termMonths" defaultValue={String(l.termMonths)}>
+                              {[...new Set([12, 24, 36, l.termMonths])].sort((a, b) => a - b).map((n) => (
+                                <option key={n} value={n}>{n} måneder</option>
+                              ))}
+                            </Select>
+                          </div>
+                          <div>
+                            <Label htmlFor={`e-${l.id}`}>Aftale udløber</Label>
+                            <Input id={`e-${l.id}`} name="endDate" type="date" defaultValue={isoDato(l.endDate)} title="Tom = beregnes ud fra startdato og aftaleperiode" />
+                          </div>
+                          <div className="col-span-2 flex items-end justify-between gap-2 pb-1">
+                            <span className="text-xs text-muted-foreground">
+                              Udløber <b className="text-foreground tabular">{dagTekst(aftaleUdloeb(l))}</b>
+                              {!l.endDate && " (beregnet)"}
+                            </span>
+                            <Link href={`/ordrer/ny?kunde=${kunde.id}&forny=${l.id}`}>
+                              <Button size="sm" variant="secondary" type="button"><RefreshCw className="h-3.5 w-3.5" /> Lav fornyelse</Button>
+                            </Link>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <div><Label htmlFor={`n-${l.id}`}>Note</Label><Input id={`n-${l.id}`} name="notes" defaultValue={l.notes ?? ""} placeholder="fx moduler eller aftalenummer" /></div>
+                    <div className="flex justify-between items-center">
+                      <Button size="sm" variant="ghost" type="submit" formAction={async () => { "use server"; await sletLicenslinje(l.id); }} className="text-xs text-muted-foreground">
+                        Fjern linje
+                      </Button>
+                      <div className="flex items-center gap-3">
+                        <GemtAf af={l.updatedBy} tid={l.updatedAt} />
+                        <Button size="sm" type="submit">Gem</Button>
+                      </div>
+                    </div>
+                  </form>
+                );
+  };
+  const valgtLinje = linje ? kunde.customerProducts.find((l) => l.id === linje) ?? null : null;
+  const linjeHistorik = valgtLinje ? kunde.licenseChanges.filter((c) => c.productId === valgtLinje.productId) : [];
+  const linjeAar = (l: Linje) => {
+    const pris = gaeldendeMaanedspris(l.unitPriceMonth, l.product);
+    return pris == null || l.product.licenseModel === "perpetual" ? null : l.seats * pris * 12;
+  };
+
 
   return (
     <div className="flex flex-col gap-5 max-w-[1300px]">
@@ -181,217 +294,67 @@ export default async function KundeSide({
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[1.15fr_1fr] items-start">
-        {/* Venstre: det du arbejder med */}
-        <div className="flex flex-col gap-5">
+      <KundeFaner
+        kundeId={kunde.id}
+        aktiv={fane}
+        salg={aabneMuligheder.length}
+        teknik={aabneSager.length}
+        notater={aabneNotater}
+        produkter={kunde.customerProducts.length}
+      />
+
+      {fane === "produkter" && (
+        <div className="grid gap-5 lg:grid-cols-[1fr_1.15fr] items-start">
           <Card>
             <CardHeader
-              title="Teknik"
-              description="Sager og klippekort på denne kunde."
-              action={
-                <div className="flex items-center gap-2">
-                  <Link href={`/teknik/sager/ny?kunde=${kunde.id}`}>
-                    <Button size="sm" variant="secondary"><Plus className="h-3.5 w-3.5" /> Ny sag</Button>
-                  </Link>
-                  <Link href="/teknik/klippekort" className="text-xs font-medium text-primary hover:underline">Klippekort</Link>
-                </div>
-              }
+              title="Eksisterende produkter"
+              description="Kundens licenslinjer. Klik en linje for at se og rette alt om produktet på denne kunde."
+              action={<span className="text-xs text-muted-foreground tabular">{tal(n.seats)} licenser · {n.aarsvaerdi > 0 ? `${kroner(n.aarsvaerdi)}/år` : "–"}</span>}
             />
             <CardBody className="p-0">
-              {kunde.tickets.length === 0 ? (
-                <div className="px-5"><EmptyState title="Ingen sager" icon={LifeBuoy} description="Opret en når kunden melder noget ind." /></div>
+              {kunde.customerProducts.length === 0 ? (
+                <div className="px-5"><EmptyState title="Ingen produkter endnu" icon={PackagePlus} description="Tilføj den første pakke nedenfor." /></div>
               ) : (
-                <ul className="divide-y divide-border">
-                  {kunde.tickets.slice(0, 8).map((t) => {
-                    const p = findSagsprioritet(t.priority);
-                    const st = findSagsstatus(t.status);
+                <ul>
+                  <li className="hidden sm:grid grid-cols-[1fr_5.5rem_6.5rem_1rem] gap-3 px-5 py-2 text-[11px] uppercase tracking-wide text-muted-foreground border-b border-border">
+                    <span>Produkt</span><span className="text-right">Licenser</span><span className="text-right">Årsværdi</span><span />
+                  </li>
+                  {kunde.customerProducts.map((l) => {
+                    const valgt = l.id === valgtLinje?.id;
+                    const perpetual = l.product.licenseModel === "perpetual";
+                    const aar = linjeAar(l);
                     return (
-                      <li key={t.id} className="px-5 py-2.5 flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <Link href={`/teknik/sager/${t.id}`} className="text-sm font-medium hover:text-primary block truncate">{t.title}</Link>
-                          <div className="text-xs text-muted-foreground tabular">
-                            {sagsnummer(t.number)} · {alderTekst(alderIDage(t.createdAt, nu))}
-                            {t.dueAt && <> · frist {datoKort(t.dueAt)}</>}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <Badge variant={p.variant}>{p.label}</Badge>
-                          <Badge variant={st.variant}>{st.label}</Badge>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-              {kunde.hourBundles.length > 0 && (
-                <div className="px-5 py-3 border-t border-border flex flex-wrap gap-3">
-                  {kunde.hourBundles.map((k) => {
-                    const s = kortstatus(k, nu);
-                    return (
-                      <span key={k.id} className={cn("inline-flex items-center gap-2 text-xs rounded-lg border border-border px-2.5 py-1.5", (!k.isActive || s.udloebet) && "opacity-60")}>
-                        <Scissors className="h-3 w-3 text-muted-foreground" />
-                        <span className="tabular">{kortnummer(k.number)}</span>
-                        <span className={cn("tabular", s.restMin <= 0 ? "text-danger font-medium" : "text-muted-foreground")}>
-                          {varighed(Math.max(0, s.restMin))} tilbage
-                        </span>
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardHeader title="Salgsmuligheder" description="Skift stadie direkte her — dine egne scopes." />
-            <CardBody className="p-0">
-              {kunde.deals.length === 0 ? (
-                <div className="px-5"><EmptyState title="Ingen sager" description="Opret en når du har besluttet et scope." /></div>
-              ) : (
-                <ul className="divide-y divide-border">
-                  {kunde.deals.map((d) => {
-                    const vaerdi = d.value ?? (d.seatDelta && d.product?.pricePerUserMonth ? d.seatDelta * d.product.pricePerUserMonth * 12 : null);
-                    return (
-                      <li key={d.id} className="px-5 py-3 flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className="text-sm font-medium">{d.title}</div>
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            {d.probability} %
-                            {d.seatDelta ? ` · ${d.seatDelta} licenser` : ""}
-                            {d.product ? ` · ${d.product.name}` : ""}
-                            {vaerdi != null ? ` · ${kroner(vaerdi)}/år` : ""}
-                          </div>
-                          {d.notes && <p className="text-xs text-muted-foreground mt-1.5 max-w-prose">{d.notes}</p>}
-                          <GemtAf af={d.updatedBy} tid={d.updatedAt} className="mt-1.5" />
-                        </div>
-                        <GemValg
-                          action={async (fd: FormData) => {
-                            "use server";
-                            const valgt = fd.get("stage");
-                            if (typeof valgt === "string" && valgt && valgt !== d.stage) await flytStadie(d.id, valgt);
-                          }}
-                          name="stage"
-                          value={d.stage}
-                          options={STADIER}
-                          ariaLabel={`Stadie for ${d.title}`}
-                          selectClassName="h-8 text-xs w-40"
-                          className="shrink-0"
-                        />
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-              <form action={opretSalgssag} className="px-5 py-4 border-t border-border grid grid-cols-2 sm:grid-cols-5 gap-3 items-end">
-                <input type="hidden" name="companyId" value={kunde.id} />
-                <div className="col-span-2"><Label htmlFor="dt">Titel</Label><Input id="dt" name="title" required placeholder="fx Opgradering til Medium" /></div>
-                <div><Label htmlFor="dd">Licenser</Label><Input id="dd" name="seatDelta" type="number" min={0} /></div>
-                <div>
-                  <Label htmlFor="dp">Pakke</Label>
-                  <Select id="dp" name="productId" defaultValue="">
-                    <option value="">Ingen</option>
-                    <LicensOptions grupper={grupper} />
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="ds">Stadie</Label>
-                  <Select id="ds" name="stage" defaultValue="ny">
-                    {STADIER.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-                  </Select>
-                </div>
-                <div className="col-span-2 sm:col-span-5 flex justify-end"><Button size="sm" type="submit">Opret sag</Button></div>
-              </form>
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardHeader title="Pakke og licenser" description="Vælg pakke, ret antal licenser, og sæt en aftalt pris hvis kunden ikke kører på listeprisen." />
-            <CardBody className="flex flex-col gap-4">
-              {kunde.customerProducts.map((l) => {
-                const perpetual = l.product.licenseModel === "perpetual";
-                const pris = gaeldendeMaanedspris(l.unitPriceMonth, l.product);
-                const aar = pris == null || perpetual ? null : l.seats * pris * 12;
-                return (
-                  <form key={l.id} action={gemLicenslinje.bind(null, kunde.id)} className="rounded-lg border border-border p-4 flex flex-col gap-3">
-                    <input type="hidden" name="linjeId" value={l.id} />
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-sm font-medium flex items-center gap-2">
-                        <ProduktMaerke icon={l.product.icon} color={l.product.color} size="md" />
-                        {l.product.name}
-                        <Badge variant="muted">{subNr(l.subNumber)}</Badge>
-                        <Link href={`/kunder/${kunde.id}/licensbevis?linje=${l.id}`} title="Licensbevis for denne licens" className="text-muted-foreground hover:text-primary">
-                          <FileBadge className="h-3.5 w-3.5" />
-                        </Link>
-                      </div>
-                      <div className="text-xs text-muted-foreground tabular">
-                        {perpetual
-                          ? `Perpetual · ${listepris(l.product) != null ? `${kroner(listepris(l.product))} pr. licens` : "ingen pris"}`
-                          : pris == null ? "ingen pris" : `${kroner(pris)}/bruger/md.`}
-                        {aar != null && ` · ${kroner(aar)}/år`}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <div className="col-span-2">
-                        <Label htmlFor={`p-${l.id}`}>Pakke</Label>
-                        <Select id={`p-${l.id}`} name="productId" defaultValue={l.productId}>
-                          <LicensOptions grupper={grupper} medtag={l.product} />
-                        </Select>
-                      </div>
-                      <div><Label htmlFor={`s-${l.id}`}>Tildelte</Label><Input id={`s-${l.id}`} name="seats" type="number" min={0} defaultValue={l.seats} /></div>
-                      <div><Label htmlFor={`a-${l.id}`}>Aktive</Label><Input id={`a-${l.id}`} name="activeSeats" type="number" min={0} defaultValue={l.activeSeats} /></div>
-                      <div className="col-span-2">
-                        <Label htmlFor={`u-${l.id}`}>Aftalt pris pr. bruger/md.</Label>
-                        <Input id={`u-${l.id}`} name="unitPriceMonth" inputMode="decimal" defaultValue={l.unitPriceMonth ?? ""} placeholder={l.product.pricePerUserMonth != null ? `listepris ${l.product.pricePerUserMonth}` : "ingen listepris"} />
-                      </div>
-                      <div>
-                        <Label htmlFor={`sd-${l.id}`}>Startdato</Label>
-                        <Input id={`sd-${l.id}`} name="startDate" type="date" defaultValue={isoDato(l.startDate)} />
-                      </div>
-                      <div>
-                        <Label htmlFor={`b-${l.id}`}>Fakturering</Label>
-                        <Select id={`b-${l.id}`} name="billingInterval" defaultValue={l.billingInterval}>
-                          {FAKTURERING.map((i) => <option key={i.key} value={i.key}>{i.label}</option>)}
-                        </Select>
-                      </div>
-                      {!perpetual && (
-                        <>
-                          <div>
-                            <Label htmlFor={`t-${l.id}`}>Aftaleperiode</Label>
-                            <Select id={`t-${l.id}`} name="termMonths" defaultValue={String(l.termMonths)}>
-                              {[...new Set([12, 24, 36, l.termMonths])].sort((a, b) => a - b).map((n) => (
-                                <option key={n} value={n}>{n} måneder</option>
-                              ))}
-                            </Select>
-                          </div>
-                          <div>
-                            <Label htmlFor={`e-${l.id}`}>Aftale udløber</Label>
-                            <Input id={`e-${l.id}`} name="endDate" type="date" defaultValue={isoDato(l.endDate)} title="Tom = beregnes ud fra startdato og aftaleperiode" />
-                          </div>
-                          <div className="col-span-2 flex items-end justify-between gap-2 pb-1">
-                            <span className="text-xs text-muted-foreground">
-                              Udløber <b className="text-foreground tabular">{dagTekst(aftaleUdloeb(l))}</b>
-                              {!l.endDate && " (beregnet)"}
+                      <li key={l.id} className="border-b border-border/60 last:border-0 even:bg-muted/45">
+                        <Link
+                          href={valgt ? `/kunder/${kunde.id}?fane=produkter` : `/kunder/${kunde.id}?fane=produkter&linje=${l.id}`}
+                          scroll={false}
+                          aria-current={valgt ? "true" : undefined}
+                          className={cn(
+                            "grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_5.5rem_6.5rem_1rem] gap-x-3 gap-y-1 items-center px-5 py-3 transition-colors border-l-2",
+                            valgt ? "bg-primary/[0.07] border-primary" : "border-transparent hover:bg-primary/[0.04]"
+                          )}
+                        >
+                          <span className="min-w-0 flex items-center gap-2.5">
+                            <ProduktMaerke icon={l.product.icon} color={l.product.color} size="md" />
+                            <span className="min-w-0">
+                              <span className="block text-sm font-medium truncate">{l.product.name}</span>
+                              <span className="block text-[11px] text-muted-foreground tabular truncate">
+                                {subNr(l.subNumber)} · {perpetual ? "Perpetual" : `udløber ${dagTekst(aftaleUdloeb(l))}`}
+                              </span>
                             </span>
-                            <Link href={`/ordrer/ny?kunde=${kunde.id}&forny=${l.id}`}>
-                              <Button size="sm" variant="secondary" type="button"><RefreshCw className="h-3.5 w-3.5" /> Lav fornyelse</Button>
-                            </Link>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    <div><Label htmlFor={`n-${l.id}`}>Note</Label><Input id={`n-${l.id}`} name="notes" defaultValue={l.notes ?? ""} placeholder="fx moduler eller aftalenummer" /></div>
-                    <div className="flex justify-between items-center">
-                      <Button size="sm" variant="ghost" type="submit" formAction={async () => { "use server"; await sletLicenslinje(l.id); }} className="text-xs text-muted-foreground">
-                        Fjern linje
-                      </Button>
-                      <div className="flex items-center gap-3">
-                        <GemtAf af={l.updatedBy} tid={l.updatedAt} />
-                        <Button size="sm" type="submit">Gem</Button>
-                      </div>
-                    </div>
-                  </form>
-                );
-              })}
+                          </span>
+                          <span className="text-right text-sm tabular">
+                            {l.activeSeats}<span className="text-muted-foreground"> / {l.seats}</span>
+                          </span>
+                          <span className="hidden sm:block text-right text-sm tabular">{aar != null ? kroner(aar) : "–"}</span>
+                          <ChevronRight className={cn("hidden sm:block h-4 w-4 transition-transform", valgt ? "text-primary rotate-90 lg:rotate-0" : "text-muted-foreground/50")} />
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              <div className="p-4 border-t border-border">
               <details className="rounded-lg border border-dashed border-border p-4">
                 <summary className="cursor-pointer text-sm font-medium">Tilføj pakke</summary>
                 <form action={gemLicenslinje.bind(null, kunde.id)} className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 items-end">
@@ -406,9 +369,84 @@ export default async function KundeSide({
                   <div className="col-span-2 sm:col-span-4 flex justify-end"><Button size="sm" type="submit">Tilføj</Button></div>
                 </form>
               </details>
+              </div>
             </CardBody>
           </Card>
 
+          {valgtLinje ? (
+            <div className="flex flex-col gap-5 lg:sticky lg:top-20">
+              <Card>
+                <CardHeader
+                  title={<span className="flex items-center gap-2"><ProduktMaerke icon={valgtLinje.product.icon} color={valgtLinje.product.color} size="md" />{valgtLinje.product.name}</span>}
+                  description={`${subNr(valgtLinje.subNumber)}${valgtLinje.product.family ? ` · ${valgtLinje.product.family.name}` : ""} · tilføjet ${datoKort(valgtLinje.createdAt)}`}
+                  action={<Link href={`/kunder/${kunde.id}?fane=produkter`} scroll={false} className="text-xs font-medium text-muted-foreground hover:text-foreground">Luk</Link>}
+                />
+                <CardBody className="flex flex-col gap-4">
+                  {linjeFormular(valgtLinje)}
+                  <div className="flex flex-wrap gap-2">
+                    <Link href={`/kunder/${kunde.id}/licensbevis?linje=${valgtLinje.id}`}>
+                      <Button size="sm" variant="secondary"><FileBadge className="h-3.5 w-3.5" /> Licensbevis</Button>
+                    </Link>
+                    <Link href={`/ordrer/ny?type=ordre&kunde=${kunde.id}`}>
+                      <Button size="sm" variant="ghost"><FileText className="h-3.5 w-3.5" /> Ny ordre</Button>
+                    </Link>
+                  </div>
+                </CardBody>
+              </Card>
+              <Card>
+                <CardHeader
+                  title="Historik på produktet"
+                  description="Tilkøb og reduktioner registreret på denne licens."
+                  action={<Link href={`/kunder/${kunde.id}?fane=produkter#tilkoeb`} scroll={false} className="text-xs font-medium text-primary hover:underline">Registrér ændring</Link>}
+                />
+                <CardBody className="p-0">
+              {linjeHistorik.length === 0 ? (
+                <div className="px-5"><EmptyState title="Ingen ændringer på denne licens" icon={PackagePlus} /></div>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {linjeHistorik.map((c) => {
+                    const perpetual = c.licenseModel === "perpetual";
+                    const vaerdi = c.unitPrice == null ? null : c.quantity * c.unitPrice * (perpetual ? 1 : 12);
+                    return (
+                      <li key={c.id} className="px-5 py-2.5 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium flex items-center gap-1.5">
+                            {c.quantity > 0
+                              ? <Plus className="h-3.5 w-3.5 text-success shrink-0" />
+                              : <Minus className="h-3.5 w-3.5 text-danger shrink-0" />}
+                            <span className="tabular">{Math.abs(c.quantity)}</span> × {c.product.name}
+                          </div>
+                          <div className="text-xs text-muted-foreground tabular">
+                            {datoKort(c.date)} · {c.seatsBefore} → {c.seatsAfter} licenser
+                            {c.unitPrice != null && ` · ${kroner(c.unitPrice)} ${licensmodel(c.licenseModel).enhed}`}
+                            {c.createdBy && ` · ${c.createdBy}`}
+                          </div>
+                          {c.note && <p className="text-xs text-muted-foreground mt-0.5">{c.note}</p>}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {vaerdi != null && (
+                            <span className={cn("text-xs tabular", vaerdi < 0 ? "text-danger" : "text-foreground")}>
+                              {vaerdi > 0 ? "+" : ""}{kroner(vaerdi)}{perpetual ? " engang" : "/år"}
+                            </span>
+                          )}
+                          {mig?.erAdmin && (
+                            <form action={fortrydLicensaendring.bind(null, c.id)}>
+                              <button type="submit" title="Fortryd — sletter posten og sætter licensantallet tilbage" aria-label="Fortryd registrering" className="p-1 rounded text-muted-foreground hover:text-danger">
+                                <Undo2 className="h-3.5 w-3.5" />
+                              </button>
+                            </form>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+                </CardBody>
+              </Card>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-5">
           <Card>
             <div id="tilkoeb" className="scroll-mt-24" />
             <CardHeader
@@ -491,6 +529,30 @@ export default async function KundeSide({
             </CardBody>
           </Card>
 
+            </div>
+          )}
+        </div>
+      )}
+
+      {fane === "notater" && <NotatFane kundeId={kunde.id} spor={spor} rediger={rediger} />}
+
+      {fane === "salg" && (
+        <Statusboard
+          kundeId={kunde.id}
+          sager={kunde.deals}
+          grupper={grupper}
+          dage={dage}
+          visRyddede={ryddede === "1"}
+          bevaegelser={bevaegelser}
+        />
+      )}
+
+      {(fane === "salg" || fane === "teknik") && (
+      <div className="grid gap-5 lg:grid-cols-[1.15fr_1fr] items-start">
+        {/* Venstre: fanens indhold */}
+        <div className="flex flex-col gap-5">
+          {fane === "salg" ? (
+            <>
           <Card>
             <CardHeader
               title="Dokumenter"
@@ -540,81 +602,131 @@ export default async function KundeSide({
               )}
             </CardBody>
           </Card>
+            </>
+          ) : (
+            <>
+          <Card>
+            <CardHeader
+              title="Sager"
+              description="Åbne sager står øverst. Løste og lukkede vises en tid og ryddes så væk."
+              action={
+                <div className="flex items-center gap-3">
+                  <Link href={`/teknik/sager?kunde=${kunde.id}`} className="text-xs font-medium text-primary hover:underline">Alle sager</Link>
+                  <Link href={`/teknik/sager/ny?kunde=${kunde.id}`}>
+                    <Button size="sm" variant="secondary"><Plus className="h-3.5 w-3.5" /> Ny sag</Button>
+                  </Link>
+                </div>
+              }
+            />
+            <CardBody className="p-0">
+              {aabneSager.length === 0 ? (
+                <div className="px-5"><EmptyState title="Ingen åbne sager" icon={LifeBuoy} description="Opret en når kunden melder noget ind." /></div>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {[...aabneSager]
+                    .sort((a, b) => findSagsprioritet(b.priority).rang - findSagsprioritet(a.priority).rang || a.createdAt.getTime() - b.createdAt.getTime())
+                    .map((t) => {
+                      const p = findSagsprioritet(t.priority);
+                      const st = findSagsstatus(t.status);
+                      const overskredet = t.dueAt != null && t.dueAt < nu;
+                      return (
+                        <li key={t.id} className="px-5 py-2.5 flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <Link href={`/teknik/sager/${t.id}`} className="text-sm font-medium hover:text-primary block truncate">{t.title}</Link>
+                            <div className="text-xs text-muted-foreground tabular">
+                              {sagsnummer(t.number)} · {alderTekst(alderIDage(t.createdAt, nu))}
+                              {t.dueAt && <> · <span className={cn(overskredet && "text-danger font-medium")}>frist {datoKort(t.dueAt)}</span></>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <Badge variant={p.variant}>{p.label}</Badge>
+                            <Badge variant={st.variant}>{st.label}</Badge>
+                          </div>
+                        </li>
+                      );
+                    })}
+                </ul>
+              )}
+              {nyligLukket.length > 0 && (
+                <div className="border-t border-border">
+                  <div className="px-5 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Løst for nylig · sidste {dage} dage
+                  </div>
+                  <ul className="divide-y divide-border">
+                    {nyligLukket.map((t) => {
+                      const st = findSagsstatus(t.status);
+                      return (
+                        <li key={t.id} className="px-5 py-2 flex items-center justify-between gap-3 opacity-75">
+                          <Link href={`/teknik/sager/${t.id}`} className="text-sm hover:text-primary truncate min-w-0">
+                            {t.title}
+                            <span className="text-xs text-muted-foreground tabular ml-2">{sagsnummer(t.number)}</span>
+                          </Link>
+                          <Badge variant={st.variant}>{st.label}</Badge>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+              {lukkedeSager.length > nyligLukket.length && (
+                <div className="px-5 py-2.5 border-t border-border text-xs text-muted-foreground">
+                  {tal(lukkedeSager.length - nyligLukket.length)} ældre lukkede sager er ryddet væk ·{" "}
+                  <Link href={`/teknik/sager?kunde=${kunde.id}&status=alle`} className="text-primary hover:underline">se dem under Teknik</Link>
+                </div>
+              )}
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader
+              title="Klippekort"
+              description="Timer kunden har købt, og hvad der er tilbage."
+              action={<Link href="/teknik/klippekort" className="text-xs font-medium text-primary hover:underline">Alle klippekort</Link>}
+            />
+            <CardBody className={kunde.hourBundles.length ? "flex flex-col gap-3" : "p-0"}>
+              {kunde.hourBundles.length === 0 ? (
+                <div className="px-5"><EmptyState title="Ingen klippekort" icon={Scissors} description="Opret et under Teknik → Klippekort." /></div>
+              ) : (
+                kunde.hourBundles.map((k) => {
+                  const s = kortstatus(k, nu);
+                  const inaktiv = !k.isActive || s.udloebet;
+                  return (
+                    <div key={k.id} className={cn("rounded-lg border border-border px-4 py-3", inaktiv && "opacity-60")}>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-medium flex items-center gap-2">
+                          <Scissors className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="tabular">{kortnummer(k.number)}</span>
+                          {k.name && <span className="text-muted-foreground font-normal truncate">{k.name}</span>}
+                        </span>
+                        <span className={cn("text-xs tabular", s.opbrugt ? "text-danger font-medium" : s.naestenOpbrugt ? "text-warning font-medium" : "text-muted-foreground")}>
+                          {varighed(Math.max(0, s.restMin))} tilbage af {varighed(s.koebteMin)}
+                        </span>
+                      </div>
+                      <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden>
+                        <div
+                          className={cn("h-full rounded-full", s.opbrugt ? "bg-danger" : s.naestenOpbrugt ? "bg-warning" : "bg-primary/70")}
+                          style={{ width: `${Math.min(100, Math.round(s.forbrugt * 100))}%` }}
+                        />
+                      </div>
+                      <div className="mt-1.5 text-[11px] text-muted-foreground tabular">
+                        {inaktiv ? (s.udloebet ? "Udløbet" : "Inaktivt") : "Aktivt"}
+                        {k.expiresAt && ` · udløber ${datoKort(k.expiresAt)}`}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </CardBody>
+          </Card>
+            </>
+          )}
 
           <Filboks companyId={kunde.id} filer={filer} forStor={fil === "for-stor"} />
         </div>
 
-        {/* Højre: logbogen først — det er den man skal kunne skrive i uden at lede */}
+        {/* Højre: fælles for Salg og Teknik — logbogen først */}
         <div className="flex flex-col gap-5">
           <Logbog kundeId={kunde.id} poster={kunde.logEntries} />
-
-          <Card>
-            <CardHeader
-              title="Notater"
-              description="Små opgaver på denne kunde. De ligger også på tavlen under Kundenotater."
-              action={
-                <Link href={`/notater?kunde=${kunde.id}`} className="text-xs font-medium text-primary hover:underline">
-                  Åbn tavlen
-                </Link>
-              }
-            />
-            <CardBody className="p-0">
-              <form action={opretNotat} className="px-5 py-4 border-b border-border grid grid-cols-3 gap-2.5 items-end">
-                <input type="hidden" name="companyId" value={kunde.id} />
-                <div className="col-span-3">
-                  <Input name="title" required placeholder="Hvad skal der ske?" />
-                </div>
-                <Select name="track" defaultValue="salg" aria-label="Spor" className="h-8 text-xs">
-                  {NOTAT_SPOR.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
-                </Select>
-                <Select name="priority" defaultValue="normal" aria-label="Prioritet" className="h-8 text-xs">
-                  {NOTAT_PRIORITET.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
-                </Select>
-                <Button size="sm" type="submit">Tilføj</Button>
-              </form>
-
-              {kunde.notes_.length === 0 ? (
-                <div className="px-5"><EmptyState title="Ingen notater" icon={ListChecks} /></div>
-              ) : (
-                <ul className="divide-y divide-border">
-                  {kunde.notes_.map((no) => {
-                    const faerdig = no.completedAt != null;
-                    const sp = findSpor(no.track);
-                    return (
-                      <li key={no.id} className={cn("px-5 py-2.5 flex items-start gap-2.5", faerdig && "opacity-55")}>
-                        <form action={skiftFaerdig.bind(null, no.id, !faerdig)} className="shrink-0 pt-0.5">
-                          <button
-                            type="submit"
-                            aria-label={faerdig ? "Genåbn" : "Markér som færdig"}
-                            className={cn(
-                              "h-4 w-4 rounded border grid place-items-center transition-colors",
-                              faerdig ? "bg-primary border-primary text-primary-foreground" : "border-input text-transparent hover:border-primary hover:text-primary"
-                            )}
-                          >
-                            <Check className="h-3 w-3" />
-                          </button>
-                        </form>
-                        <div className="min-w-0 flex-1">
-                          <p className={cn("text-sm leading-snug", faerdig && "line-through text-muted-foreground")}>{no.title}</p>
-                          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                            <span
-                              className="rounded-full px-1.5 py-0.5 text-[10px] font-medium text-white"
-                              style={{ background: faerdig ? "#94A3B8" : sp.bg }}
-                            >
-                              {sp.label}
-                            </span>
-                            <span>{NOTAT_KOLONNER.find((x) => x.key === no.lane)?.label ?? no.lane}</span>
-                            {no.priority === "hoej" && !faerdig && <span className="text-danger font-medium">Høj</span>}
-                            {no.dueAt && <span className="tabular">{datoKort(no.dueAt)}</span>}
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </CardBody>
-          </Card>
 
           <KundestatusKort
             kundeId={kunde.id}
@@ -721,9 +833,11 @@ export default async function KundeSide({
           </Card>
         </div>
       </div>
+      )}
     </div>
   );
 }
+
 
 function Raek({ label, vaerdi }: { label: string; vaerdi: React.ReactNode }) {
   return (

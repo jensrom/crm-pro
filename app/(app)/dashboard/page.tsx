@@ -176,12 +176,12 @@ export default async function Dashboard() {
           <CardHeader
             title="Åbne salgsmuligheder"
             description="Dine egne scopes."
-            action={<Link href="/pipeline" className="text-xs font-medium text-primary hover:underline">Se alle</Link>}
+            action={<Link href="/opportunities" className="text-xs font-medium text-primary hover:underline">Se alle</Link>}
           />
           <CardBody className="p-0">
             {aabneSager.length === 0 ? (
               <p className="px-5 py-6 text-sm text-muted-foreground">
-                Ingen åbne sager. Opret dem selv under <Link href="/pipeline" className="text-primary hover:underline">Pipeline</Link>.
+                Ingen åbne sager. Opret dem selv under <Link href="/opportunities" className="text-primary hover:underline">Opportunities</Link>.
               </p>
             ) : (
               <ul className="divide-y divide-border">
