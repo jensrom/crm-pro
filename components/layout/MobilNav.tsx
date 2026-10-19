@@ -137,7 +137,7 @@ export function MobilNav({
           aria-label="Menu"
           className={cn(
             "absolute inset-x-0 bottom-0 flex max-h-[88dvh] flex-col border-t border-border bg-background shadow-[0_-12px_40px_rgba(20,22,26,0.18)]",
-            "transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+            "transition-transform duration-300 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)]",
             aaben ? "translate-y-0" : "translate-y-full"
           )}
           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
