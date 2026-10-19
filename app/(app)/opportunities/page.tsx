@@ -1,3 +1,4 @@
+import { BekraeftSlet } from "@/components/ui/bekraeft-slet";
 import { kanSkrive } from "@/lib/roller";
 import { kraevBruger, kraevSkriv, kraevAdmin } from "@/lib/auth";
 import Link from "next/link";
@@ -113,9 +114,9 @@ export default async function OpportunitiesSide({ searchParams }: { searchParams
                         <GemtAf af={s.updatedBy} tid={s.updatedAt} className="text-[11px] leading-tight min-w-0 truncate" />
                       {skriv && (
                       <form action={async () => { "use server"; await sletSag(s.id); }} className="flex justify-end">
-                        <Button type="submit" size="sm" variant="ghost" className="h-7 px-2 text-[11px] text-muted-foreground">
+                        <BekraeftSlet hvad={`salgsmuligheden "${s.title}"`} className="h-7 px-2 text-[11px] text-muted-foreground hover:text-danger">
                           Slet
-                        </Button>
+                        </BekraeftSlet>
                       </form>
                       )}
                       </div>

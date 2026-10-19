@@ -1,3 +1,4 @@
+import { BekraeftSlet } from "@/components/ui/bekraeft-slet";
 import Link from "next/link";
 import { AlertTriangle, Boxes, CalendarClock, Check, Package, Plus, Tag, Trash2, X } from "lucide-react";
 import { Card, CardBody, CardHeader, EmptyState } from "@/components/ui/card";
@@ -374,9 +375,9 @@ function ProduktRediger({ familie }: { familie: Familie }) {
 
       {familie.products.length === 0 && (
         <form action={sletProduktFamilie.bind(null, familie.id)} className="flex justify-end">
-          <Button variant="ghost" size="sm" type="submit" className="text-muted-foreground hover:text-danger">
+          <BekraeftSlet hvad={`produktet "${familie.name}"`} className="inline-flex items-center gap-2 h-8 px-3 text-xs font-medium text-muted-foreground hover:text-danger">
             <Trash2 className="h-3.5 w-3.5" /> Slet produktet
-          </Button>
+          </BekraeftSlet>
         </form>
       )}
     </>
@@ -548,9 +549,9 @@ function Prisaendring({ licens, historik }: { licens: Licens; historik: Pris[] }
                     </div>
                     {venter && h.validFrom > nu && (
                       <form action={annullerPrisaendring.bind(null, h.id)}>
-                        <Button size="sm" variant="ghost" type="submit" className="text-xs text-muted-foreground hover:text-danger">
+                        <BekraeftSlet hvad="den planlagte prisændring" className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium text-muted-foreground hover:text-danger">
                           <X className="h-3.5 w-3.5" /> Annullér
-                        </Button>
+                        </BekraeftSlet>
                       </form>
                     )}
                   </li>

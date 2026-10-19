@@ -6,6 +6,7 @@ import { kroner, tal } from "@/lib/format";
 import { licensmodel, listepris } from "@/lib/katalog";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
+import { BekraeftSlet } from "@/components/ui/bekraeft-slet";
 import { gemPipelineIndstilling } from "@/app/actions/salg";
 import { fjernDemodata, indlaesDemodata, taelDemodata } from "@/app/actions/demodata";
 import { STANDARD_AFSLUTTET_DAGE, afsluttetDage } from "@/lib/pipeline";
@@ -109,7 +110,7 @@ export default async function IndstillingerSide({
             </form>
             {demoAntal > 0 && (
               <form action={fjernDemodata}>
-                <Button size="sm" variant="secondary" type="submit">Fjern demodata</Button>
+                <BekraeftSlet hvad={`alle ${tal(demoAntal)} demoposter`} detalje="Kun poster mærket som demodata fjernes. Rigtige data røres ikke." className="h-8 px-3 text-xs font-medium border border-border bg-secondary hover:text-danger">Fjern demodata</BekraeftSlet>
               </form>
             )}
             <span className="text-xs text-muted-foreground">

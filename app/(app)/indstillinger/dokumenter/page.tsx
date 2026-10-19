@@ -1,3 +1,4 @@
+import { BekraeftSlet } from "@/components/ui/bekraeft-slet";
 import { sikrAfdelinger } from "@/lib/afdelinger";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -109,7 +110,7 @@ export default async function DokumentIndstillinger({ searchParams }: { searchPa
                   </div>
                 </form>
                 <form action={sletAfsenderprofil.bind(null, p.id)} className="flex justify-end">
-                  <Button type="submit" size="sm" variant="secondary">Slet profil</Button>
+                  <BekraeftSlet hvad={`afsenderprofilen "${p.name}"`} className="h-8 px-3 text-xs font-medium border border-border bg-secondary hover:text-danger">Slet profil</BekraeftSlet>
                 </form>
               </div>
             </details>

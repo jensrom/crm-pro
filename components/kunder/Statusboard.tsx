@@ -15,6 +15,7 @@ import {
 import { datoKort, kroner, tal, tidspunkt } from "@/lib/format";
 import { isoDato } from "@/lib/dokumenter";
 import { cn } from "@/lib/utils";
+import { BekraeftSlet } from "@/components/ui/bekraeft-slet";
 
 type Sag = {
   id: string;
@@ -350,15 +351,13 @@ function SagsKort({ sag: d, grupper, nu, kanSkrive }: { sag: Sag; grupper: Licen
           <div><Label htmlFor={`n-${d.id}`}>Næste skridt</Label><Input id={`n-${d.id}`} name="nextStep" defaultValue={d.nextStep ?? ""} className="h-8 text-xs" /></div>
           <div><Label htmlFor={`no-${d.id}`}>Noter</Label><Textarea id={`no-${d.id}`} name="notes" defaultValue={d.notes ?? ""} className="min-h-[56px] text-xs" /></div>
           <div className="flex items-center justify-between gap-2 pt-1">
-            <Button
-              type="submit"
-              size="sm"
-              variant="ghost"
+            <BekraeftSlet
+              hvad={`salgsmuligheden "${d.title}"`}
               formAction={async () => { "use server"; await sletSag(d.id); }}
-              className="h-7 px-2 text-[11px] text-muted-foreground hover:text-danger"
+              className="inline-flex items-center gap-1.5 h-7 px-2 text-[11px] font-medium text-muted-foreground hover:text-danger"
             >
               <Trash2 className="h-3 w-3" /> Slet
-            </Button>
+            </BekraeftSlet>
             <Button type="submit" size="sm" className="h-7 px-3 text-[11px]">Gem</Button>
           </div>
           <GemtAf af={d.updatedBy} tid={d.updatedAt} className="text-[11px]" />

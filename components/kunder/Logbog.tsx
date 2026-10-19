@@ -6,6 +6,7 @@ import { LOGTYPER, label } from "@/lib/labels";
 import { dato } from "@/lib/format";
 import { skiftFastgjort, skrivLog, sletLog } from "@/app/actions/teknik";
 import { cn } from "@/lib/utils";
+import { BekraeftSlet } from "@/components/ui/bekraeft-slet";
 
 type Post = {
   id: string;
@@ -58,9 +59,7 @@ export function Logbog({ kundeId, poster, kanSkrive = true }: { kundeId: string;
                       </button>
                     </form>
                     <form action={sletLog.bind(null, p.id, kundeId)}>
-                      <button type="submit" aria-label="Slet post" className="p-1 rounded text-muted-foreground hover:text-danger">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      <BekraeftSlet hvad="posten i logbogen" className="p-1 rounded text-muted-foreground hover:text-danger" />
                     </form>
                   </div>}
                 </div>

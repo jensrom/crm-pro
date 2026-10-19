@@ -1,3 +1,4 @@
+import { BekraeftSlet } from "@/components/ui/bekraeft-slet";
 import { kanSkrive, rettigheder } from "@/lib/roller";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -159,7 +160,7 @@ export default async function OrdreSide({ params, searchParams }: { params: Prom
 
       {mig?.erAdmin && (
         <form action={sletOrdre.bind(null, o.id)} className="flex justify-end">
-          <Button size="sm" variant="ghost" type="submit" className="text-muted-foreground hover:text-danger"><Trash2 className="h-3.5 w-3.5" /> Slet ordre</Button>
+          <BekraeftSlet hvad={`${o.kind === "tilbud" ? "tilbuddet" : "ordren"} ${dokNr(o)}`} className="inline-flex items-center gap-2 h-8 px-3 text-xs font-medium text-muted-foreground hover:text-danger"><Trash2 className="h-3.5 w-3.5" /> Slet ordre</BekraeftSlet>
         </form>
       )}
     </div>

@@ -156,6 +156,7 @@
 
 /* Faner og undermenuer: ruller vandret i stedet for at knække om. */
 .fanerække {
+  position: relative;
   overflow-x: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;

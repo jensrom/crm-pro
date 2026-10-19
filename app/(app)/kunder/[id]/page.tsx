@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Check, ChevronRight, Download, ExternalLink, FileBadge, FileText, Flame, RefreshCw, LifeBuoy, ListChecks, Mail, Minus, PackagePlus, Phone, Plus, Scissors, Trash2, Undo2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Check, ChevronRight, Download, ExternalLink, FileBadge, FileText, Flame, RefreshCw, LayoutDashboard, LifeBuoy, ListChecks, Mail, Minus, Package, PackagePlus, Paperclip, Phone, Plus, Scissors, Trash2, TrendingUp, Undo2, Users } from "lucide-react";
 import { GemtAf } from "@/components/ui/gemt-af";
 import { Card, CardBody, CardHeader, EmptyState } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,7 @@ import { kortnummer, kortstatus, sagsnummer, varighed, alderIDage, alderTekst } 
 import { gemLicenslinje, opretKontakt, sletKontakt, sletLicenslinje, skiftHot } from "@/app/actions/kunder";
 import { Statusboard } from "@/components/kunder/Statusboard";
 import { KundeFaner } from "@/components/kunder/KundeFaner";
+import { BekraeftSlet } from "@/components/ui/bekraeft-slet";
 import { afsluttetDage, dageSiden, erAfsluttet } from "@/lib/pipeline";
 import { Logbog } from "@/components/kunder/Logbog";
 import { NotatFane } from "@/components/kunder/NotatFane";
@@ -95,11 +96,13 @@ export default async function KundeSide({
   const salgL = kanLaese(ret.salg), salgS = kanSkrive(ret.salg);
   const teknikL = kanLaese(ret.teknik), teknikS = kanSkrive(ret.teknik);
   const kunderS = kanSkrive(ret.kunder);
-  const ALLE_FANER = ["salg", "produkter", "teknik", "notater"] as const;
+  const ALLE_FANER = ["overblik", "kontakter", "salg", "produkter", "dokumenter", "filer", "teknik", "notater", "logbog"] as const;
   type Fane = (typeof ALLE_FANER)[number];
-  const FANER = ALLE_FANER.filter((f) => (f === "salg" || f === "produkter" ? salgL : f === "teknik" ? teknikL : true));
-  // Kommer man fra et tilkøb uden fane i URL'en, er det produktfanen man skal tilbage til.
-  const oensket = (faneParam ?? (tilkoeb ? "produkter" : "salg")) as Fane;
+  const FANER: readonly Fane[] = ALLE_FANER.filter((f) =>
+    f === "salg" || f === "produkter" || f === "dokumenter" ? salgL : f === "teknik" ? teknikL : true
+  );
+  // Kommer man fra et tilkøb eller en filupload uden fane i URL'en, er det den fane man skal tilbage til.
+  const oensket = (faneParam ?? (tilkoeb ? "produkter" : fil ? "filer" : "overblik")) as Fane;
   const fane: Fane = FANER.includes(oensket) ? oensket : FANER[0];
   const tkBesked = tilkoeb ? TILKOEB_BESKED[tilkoeb] : null;
 
@@ -204,9 +207,14 @@ export default async function KundeSide({
                     </div>
                     <div><Label htmlFor={`n-${l.id}`}>Note</Label><Input id={`n-${l.id}`} name="notes" defaultValue={l.notes ?? ""} placeholder="fx moduler eller aftalenummer" /></div>
                     <div className="flex justify-between items-center">
-                      <Button size="sm" variant="ghost" type="submit" formAction={async () => { "use server"; await sletLicenslinje(l.id); }} className="text-xs text-muted-foreground">
+                      <BekraeftSlet
+                        hvad={`licenslinjen "${l.product.name}"`}
+                        detalje="Licenserne på linjen fjernes fra kunden."
+                        formAction={async () => { "use server"; await sletLicenslinje(l.id); }}
+                        className="h-8 px-3 text-xs text-muted-foreground hover:text-danger"
+                      >
                         Fjern linje
-                      </Button>
+                      </BekraeftSlet>
                       <div className="flex items-center gap-3">
                         <GemtAf af={l.updatedBy} tid={l.updatedAt} />
                         <Button size="sm" type="submit">Gem</Button>
@@ -278,47 +286,116 @@ export default async function KundeSide({
         </div>
       </div>
 
-      <div className="kpi-grid grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-5">
-        <div className="bg-card border border-border rounded-xl px-5 py-4">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Licenser</div>
-          <div className="mt-1 text-2xl font-semibold tabular">{n.aktive} / {n.seats}</div>
-          <div className={cn("mt-0.5 text-xs tabular", n.fuld ? "text-danger font-medium" : "text-muted-foreground")}>
-            {procent(n.udnyttelse)}{n.ledige < 0 ? " — overforbrug" : n.ledige === 0 ? " — ingen ledige" : ` · ${n.ledige} ledige`}
-          </div>
-        </div>
-        {salgL && (
-        <div className="bg-card border border-primary/40 bg-primary/[0.04] rounded-xl px-5 py-4">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Årlig licensværdi</div>
-          <div className="mt-1 text-2xl font-semibold tabular text-primary">{n.aarsvaerdi > 0 ? kroner(n.aarsvaerdi) : "–"}</div>
-          <div className="mt-0.5 text-xs text-muted-foreground">{n.udenPris > 0 ? "pakke mangler pris" : "på nuværende licenser"}</div>
-        </div>
-        )}
-        <div className="bg-card border border-border rounded-xl px-5 py-4">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Åbne sager</div>
-          <div className="mt-1 text-2xl font-semibold tabular">{tal(aabneSager.length)}</div>
-          <div className="mt-0.5 text-xs text-muted-foreground">{tal(kunde.tickets.length)} i alt</div>
-        </div>
-        <div className="bg-card border border-border rounded-xl px-5 py-4">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Timer på kort</div>
-          <div className="mt-1 text-2xl font-semibold tabular">{aktiveKort.length ? varighed(restMin) : "–"}</div>
-          <div className="mt-0.5 text-xs text-muted-foreground">{tal(aktiveKort.length)} aktive klippekort</div>
-        </div>
-        <div className="bg-card border border-border rounded-xl px-5 py-4">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Ansatte</div>
-          <div className="mt-1 text-2xl font-semibold tabular">{tal(kunde.employees)}</div>
-          <div className="mt-0.5 text-xs text-muted-foreground">{millioner(kunde.revenueMdkk)} i omsætning</div>
-        </div>
-      </div>
-
       <KundeFaner
         kundeId={kunde.id}
         aktiv={fane}
-        salg={aabneMuligheder.length}
-        teknik={aabneSager.length}
-        notater={aabneNotater}
-        produkter={kunde.customerProducts.length}
-        faner={FANER}
+        faner={[
+          { key: "overblik", label: "Overblik", ikon: LayoutDashboard },
+          { key: "kontakter", label: "Kontakter", ikon: Users, antal: kunde.contacts.length, hint: "kontaktpersoner" },
+          { key: "salg", label: "Salg", ikon: TrendingUp, antal: aabneMuligheder.length, hint: "åbne muligheder" },
+          { key: "produkter", label: "Produkter", ikon: Package, antal: kunde.customerProducts.length, hint: "produktlinjer" },
+          { key: "dokumenter", label: "Dokumenter", ikon: FileText, antal: kunde.orders.length, hint: "seneste tilbud og ordrer" },
+          { key: "filer", label: "Filer", ikon: Paperclip, antal: filer.length, hint: "filer" },
+          { key: "teknik", label: "Teknik", ikon: LifeBuoy, antal: aabneSager.length, hint: "åbne sager" },
+          { key: "notater", label: "Notater", ikon: ListChecks, antal: aabneNotater, hint: "åbne notater" },
+          { key: "logbog", label: "Logbog", ikon: BookOpen, antal: kunde.logEntries.length, hint: "poster" },
+        ].filter((f) => FANER.includes(f.key as Fane))}
       />
+
+      {fane === "overblik" && (
+        <>
+        <div className="kpi-grid grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-5">
+          <div className="bg-card border border-border rounded-xl px-5 py-4">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Licenser</div>
+            <div className="mt-1 text-2xl font-semibold tabular">{n.aktive} / {n.seats}</div>
+            <div className={cn("mt-0.5 text-xs tabular", n.fuld ? "text-danger font-medium" : "text-muted-foreground")}>
+              {procent(n.udnyttelse)}{n.ledige < 0 ? " — overforbrug" : n.ledige === 0 ? " — ingen ledige" : ` · ${n.ledige} ledige`}
+            </div>
+          </div>
+          {salgL && (
+          <div className="bg-card border border-primary/40 bg-primary/[0.04] rounded-xl px-5 py-4">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Årlig licensværdi</div>
+            <div className="mt-1 text-2xl font-semibold tabular text-primary">{n.aarsvaerdi > 0 ? kroner(n.aarsvaerdi) : "–"}</div>
+            <div className="mt-0.5 text-xs text-muted-foreground">{n.udenPris > 0 ? "pakke mangler pris" : "på nuværende licenser"}</div>
+          </div>
+          )}
+          <div className="bg-card border border-border rounded-xl px-5 py-4">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Åbne sager</div>
+            <div className="mt-1 text-2xl font-semibold tabular">{tal(aabneSager.length)}</div>
+            <div className="mt-0.5 text-xs text-muted-foreground">{tal(kunde.tickets.length)} i alt</div>
+          </div>
+          <div className="bg-card border border-border rounded-xl px-5 py-4">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Timer på kort</div>
+            <div className="mt-1 text-2xl font-semibold tabular">{aktiveKort.length ? varighed(restMin) : "–"}</div>
+            <div className="mt-0.5 text-xs text-muted-foreground">{tal(aktiveKort.length)} aktive klippekort</div>
+          </div>
+          <div className="bg-card border border-border rounded-xl px-5 py-4">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Ansatte</div>
+            <div className="mt-1 text-2xl font-semibold tabular">{tal(kunde.employees)}</div>
+            <div className="mt-0.5 text-xs text-muted-foreground">{millioner(kunde.revenueMdkk)} i omsætning</div>
+          </div>
+        </div>
+          <div className="grid gap-5 lg:grid-cols-2 items-start">
+            <div className="flex flex-col gap-5">
+              <KundestatusKort
+                kanSkrive={kunderS}
+                kundeId={kunde.id}
+                status={kunde.customerStatus}
+                note={kunde.customerStatusNote}
+                sat={kunde.customerStatusAt}
+                gemtAf={kunde.updatedBy}
+                gemtTid={kunde.updatedAt}
+              />
+              {kunde.activities.length > 0 && (
+                <Card>
+                  <CardHeader title="Åbne opgaver" action={<Link href="/aktiviteter" className="text-xs font-medium text-primary hover:underline">Alle</Link>} />
+                  <CardBody className="p-0">
+                    <ul className="divide-y divide-border">
+                      {kunde.activities.map((a) => (
+                        <li key={a.id} className="px-5 py-2.5 text-sm flex items-center justify-between gap-3">
+                          <span className="truncate">{a.subject}</span>
+                          {a.dueDate && (
+                            <span className={cn("text-xs tabular shrink-0", a.dueDate < nu ? "text-danger font-medium" : "text-muted-foreground")}>
+                              {datoKort(a.dueDate)}
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </CardBody>
+                </Card>
+              )}
+            </div>
+            <div className="flex flex-col gap-5">
+              <Card>
+                <CardHeader title="Stamdata" />
+                <CardBody className="flex flex-col gap-3 text-sm">
+                  <Raek label="Adresse" vaerdi={kunde.address ?? "–"} />
+                  <Raek label="Telefon" vaerdi={kunde.phone ? <a className="text-primary hover:underline inline-flex items-center gap-1" href={`tel:${kunde.phone}`}><Phone className="h-3 w-3" />{kunde.phone}</a> : "–"} />
+                  <Raek label="Mail" vaerdi={kunde.email ? <a className="text-primary hover:underline inline-flex items-center gap-1 break-all" href={`mailto:${kunde.email}`}><Mail className="h-3 w-3 shrink-0" />{kunde.email}</a> : "–"} />
+                  <Raek label="Subdomæne" vaerdi={kunde.subdomain ?? "–"} />
+                  <Raek label="Kode" vaerdi={kunde.code ?? "–"} />
+                  {kunde.notes && <p className="text-xs text-muted-foreground leading-relaxed border-t border-border pt-3">{kunde.notes}</p>}
+                </CardBody>
+              </Card>
+              <Card>
+                <CardHeader title="Firmastørrelse" description="Baggrundsviden. Indgår ikke i pris, pakke eller scope." />
+                <CardBody className="flex flex-col gap-3 text-sm">
+                  <Raek label="Ansatte" vaerdi={tal(kunde.employees)} />
+                  <Raek label="Omsætning" vaerdi={millioner(kunde.revenueMdkk)} />
+                  <Raek label="Konfidens" vaerdi={konf ? <Badge variant={konf.variant}>{konf.label}</Badge> : "–"} />
+                  {kunde.sizeNote && <p className="text-xs text-muted-foreground leading-relaxed border-t border-border pt-3">{kunde.sizeNote}</p>}
+                  {kunde.sourceUrl && (
+                    <a href={kunde.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline inline-flex items-center gap-1 break-all">
+                      <ExternalLink className="h-3 w-3 shrink-0" /> {kunde.sourceUrl}
+                    </a>
+                  )}
+                </CardBody>
+              </Card>
+            </div>
+          </div>
+        </>
+      )}
 
       {fane === "produkter" && (
         <div className="grid gap-5 lg:grid-cols-[1fr_1.15fr] items-start">
@@ -453,9 +530,9 @@ export default async function KundeSide({
                           )}
                           {mig?.erAdmin && (
                             <form action={fortrydLicensaendring.bind(null, c.id)}>
-                              <button type="submit" title="Fortryd — sletter posten og sætter licensantallet tilbage" aria-label="Fortryd registrering" className="p-1 rounded text-muted-foreground hover:text-danger">
+                              <BekraeftSlet hvad="registreringen" detalje="Posten slettes, og licensantallet sættes tilbage." title="Fortryd — sletter posten og sætter licensantallet tilbage" className="p-1 rounded text-muted-foreground hover:text-danger">
                                 <Undo2 className="h-3.5 w-3.5" />
-                              </button>
+                              </BekraeftSlet>
                             </form>
                           )}
                         </div>
@@ -537,9 +614,9 @@ export default async function KundeSide({
                           )}
                           {mig?.erAdmin && (
                             <form action={fortrydLicensaendring.bind(null, c.id)}>
-                              <button type="submit" title="Fortryd — sletter posten og sætter licensantallet tilbage" aria-label="Fortryd registrering" className="p-1 rounded text-muted-foreground hover:text-danger">
+                              <BekraeftSlet hvad="registreringen" detalje="Posten slettes, og licensantallet sættes tilbage." title="Fortryd — sletter posten og sætter licensantallet tilbage" className="p-1 rounded text-muted-foreground hover:text-danger">
                                 <Undo2 className="h-3.5 w-3.5" />
-                              </button>
+                              </BekraeftSlet>
                             </form>
                           )}
                         </div>
@@ -571,64 +648,118 @@ export default async function KundeSide({
         />
       )}
 
-      {(fane === "salg" || fane === "teknik") && (
-      <div className="grid gap-5 lg:grid-cols-[1.15fr_1fr] items-start">
-        {/* Venstre: fanens indhold */}
-        <div className="flex flex-col gap-5">
-          {fane === "salg" ? (
-            <>
-          <Card>
-            <CardHeader
-              title="Dokumenter"
-              description="Licensbevis med faste licensnumre (SUB), tilbud, ordrebekræftelser og fornyelser som PDF."
-              action={<Link href={`/ordrer?kunde=${kunde.id}`} className="text-xs font-medium text-primary hover:underline">Alle tilbud og ordrer</Link>}
-            />
-            <CardBody className="flex flex-col gap-4">
-              <div className="flex flex-wrap gap-2">
-                <Link href={`/kunder/${kunde.id}/licensbevis`}>
-                  <Button size="sm" variant="secondary"><FileBadge className="h-3.5 w-3.5" /> Licensbevis — alle licenser</Button>
-                </Link>
-                {[...new Map(kunde.customerProducts.filter((l) => l.product.family).map((l) => [l.product.family!.id, l.product.family!.name])).entries()].map(([fid, navn]) => (
-                  <Link key={fid} href={`/kunder/${kunde.id}/licensbevis?produkt=${fid}`}>
-                    <Button size="sm" variant="ghost"><FileBadge className="h-3.5 w-3.5" /> Kun {navn}</Button>
+      {fane === "kontakter" && (
+        <div className="max-w-3xl">
+            <Card>
+              <CardHeader title="Kontakter" />
+              <CardBody className="p-0">
+                {kunde.contacts.length === 0 ? (
+                  <div className="px-5"><EmptyState title="Ingen kontakter" description="Tilføj den du taler med hos kunden." /></div>
+                ) : (
+                  <ul className="divide-y divide-border">
+                    {kunde.contacts.map((c) => (
+                      <li key={c.id} className="px-5 py-3 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium flex items-center gap-2">
+                            {c.firstName} {c.lastName}
+                            {c.isPrimary && <Badge variant="info">Primær</Badge>}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {[c.title, label(BESLUTNINGSROLLER, c.decisionRole ?? "")].filter((x) => x && x !== "Ikke angivet").join(" · ") || "–"}
+                          </div>
+                          {c.email && <a href={`mailto:${c.email}`} className="text-xs text-primary hover:underline break-all">{c.email}</a>}
+                        </div>
+                        {kunderS && <form action={sletKontakt.bind(null, c.id, kunde.id)}>
+                          <BekraeftSlet hvad={`kontakten ${c.firstName} ${c.lastName}`.trim()} className="text-muted-foreground hover:text-danger p-1 rounded" />
+                        </form>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {kunderS && <details className="px-5 py-4 border-t border-border">
+                  <summary className="cursor-pointer text-sm font-medium">Tilføj kontakt</summary>
+                  <form action={opretKontakt.bind(null, kunde.id)} className="mt-3 grid grid-cols-2 gap-3">
+                    <div><Label htmlFor="kf">Fornavn</Label><Input id="kf" name="firstName" required /></div>
+                    <div><Label htmlFor="kl">Efternavn</Label><Input id="kl" name="lastName" /></div>
+                    <div className="col-span-2"><Label htmlFor="ke">Mail</Label><Input id="ke" name="email" type="email" /></div>
+                    <div><Label htmlFor="kp">Telefon</Label><Input id="kp" name="phone" /></div>
+                    <div><Label htmlFor="kt">Stilling</Label><Input id="kt" name="title" /></div>
+                    <div className="col-span-2">
+                      <Label htmlFor="kr">Rolle i beslutningen</Label>
+                      <Select id="kr" name="decisionRole">
+                        {BESLUTNINGSROLLER.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
+                      </Select>
+                    </div>
+                    <div className="col-span-2 flex justify-end"><Button size="sm" type="submit">Tilføj kontakt</Button></div>
+                  </form>
+                </details>}
+              </CardBody>
+            </Card>
+        </div>
+      )}
+
+      {fane === "dokumenter" && (
+        <div className="max-w-3xl">
+            <Card>
+              <CardHeader
+                title="Dokumenter"
+                description="Licensbevis med faste licensnumre (SUB), tilbud, ordrebekræftelser og fornyelser som PDF."
+                action={<Link href={`/ordrer?kunde=${kunde.id}`} className="text-xs font-medium text-primary hover:underline">Alle tilbud og ordrer</Link>}
+              />
+              <CardBody className="flex flex-col gap-4">
+                <div className="flex flex-wrap gap-2">
+                  <Link href={`/kunder/${kunde.id}/licensbevis`}>
+                    <Button size="sm" variant="secondary"><FileBadge className="h-3.5 w-3.5" /> Licensbevis — alle licenser</Button>
                   </Link>
-                ))}
-              </div>
-              {salgS && <div className="flex flex-wrap gap-2">
-                <Link href={`/ordrer/ny?type=tilbud&kunde=${kunde.id}`}>
-                  <Button size="sm" variant="secondary"><FileText className="h-3.5 w-3.5" /> Nyt tilbud</Button>
-                </Link>
-                <Link href={`/ordrer/ny?type=ordre&kunde=${kunde.id}`}>
-                  <Button size="sm"><FileText className="h-3.5 w-3.5" /> Ny ordrebekræftelse</Button>
-                </Link>
-                {[...new Map(kunde.customerProducts.filter((l) => l.product.family && l.product.licenseModel !== "perpetual").map((l) => [l.product.family!.id, l.product.family!.name])).entries()].map(([fid, navn]) => (
-                  <Link key={fid} href={`/ordrer/ny?kunde=${kunde.id}&fornyProdukt=${fid}`}>
-                    <Button size="sm" variant="ghost"><RefreshCw className="h-3.5 w-3.5" /> Forny {navn}</Button>
-                  </Link>
-                ))}
-              </div>}
-              {kunde.orders.length > 0 && (
-                <ul className="divide-y divide-border border-t border-border">
-                  {kunde.orders.map((o) => (
-                    <li key={o.id} className="py-2 flex items-center justify-between gap-3 text-sm">
-                      <Link href={`/ordrer/${o.id}`} className="hover:text-primary">
-                        <span className="font-medium tabular">{dokNr(o)}</span>
-                        {o.kind === "tilbud" && <Badge variant="warning" className="ml-2">Tilbud</Badge>}
-                        <span className="text-xs text-muted-foreground ml-2 tabular">{datoKort(o.orderDate)} · {o.lines.length} linjer</span>
-                      </Link>
-                      <span className="flex items-center gap-2">
-                        <span className="text-xs tabular">{kroner(ordreTotal(o.lines))}</span>
-                        <a href={`/api/dokumenter/ordre/${o.id}`} title="Hent PDF" className="text-muted-foreground hover:text-primary p-1"><Download className="h-3.5 w-3.5" /></a>
-                      </span>
-                    </li>
+                  {[...new Map(kunde.customerProducts.filter((l) => l.product.family).map((l) => [l.product.family!.id, l.product.family!.name])).entries()].map(([fid, navn]) => (
+                    <Link key={fid} href={`/kunder/${kunde.id}/licensbevis?produkt=${fid}`}>
+                      <Button size="sm" variant="ghost"><FileBadge className="h-3.5 w-3.5" /> Kun {navn}</Button>
+                    </Link>
                   ))}
-                </ul>
-              )}
-            </CardBody>
-          </Card>
-            </>
-          ) : (
-            <>
+                </div>
+                {salgS && <div className="flex flex-wrap gap-2">
+                  <Link href={`/ordrer/ny?type=tilbud&kunde=${kunde.id}`}>
+                    <Button size="sm" variant="secondary"><FileText className="h-3.5 w-3.5" /> Nyt tilbud</Button>
+                  </Link>
+                  <Link href={`/ordrer/ny?type=ordre&kunde=${kunde.id}`}>
+                    <Button size="sm"><FileText className="h-3.5 w-3.5" /> Ny ordrebekræftelse</Button>
+                  </Link>
+                  {[...new Map(kunde.customerProducts.filter((l) => l.product.family && l.product.licenseModel !== "perpetual").map((l) => [l.product.family!.id, l.product.family!.name])).entries()].map(([fid, navn]) => (
+                    <Link key={fid} href={`/ordrer/ny?kunde=${kunde.id}&fornyProdukt=${fid}`}>
+                      <Button size="sm" variant="ghost"><RefreshCw className="h-3.5 w-3.5" /> Forny {navn}</Button>
+                    </Link>
+                  ))}
+                </div>}
+                {kunde.orders.length > 0 && (
+                  <ul className="divide-y divide-border border-t border-border">
+                    {kunde.orders.map((o) => (
+                      <li key={o.id} className="py-2 flex items-center justify-between gap-3 text-sm">
+                        <Link href={`/ordrer/${o.id}`} className="hover:text-primary">
+                          <span className="font-medium tabular">{dokNr(o)}</span>
+                          {o.kind === "tilbud" && <Badge variant="warning" className="ml-2">Tilbud</Badge>}
+                          <span className="text-xs text-muted-foreground ml-2 tabular">{datoKort(o.orderDate)} · {o.lines.length} linjer</span>
+                        </Link>
+                        <span className="flex items-center gap-2">
+                          <span className="text-xs tabular">{kroner(ordreTotal(o.lines))}</span>
+                          <a href={`/api/dokumenter/ordre/${o.id}`} title="Hent PDF" className="text-muted-foreground hover:text-primary p-1"><Download className="h-3.5 w-3.5" /></a>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardBody>
+            </Card>
+        </div>
+      )}
+
+      {fane === "filer" && (
+        <div className="max-w-3xl">
+            <Filboks companyId={kunde.id} filer={filer} forStor={fil === "for-stor"} kanSkrive={kunderS} />
+        </div>
+      )}
+
+      {fane === "teknik" && (
+        <div className="grid gap-5 lg:grid-cols-2 items-start">
           <Card>
             <CardHeader
               title="Sager"
@@ -744,122 +875,13 @@ export default async function KundeSide({
               )}
             </CardBody>
           </Card>
-            </>
-          )}
-
-          <Filboks companyId={kunde.id} filer={filer} forStor={fil === "for-stor"} kanSkrive={kunderS} />
         </div>
+      )}
 
-        {/* Højre: fælles for Salg og Teknik — logbogen først */}
-        <div className="flex flex-col gap-5">
-          <Logbog kundeId={kunde.id} poster={kunde.logEntries} kanSkrive={kunderS || salgS || teknikS || ret.leads || ret.tid} />
-
-          <KundestatusKort
-            kanSkrive={kunderS}
-            kundeId={kunde.id}
-            status={kunde.customerStatus}
-            note={kunde.customerStatusNote}
-            sat={kunde.customerStatusAt}
-            gemtAf={kunde.updatedBy}
-            gemtTid={kunde.updatedAt}
-          />
-
-          {kunde.activities.length > 0 && (
-            <Card>
-              <CardHeader title="Åbne opgaver" action={<Link href="/aktiviteter" className="text-xs font-medium text-primary hover:underline">Alle</Link>} />
-              <CardBody className="p-0">
-                <ul className="divide-y divide-border">
-                  {kunde.activities.map((a) => (
-                    <li key={a.id} className="px-5 py-2.5 text-sm flex items-center justify-between gap-3">
-                      <span className="truncate">{a.subject}</span>
-                      {a.dueDate && (
-                        <span className={cn("text-xs tabular shrink-0", a.dueDate < nu ? "text-danger font-medium" : "text-muted-foreground")}>
-                          {datoKort(a.dueDate)}
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </CardBody>
-            </Card>
-          )}
-
-          <Card>
-            <CardHeader title="Firmastørrelse" description="Baggrundsviden. Indgår ikke i pris, pakke eller scope." />
-            <CardBody className="flex flex-col gap-3 text-sm">
-              <Raek label="Ansatte" vaerdi={tal(kunde.employees)} />
-              <Raek label="Omsætning" vaerdi={millioner(kunde.revenueMdkk)} />
-              <Raek label="Konfidens" vaerdi={konf ? <Badge variant={konf.variant}>{konf.label}</Badge> : "–"} />
-              {kunde.sizeNote && <p className="text-xs text-muted-foreground leading-relaxed border-t border-border pt-3">{kunde.sizeNote}</p>}
-              {kunde.sourceUrl && (
-                <a href={kunde.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline inline-flex items-center gap-1 break-all">
-                  <ExternalLink className="h-3 w-3 shrink-0" /> {kunde.sourceUrl}
-                </a>
-              )}
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardHeader title="Stamdata" />
-            <CardBody className="flex flex-col gap-3 text-sm">
-              <Raek label="Adresse" vaerdi={kunde.address ?? "–"} />
-              <Raek label="Telefon" vaerdi={kunde.phone ? <a className="text-primary hover:underline inline-flex items-center gap-1" href={`tel:${kunde.phone}`}><Phone className="h-3 w-3" />{kunde.phone}</a> : "–"} />
-              <Raek label="Mail" vaerdi={kunde.email ? <a className="text-primary hover:underline inline-flex items-center gap-1 break-all" href={`mailto:${kunde.email}`}><Mail className="h-3 w-3 shrink-0" />{kunde.email}</a> : "–"} />
-              <Raek label="Subdomæne" vaerdi={kunde.subdomain ?? "–"} />
-              <Raek label="Kode" vaerdi={kunde.code ?? "–"} />
-              {kunde.notes && <p className="text-xs text-muted-foreground leading-relaxed border-t border-border pt-3">{kunde.notes}</p>}
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardHeader title="Kontakter" />
-            <CardBody className="p-0">
-              {kunde.contacts.length === 0 ? (
-                <div className="px-5"><EmptyState title="Ingen kontakter" description="Tilføj den du taler med hos kunden." /></div>
-              ) : (
-                <ul className="divide-y divide-border">
-                  {kunde.contacts.map((c) => (
-                    <li key={c.id} className="px-5 py-3 flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium flex items-center gap-2">
-                          {c.firstName} {c.lastName}
-                          {c.isPrimary && <Badge variant="info">Primær</Badge>}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          {[c.title, label(BESLUTNINGSROLLER, c.decisionRole ?? "")].filter((x) => x && x !== "Ikke angivet").join(" · ") || "–"}
-                        </div>
-                        {c.email && <a href={`mailto:${c.email}`} className="text-xs text-primary hover:underline break-all">{c.email}</a>}
-                      </div>
-                      {kunderS && <form action={sletKontakt.bind(null, c.id, kunde.id)}>
-                        <button type="submit" aria-label={`Slet ${c.firstName}`} className="text-muted-foreground hover:text-danger p-1 rounded">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </form>}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {kunderS && <details className="px-5 py-4 border-t border-border">
-                <summary className="cursor-pointer text-sm font-medium">Tilføj kontakt</summary>
-                <form action={opretKontakt.bind(null, kunde.id)} className="mt-3 grid grid-cols-2 gap-3">
-                  <div><Label htmlFor="kf">Fornavn</Label><Input id="kf" name="firstName" required /></div>
-                  <div><Label htmlFor="kl">Efternavn</Label><Input id="kl" name="lastName" /></div>
-                  <div className="col-span-2"><Label htmlFor="ke">Mail</Label><Input id="ke" name="email" type="email" /></div>
-                  <div><Label htmlFor="kp">Telefon</Label><Input id="kp" name="phone" /></div>
-                  <div><Label htmlFor="kt">Stilling</Label><Input id="kt" name="title" /></div>
-                  <div className="col-span-2">
-                    <Label htmlFor="kr">Rolle i beslutningen</Label>
-                    <Select id="kr" name="decisionRole">
-                      {BESLUTNINGSROLLER.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
-                    </Select>
-                  </div>
-                  <div className="col-span-2 flex justify-end"><Button size="sm" type="submit">Tilføj kontakt</Button></div>
-                </form>
-              </details>}
-            </CardBody>
-          </Card>
+      {fane === "logbog" && (
+        <div className="max-w-3xl">
+            <Logbog kundeId={kunde.id} poster={kunde.logEntries} kanSkrive={kunderS || salgS || teknikS || ret.leads || ret.tid} />
         </div>
-      </div>
       )}
     </div>
   );

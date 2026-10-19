@@ -1,3 +1,4 @@
+import { BekraeftSlet } from "@/components/ui/bekraeft-slet";
 import { kanSkrive } from "@/lib/roller";
 import { kraevBruger, kraevLaes, kraevSkriv } from "@/lib/auth";
 import Link from "next/link";
@@ -63,9 +64,9 @@ export default async function SagsSide({ params }: { params: Promise<{ id: strin
         </div>
         {skriv && (
         <form action={async () => { "use server"; await sletSag(sag.id); }}>
-          <Button variant="ghost" type="submit" size="sm" className="text-muted-foreground hover:text-danger">
+          <BekraeftSlet hvad={`sagen ${sagsnummer(sag.number)} "${sag.title}"`} detalje="Noter og registreret tid på sagen slettes også." className="inline-flex items-center gap-2 h-8 px-3 text-xs font-medium text-muted-foreground hover:text-danger">
             <Trash2 className="h-3.5 w-3.5" /> Slet sag
-          </Button>
+          </BekraeftSlet>
         </form>
         )}
       </div>
@@ -165,9 +166,7 @@ export default async function SagsSide({ params }: { params: Promise<{ id: strin
                         <p className="text-sm whitespace-pre-wrap min-w-0">{k.content}</p>
                         {skriv && (
                         <form action={sletKommentar.bind(null, k.id, sag.id)}>
-                          <button type="submit" aria-label="Slet note" className="text-muted-foreground hover:text-danger p-1 rounded shrink-0">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          <BekraeftSlet hvad="noten på sagen" className="text-muted-foreground hover:text-danger p-1 rounded shrink-0" />
                         </form>
                         )}
                       </div>
@@ -230,9 +229,7 @@ export default async function SagsSide({ params }: { params: Promise<{ id: strin
                     </div>
                     {tid && (
                     <form action={async () => { "use server"; await sletTid(t.id); }}>
-                      <button type="submit" aria-label="Slet tidspost" className="text-muted-foreground hover:text-danger p-1 rounded shrink-0">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      <BekraeftSlet hvad="tidsposten" className="text-muted-foreground hover:text-danger p-1 rounded shrink-0" />
                     </form>
                     )}
                   </li>

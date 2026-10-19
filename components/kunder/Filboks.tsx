@@ -8,6 +8,7 @@ import {
   FILKATEGORI_LABEL_ENTAL,
 } from "@/lib/attachment-categories";
 import { uploadFil, sletFil, flytFilKategori } from "@/app/actions/filer";
+import { BekraeftSlet } from "@/components/ui/bekraeft-slet";
 
 export type FilRaekke = {
   id: string;
@@ -114,9 +115,7 @@ export function Filboks({ companyId, filer, forStor = false, kanSkrive = true }:
                         <Download className="h-3.5 w-3.5" />
                       </a>
                       {kanSkrive && <form action={sletFil.bind(null, f.id)} className="shrink-0">
-                        <button type="submit" aria-label={`Slet ${f.filename}`} className="text-muted-foreground hover:text-danger p-1.5 rounded">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        <BekraeftSlet hvad={`filen "${f.filename}"`} className="text-muted-foreground hover:text-danger p-1.5 rounded" />
                       </form>}
                     </li>
                   ))}

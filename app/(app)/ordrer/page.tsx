@@ -152,7 +152,7 @@ export default async function OrdrelisteSide({
                         <td className="px-3 py-2.5 tabular text-muted-foreground whitespace-nowrap">{datoKort(o.orderDate)}</td>
                         <td className="px-3 py-2.5 min-w-[180px]">
                           {o.company
-                            ? <Link href={`/kunder/${o.company.id}?fane=salg`} className="hover:text-primary">{o.company.name}</Link>
+                            ? <Link href={`/kunder/${o.company.id}?fane=dokumenter`} className="hover:text-primary">{o.company.name}</Link>
                             : <span>{o.recipientName} <span className="text-xs text-muted-foreground">(ingen kunde)</span></span>}
                         </td>
                         <td className="px-3 py-2.5 text-muted-foreground">{o.reference ?? "–"}</td>

@@ -1,3 +1,4 @@
+import { BekraeftSlet } from "@/components/ui/bekraeft-slet";
 import { kanSkrive } from "@/lib/roller";
 import { kraevBruger, kraevLaes, kraevSkriv } from "@/lib/auth";
 import Link from "next/link";
@@ -109,9 +110,7 @@ export default async function KlippekortSide({
                               <Button size="sm" variant="ghost" type="button" className="text-xs px-2">Rediger</Button>
                             </Link>
                             <form action={async () => { "use server"; await sletKlippekort(k.id); }}>
-                              <button type="submit" aria-label={`Slet ${kortnummer(k.number)}`} className="text-muted-foreground hover:text-danger p-1 rounded">
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
+                              <BekraeftSlet hvad={`klippekortet ${kortnummer(k.number)}`} detalje="Tid registreret på kortet mister koblingen til det." className="text-muted-foreground hover:text-danger p-1 rounded" />
                             </form>
                           </div>
                           )}

@@ -7,6 +7,7 @@ import { flytNotat, skiftFaerdig, sletNotat } from "@/app/actions/notater";
 import { NOTAT_KOLONNER, findNotatprioritet, findSpor } from "@/lib/labels";
 import { datoKort } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { BekraeftSlet } from "@/components/ui/bekraeft-slet";
 
 export type Kort = {
   id: string;
@@ -229,9 +230,7 @@ export function Tavle({ kort, redigerBase, skrivbareSpor }: {
                           ))}
                         </select>
                         <form action={sletNotat.bind(null, k.id)} className="ml-auto">
-                          <button type="submit" aria-label={`Slet ${k.title}`} className="p-1 rounded text-muted-foreground hover:text-danger">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          <BekraeftSlet hvad={`notatet "${k.title}"`} className="p-1 rounded text-muted-foreground hover:text-danger" />
                         </form>
                       </div>}
                     </article>

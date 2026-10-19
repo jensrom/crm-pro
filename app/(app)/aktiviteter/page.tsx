@@ -1,3 +1,4 @@
+import { BekraeftSlet } from "@/components/ui/bekraeft-slet";
 import { kanSkrive } from "@/lib/roller";
 import { kraevBruger, kraevSkriv, kraevAdmin } from "@/lib/auth";
 import Link from "next/link";
@@ -104,7 +105,7 @@ export default async function AktiviteterSide() {
                     </div>
                     {skriv && (
                     <form action={async () => { "use server"; await sletAktivitet(a.id); }}>
-                      <Button type="submit" size="sm" variant="ghost" className="text-xs text-muted-foreground">Slet</Button>
+                      <BekraeftSlet hvad={`opgaven "${a.subject}"`} className="text-xs text-muted-foreground hover:text-danger px-2 h-8">Slet</BekraeftSlet>
                     </form>
                     )}
                   </li>

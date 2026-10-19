@@ -1,3 +1,4 @@
+import { BekraeftSlet } from "@/components/ui/bekraeft-slet";
 import Link from "next/link";
 import { AlertTriangle, Crown, KeyRound, ShieldCheck, Trash2, UserPlus } from "lucide-react";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -150,9 +151,7 @@ export default async function BrugerSide({
                           <Button size="sm" variant="ghost" type="button" className="text-xs px-2">Rediger</Button>
                         </Link>
                         <form action={async () => { "use server"; await sletBruger(b.id); }}>
-                          <button type="submit" aria-label={`Slet ${b.initials}`} className="p-1 rounded text-muted-foreground hover:text-danger">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          <BekraeftSlet hvad={`brugeren ${b.initials}${b.name ? ` (${b.name})` : ""}`} className="p-1 rounded text-muted-foreground hover:text-danger" />
                         </form>
                       </div>
                     </td>

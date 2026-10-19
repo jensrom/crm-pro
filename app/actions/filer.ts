@@ -25,7 +25,7 @@ export async function uploadFil(companyId: string, formData: FormData) {
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) return;
-  if (file.size > MAKS_FILSTOERRELSE) redirect(`/kunder/${companyId}?fil=for-stor#filer`);
+  if (file.size > MAKS_FILSTOERRELSE) redirect(`/kunder/${companyId}?fane=filer&fil=for-stor`);
 
   const bytes = Buffer.from(await file.arrayBuffer());
   await db.attachment.create({
