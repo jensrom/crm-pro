@@ -36,7 +36,7 @@ export default async function BrugerSide({
   searchParams: Promise<{ rediger?: string; besked?: string; fejl?: string }>;
 }) {
   const { rediger, besked, fejl } = await searchParams;
-  // Glostrup-afdelingen skal altid kunne vælges.
+  // Faste afdelinger (se lib/afdelinger.ts) skal altid kunne vælges.
   try { await sikrAfdelinger(); } catch { /* må ikke vælte siden */ }
   const [brugere, mig, profiler] = await Promise.all([
     db.user.findMany({ orderBy: [{ isActive: "desc" }, { initials: "asc" }], include: { senderProfile: { select: { name: true } } } }),

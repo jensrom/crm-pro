@@ -61,7 +61,7 @@ export default async function ProdukterSide({
         </Card>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="kpi-grid grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
         <StatCard label="Aktive licenstyper" value={tal(produkter.filter((p) => p.isActive).length)} sub={`${tal(familier.length)} produkter`} />
         <StatCard label="Licenser i alt" value={tal(samletLicenser)} sub="på tværs af produkter" />
         <StatCard label="Årlig licensværdi" value={kroner(samletVaerdi)} sub="subscription, nuværende licenser" highlight />

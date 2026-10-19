@@ -51,7 +51,7 @@ export default async function SagerSide({
 
   return (
     <div className="max-w-[1400px] flex flex-col gap-5">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="kpi-grid grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
         <StatCard label="Åbne sager" value={tal(aabne)} sub={`${tal(alle.length)} i alt`} />
         <StatCard label="Kritiske" value={tal(kritiske)} sub="åbne med højeste prioritet" highlight={kritiske > 0} />
         <StatCard label="Vist nu" value={tal(sager.length)} sub="efter filtrene herunder" />
@@ -75,7 +75,7 @@ export default async function SagerSide({
           }
         />
 
-        <div className="flex flex-wrap gap-2 px-5 py-3 border-b border-border">
+        <div className="fanerække flex flex-nowrap sm:flex-wrap gap-2 px-4 sm:px-5 py-3 border-b border-border">
           {[
             { v: "aabne", l: "Åbne" },
             ...SAGSSTATUS.map((s) => ({ v: s.key, l: s.label })),
@@ -85,7 +85,7 @@ export default async function SagerSide({
               key={f.v}
               href={`/teknik/sager?status=${f.v}${prioritet ? `&prioritet=${prioritet}` : ""}`}
               className={cn(
-                "px-3 py-1.5 rounded-none text-xs font-medium border transition-colors",
+                "px-3 py-2 sm:py-1.5 rounded-none text-xs font-medium border transition-colors whitespace-nowrap shrink-0",
                 (status ?? "aabne") === f.v
                   ? "bg-primary text-primary-foreground border-primary"
                   : "bg-secondary text-muted-foreground border-border hover:text-foreground"
@@ -94,13 +94,13 @@ export default async function SagerSide({
               {f.l}
             </Link>
           ))}
-          <span className="w-px h-6 bg-border mx-1" />
+          <span className="w-px h-6 bg-border mx-1 shrink-0 self-center" />
           {[{ v: "alle", l: "Al prioritet" }, ...SAGSPRIORITET.map((p) => ({ v: p.key, l: p.label }))].map((f) => (
             <Link
               key={f.v}
               href={`/teknik/sager?status=${status ?? "aabne"}&prioritet=${f.v}`}
               className={cn(
-                "px-3 py-1.5 rounded-none text-xs font-medium border transition-colors",
+                "px-3 py-2 sm:py-1.5 rounded-none text-xs font-medium border transition-colors whitespace-nowrap shrink-0",
                 (prioritet ?? "alle") === f.v
                   ? "bg-primary text-primary-foreground border-primary"
                   : "bg-secondary text-muted-foreground border-border hover:text-foreground"
@@ -116,7 +116,7 @@ export default async function SagerSide({
             <EmptyState title="Ingen sager matcher" icon={LifeBuoy} description="Prøv et andet filter, eller opret en ny sag." />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="mobilkort w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground border-b border-border">
                     <th className="px-5 py-2.5 font-medium">Nr.</th>

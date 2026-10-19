@@ -117,3 +117,79 @@
 
   .tabular { font-variant-numeric: tabular-nums; }
 }
+
+/* ------------------------------------------------------------------
+   Mobil
+   ------------------------------------------------------------------ */
+
+/* Nøgletal i to kolonner på telefonen. Står et ulige antal, får det
+   sidste kort hele bredden, så rækken ikke ser halv ud. */
+@media (max-width: 639px) {
+  .kpi-grid > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+
+@media (max-width: 1023px) {
+  /* iOS zoomer ind på felter under 16 px — det skal den ikke. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  select {
+    min-height: 40px;
+  }
+
+  /* Gitterceller må aldrig sprænge bredden: indhold med en naturlig
+     minimumsbredde (datofelter, lange ord, tabeller) bliver i sin celle. */
+  .grid > * { min-width: 0; }
+  input[type="date"], input[type="month"], input[type="time"] { min-width: 0; }
+
+  /* Ingen grå blink ved tryk, og ingen dobbelttryk-zoom-forsinkelse. */
+  html { -webkit-tap-highlight-color: transparent; }
+  a, button, label, select, summary, [role="button"] { touch-action: manipulation; }
+
+  /* Brede tabeller ruller vandret inde i kortet — med momentum og en
+     antydning af, at der er mere at se. */
+  .overflow-x-auto { -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+}
+
+/* Faner og undermenuer: ruller vandret i stedet for at knække om. */
+.fanerække {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.fanerække::-webkit-scrollbar { display: none; }
+
+/* Lister som kort på telefonen: tabeller med klassen "mobilkort" stables,
+   så hver række bliver et lille kort — første celle som overskrift, resten
+   som en kompakt linje nedenunder. Celler med data-mobil="skjul" udelades. */
+@media (max-width: 639px) {
+  table.mobilkort { display: block; }
+  table.mobilkort thead { display: none; }
+  table.mobilkort tbody { display: block; }
+  table.mobilkort tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
+    padding: 12px 16px;
+  }
+  table.mobilkort td {
+    display: block;
+    padding: 0 !important;
+    border: 0 !important;
+    text-align: left !important;
+    white-space: normal;
+    font-size: 13px;
+    max-width: 100%;
+  }
+  table.mobilkort td:first-child {
+    flex: 1 1 100%;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  table.mobilkort td:empty,
+  table.mobilkort td[data-mobil="skjul"] { display: none; }
+}

@@ -20,7 +20,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       danger: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
       outline: "border border-border bg-transparent hover:bg-secondary text-foreground",
     };
-    const sizes = { sm: "text-xs px-3 py-1.5 h-8", md: "text-sm px-4 py-2 h-9", lg: "text-sm px-5 py-2.5 h-10" };
+    const sizes = { sm: "text-xs px-3 py-1.5 h-8", md: "text-sm px-4 py-2 h-10 sm:h-9", lg: "text-sm px-5 py-2.5 h-10" };
     return (
       <button ref={ref} disabled={disabled || loading} className={cn(base, variants[variant], sizes[size], className)} {...props}>
         {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}

@@ -33,7 +33,7 @@ export function KundeFaner({
 
   const synlige = tilladte ? faner.filter((f) => tilladte.includes(f.key)) : faner;
   return (
-    <nav className="flex items-center gap-1 border-b border-border" aria-label="Kundens områder">
+    <nav className="fanerække flex items-center gap-1 border-b border-border -mx-4 px-4 sm:mx-0 sm:px-0" aria-label="Kundens områder">
       {synlige.map((f) => {
         const erAktiv = f.key === aktiv;
         const Ikon = f.ikon;
@@ -44,7 +44,7 @@ export function KundeFaner({
             scroll={false}
             aria-current={erAktiv ? "page" : undefined}
             className={cn(
-              "inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
+              "inline-flex items-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0",
               erAktiv ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >

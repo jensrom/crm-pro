@@ -44,7 +44,7 @@ export default async function KlippekortSide({
 
   return (
     <div className="max-w-[1300px] flex flex-col gap-5">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="kpi-grid grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
         <StatCard label="Aktive kort" value={tal(aktive.length)} sub={`${tal(kort.length)} i alt`} />
         <StatCard label="Timer solgt" value={varighed(koebtSum)} sub="på alle kort" />
         <StatCard label="Timer brugt" value={varighed(brugtSum)} sub={koebtSum ? `${Math.round((brugtSum / koebtSum) * 100)} % af det solgte` : undefined} />
@@ -59,7 +59,7 @@ export default async function KlippekortSide({
               <EmptyState title="Ingen klippekort endnu" icon={Scissors} description="Opret det første i formularen ved siden af." />
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="mobilkort w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground border-b border-border">
                       <th className="px-5 py-2.5 font-medium">Kort</th>

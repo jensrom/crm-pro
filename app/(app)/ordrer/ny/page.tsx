@@ -183,7 +183,7 @@ export default async function NyOrdre({
                   const p = fornyelsesPeriode(l, nu);
                   const pris = l.unitPriceMonth ?? l.product.pricePerUserMonth;
                   return (
-                    <li key={l.id} className="px-5 py-3 grid grid-cols-[auto_1fr] lg:grid-cols-[auto_1fr_70px_100px_minmax(330px,1.4fr)] gap-x-3 gap-y-2 items-start">
+                    <li key={l.id} className="px-5 py-3 grid grid-cols-[auto_minmax(0,1fr)] lg:grid-cols-[auto_1fr_70px_100px_minmax(330px,1.4fr)] gap-x-3 gap-y-2 items-start">
                       <input type="checkbox" name="forny" value={l.id} defaultChecked={fornyValgt.has(l.id)} aria-label={`Forny ${l.product.name}`} className="mt-2 h-4 w-4 rounded border-input accent-[hsl(var(--primary))]" />
                       <div className="min-w-0 pt-1">
                         <div className="text-sm font-medium flex flex-wrap items-center gap-2">
@@ -228,7 +228,7 @@ export default async function NyOrdre({
                     const perpetual = erEngang(p.licenseModel);
                     const pris = perpetual ? listepris(p) : kl?.unitPriceMonth ?? listepris(p);
                     return (
-                      <li key={p.id} className="px-5 py-3 grid grid-cols-[auto_1fr] lg:grid-cols-[auto_1fr_70px_100px_minmax(330px,1.4fr)] gap-x-3 gap-y-2 items-start">
+                      <li key={p.id} className="px-5 py-3 grid grid-cols-[auto_minmax(0,1fr)] lg:grid-cols-[auto_1fr_70px_100px_minmax(330px,1.4fr)] gap-x-3 gap-y-2 items-start">
                         <input type="checkbox" name="vaelg" value={p.id} data-gruppe={g.id} aria-label={`Medtag ${p.name}`} className="mt-2 h-4 w-4 rounded border-input accent-[hsl(var(--primary))]" />
                         <div className="min-w-0 pt-1">
                           <div className="text-sm font-medium flex flex-wrap items-center gap-2">

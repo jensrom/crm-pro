@@ -25,27 +25,27 @@ const TITLER: Record<string, string> = {
 
 export type TopbarBruger = { initials: string; name: string; erAdmin: boolean; erSuperAdmin?: boolean; role?: string };
 
-export function AppTopbar({ bruger }: { bruger: TopbarBruger }) {
+export function AppTopbar({ bruger, maerke }: { bruger: TopbarBruger; maerke?: { logo: string | null; tekst: string | null } }) {
   const sti = usePathname();
   const rod = "/" + (sti.split("/")[1] ?? "");
   const titel = TITLER[rod] ?? (rod === "/notater" ? "Kundenotater" : "CRM-Pro");
 
   return (
     <header
-      className="sticky top-0 z-20 flex items-center gap-4 border-b border-border bg-background/90 backdrop-blur px-5"
-      style={{ height: "var(--topbar-height)" }}
+      className="sticky top-0 z-30 flex items-center gap-3 sm:gap-4 border-b border-border bg-background/90 backdrop-blur px-4 sm:px-5"
+      style={{ height: "var(--topbar-height)", paddingTop: "env(safe-area-inset-top)", boxSizing: "content-box" }}
     >
-      <div className="lg:hidden flex items-center gap-2">
-        <div className="h-6 w-6 rounded bg-primary grid place-items-center text-primary-foreground text-[10px] font-bold">CP</div>
-      </div>
-      <h1 className="text-sm font-semibold">{titel}</h1>
-      <nav className="lg:hidden flex items-center gap-3 text-xs text-muted-foreground overflow-x-auto">
-        {Object.entries(TITLER).map(([href, label]) => (
-          <Link key={href} href={href} className="whitespace-nowrap hover:text-foreground">
-            {label}
-          </Link>
-        ))}
-      </nav>
+      <Link href="/dashboard" className="lg:hidden shrink-0" aria-label="Til dashboard">
+        {maerke?.logo ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={maerke.logo} alt="" className="h-7 w-7 object-contain bg-white/90 p-0.5" />
+        ) : (
+          <div className="h-7 w-7 bg-primary grid place-items-center text-primary-foreground text-[10px] font-bold">
+            {(maerke?.tekst ?? "CP").slice(0, 3)}
+          </div>
+        )}
+      </Link>
+      <h1 className="text-[15px] lg:text-sm font-semibold truncate">{titel}</h1>
 
       <div className="ml-auto flex items-center gap-3">
         <span
@@ -58,8 +58,10 @@ export function AppTopbar({ bruger }: { bruger: TopbarBruger }) {
           <span className="hidden lg:inline text-[11px] px-1.5 py-0.5 border border-border bg-secondary">{rolleNavn(bruger.role ?? "")}</span>
         </span>
         <Opdatering />
-        <ThemeToggle />
-        <form action={logUd}>
+        <span className="hidden lg:contents">
+          <ThemeToggle />
+        </span>
+        <form action={logUd} className="hidden lg:block">
           <button
             type="submit"
             aria-label="Log ud"

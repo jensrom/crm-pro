@@ -6,12 +6,13 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "prisma generate && next build",
-    "vercel-build": "prisma generate && prisma db push --skip-generate && next build",
+    "vercel-build": "prisma generate && prisma db push --skip-generate && node scripts/anonymiser.mjs && next build",
     "start": "next start",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "node --env-file=.env prisma/seed.mjs",
     "db:klargoer": "node --env-file=.env scripts/klargoer.mjs",
+    "db:anonymiser": "node --env-file=.env scripts/anonymiser.mjs",
     "db:flyt": "node --env-file=.env scripts/flyt-til-postgres.mjs",
     "typecheck": "tsc --noEmit"
   },

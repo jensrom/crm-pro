@@ -98,7 +98,7 @@ export async function gemDokumentindstillinger(formData: FormData) {
 }
 
 // ============================================================
-// AFSENDERPROFILER (afdelinger, fx Horsens og Glostrup)
+// AFSENDERPROFILER (afdelinger, fx Aarhus og Odense)
 // ============================================================
 
 const DOK = "/indstillinger/dokumenter";

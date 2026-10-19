@@ -64,7 +64,7 @@ export default async function Dashboard() {
 
   return (
     <div className="flex flex-col gap-6 max-w-[1400px]">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="kpi-grid grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-5">
         <StatCard label="Kunder" value={tal(kunder.length)} sub={`${kunder.filter((k) => k.country === "Danmark").length} danske · ${kunder.filter((k) => k.country === "Færøerne").length} færøske`} />
         <StatCard label="Licenser" value={tal(seats)} sub={`${tal(aktive)} i brug`} />
         <StatCard label="Udnyttelse" value={procent(seats ? aktive / seats : null, 1)} sub={`${fulde} kunder uden ledig licens`} />

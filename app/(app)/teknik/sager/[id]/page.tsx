@@ -70,22 +70,22 @@ export default async function SagsSide({ params }: { params: Promise<{ id: strin
         )}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-4">
-        <div className="bg-card border border-border rounded-xl px-5 py-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-4 sm:grid-cols-4">
+        <div className="bg-card border border-border rounded-xl px-3.5 py-3 sm:px-5 sm:py-4 min-w-0">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Alder</div>
-          <div className="mt-1 text-2xl font-semibold">{alderTekst(alderIDage(sag.createdAt, nu))}</div>
+          <div className="mt-1 text-xl sm:text-2xl font-semibold truncate">{alderTekst(alderIDage(sag.createdAt, nu))}</div>
           <div className="mt-0.5 text-xs text-muted-foreground">oprettet {dato(sag.createdAt)}</div>
         </div>
-        <div className="bg-card border border-border rounded-xl px-5 py-4">
+        <div className="bg-card border border-border rounded-xl px-3.5 py-3 sm:px-5 sm:py-4 min-w-0">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Tid brugt</div>
-          <div className="mt-1 text-2xl font-semibold tabular">{brugt > 0 ? varighed(brugt) : "–"}</div>
+          <div className="mt-1 text-xl sm:text-2xl font-semibold truncate tabular">{brugt > 0 ? varighed(brugt) : "–"}</div>
           <div className="mt-0.5 text-xs text-muted-foreground">{tal(sag.timeLogs.length)} poster</div>
         </div>
-        <div className="bg-card border border-border rounded-xl px-5 py-4">
+        <div className="bg-card border border-border rounded-xl px-3.5 py-3 sm:px-5 sm:py-4 min-w-0">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Produkt</div>
           <div className="mt-1 text-lg font-semibold truncate">{sag.product?.name ?? "–"}</div>
         </div>
-        <div className="bg-card border border-border rounded-xl px-5 py-4">
+        <div className="bg-card border border-border rounded-xl px-3.5 py-3 sm:px-5 sm:py-4 min-w-0">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Kontakt</div>
           <div className="mt-1 text-lg font-semibold truncate">
             {sag.contact ? `${sag.contact.firstName} ${sag.contact.lastName}` : "–"}

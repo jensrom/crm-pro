@@ -48,7 +48,7 @@ export default async function OpportunitiesSide({ searchParams }: { searchParams
 
   return (
     <div className="max-w-[1500px] flex flex-col gap-5">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="kpi-grid grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
         <StatCard label="Åbne opportunities" value={tal(aabne.length)} sub={<Link href="/leads" className="hover:text-primary">{tal(leads.length)} leads venter på kvalificering →</Link>} />
         <StatCard label="Licenser i spil" value={tal(licenserISpil)} sub="på åbne opportunities" />
         <StatCard label="Vægtet årsværdi" value={vaegtet > 0 ? kroner(vaegtet) : "–"} sub="sandsynlighed × årsværdi" highlight />

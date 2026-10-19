@@ -67,7 +67,7 @@ export default async function FornyelserSide({ searchParams }: { searchParams: P
             <div className="px-5"><EmptyState title="Ingen aftaler udløber i perioden" icon={RefreshCw} /></div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="mobilkort w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground border-b border-border">
                     <th className="px-5 py-2.5 font-medium">Udløber</th>

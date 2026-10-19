@@ -6,17 +6,12 @@ import { db } from "@/lib/db";
  * kun de felter der står tomme, så intet man selv har rettet bliver overskrevet.
  * Tomme felter (CVR, bank, mail …) hentes fra de fælles afsenderoplysninger.
  */
-const AFDELINGER = [
-  {
-    name: "Glostrup",
-    department: "Novotek A/S, Glostrup",
-    companyName: "Novotek A/S",
-    address: "Naverland 2",
-    zipCity: "2600 Glostrup",
-    country: "Danmark",
-    sortOrder: 20,
-  },
-];
+/**
+ * Ingen afdelinger er hårdkodet: afdelinger oprettes og navngives under
+ * Indstillinger → Dokumenter. Listen er bevaret, så faste afdelinger kan
+ * lægges ind igen her, hvis det bliver nødvendigt.
+ */
+const AFDELINGER: { name: string; department: string; companyName: string; address: string; zipCity: string; country: string; sortOrder: number }[] = [];
 
 export async function sikrAfdelinger() {
   for (const a of AFDELINGER) {

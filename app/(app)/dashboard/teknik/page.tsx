@@ -84,7 +84,7 @@ export default async function TeknikDashboard() {
 
   return (
     <div className="flex flex-col gap-6 max-w-[1400px]">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="kpi-grid grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
         <StatCard label="Åbne sager" value={tal(aabne.length)} sub={`${tal(alle)} sager i alt`} />
         <StatCard label="Kritiske" value={tal(kritiske)} sub="højeste prioritet, stadig åbne" highlight={kritiske > 0} />
         <StatCard label="Timer tilbage" value={varighed(restMin)} sub={`på ${tal(kortStatus.filter(({ s }) => !s.udloebet).length)} aktive klippekort`} />

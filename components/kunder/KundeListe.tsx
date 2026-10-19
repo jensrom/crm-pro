@@ -102,18 +102,18 @@ export function KundeListe({ raekker, initialHotKun = false }: { raekker: Raekke
 
   return (
     <div className="bg-card border border-border rounded-xl">
-      <div className="flex flex-wrap items-center gap-2.5 px-5 py-3.5 border-b border-border">
-        <Input type="search" value={soeg} onChange={(e) => setSoeg(e.target.value)} placeholder="Søg kunde…" aria-label="Søg kunde" className="w-52" />
-        <Select value={land} onChange={(e) => setLand(e.target.value)} aria-label="Filtrér på land" className="w-36">
+      <div className="grid grid-cols-2 gap-2.5 px-4 py-3.5 border-b border-border sm:flex sm:flex-wrap sm:items-center sm:px-5">
+        <Input type="search" value={soeg} onChange={(e) => setSoeg(e.target.value)} placeholder="Søg kunde…" aria-label="Søg kunde" className="col-span-2 w-full sm:w-52" />
+        <Select value={land} onChange={(e) => setLand(e.target.value)} aria-label="Filtrér på land" className="w-full sm:w-36">
           <option value="alle">Alle lande</option>
           <option value="Danmark">Danmark</option>
           <option value="Færøerne">Færøerne</option>
         </Select>
-        <Select value={pakke} onChange={(e) => setPakke(e.target.value)} aria-label="Filtrér på pakke" className="w-44">
+        <Select value={pakke} onChange={(e) => setPakke(e.target.value)} aria-label="Filtrér på pakke" className="w-full sm:w-44">
           <option value="alle">Alle pakker</option>
           {pakker.map((p) => <option key={p} value={p}>{p}</option>)}
         </Select>
-        <Select value={branche} onChange={(e) => setBranche(e.target.value)} aria-label="Filtrér på branche" className="w-48">
+        <Select value={branche} onChange={(e) => setBranche(e.target.value)} aria-label="Filtrér på branche" className="w-full sm:w-48">
           <option value="alle">Alle brancher</option>
           {brancher.map((b) => <option key={b} value={b}>{b}</option>)}
         </Select>
@@ -122,14 +122,14 @@ export function KundeListe({ raekker, initialHotKun = false }: { raekker: Raekke
           onClick={() => setHotKun((v) => !v)}
           aria-pressed={hotKun}
           className={cn(
-            "inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border text-xs font-medium transition-colors",
+            "inline-flex items-center justify-center gap-1.5 h-10 sm:h-9 px-3 rounded-lg border text-xs font-medium transition-colors",
             hotKun ? "border-orange-500 bg-orange-500/10 text-orange-600" : "border-border text-muted-foreground hover:bg-secondary"
           )}
         >
           <Flame className="h-3.5 w-3.5" />
           Hot
         </button>
-        <div className="ml-auto text-xs text-muted-foreground tabular">
+        <div className="col-span-2 sm:ml-auto text-xs text-muted-foreground tabular">
           {synlige.length} af {raekker.length} kunder · {tal(sumSeats)} licenser · {kroner(sumVaerdi)}/år
           {manglerPris > 0 && ` · ${manglerPris} uden pakke`}
         </div>

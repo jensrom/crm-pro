@@ -43,7 +43,7 @@ export default async function LeadsSide() {
 
   return (
     <div className="max-w-[1300px] flex flex-col gap-5">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="kpi-grid grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
         <StatCard label="Åbne leads" value={tal(leads.length)} sub={`på ${tal(new Set(leads.map((l) => l.companyId)).size)} kunder`} />
         <StatCard label="Mulig årsværdi" value={samlet > 0 ? kroner(samlet) : "–"} sub="hvis alle blev til noget" />
         <StatCard label="Kvalificeret" value={tal(kvalificeret30)} sub="seneste 30 dage" highlight />
@@ -61,7 +61,7 @@ export default async function LeadsSide() {
             <div className="px-5"><EmptyState title="Ingen åbne leads" icon={Inbox} description="Opret et nedenfor, eller fra kundens Salg-fane." /></div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="mobilkort w-full text-sm">
                 <thead>
                   <tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground border-b border-border">
                     <th className="px-5 py-2.5 font-medium">Kunde</th>

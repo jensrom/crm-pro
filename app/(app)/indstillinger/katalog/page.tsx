@@ -101,7 +101,7 @@ export default async function KatalogSide({
         </Card>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-[320px_1fr] items-start">
+      <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)] items-start [&>*]:min-w-0">
         {/* Venstre: kataloget som træ — produkt → licenser */}
         <div className="flex flex-col gap-3">
           {familier.map((f) => {

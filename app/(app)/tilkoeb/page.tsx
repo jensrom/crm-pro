@@ -105,7 +105,7 @@ export default async function TilkoebSide({
         </CardBody>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="kpi-grid grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
         <StatCard label="Tilkøbte licenser" value={tal(tilkoebt)} sub={`${tal(reduceret)} reduceret · netto ${tilkoebt - reduceret >= 0 ? "+" : ""}${tal(tilkoebt - reduceret)}`} />
         <StatCard label="Ny årlig værdi" value={kroner(aarsvaerdi)} sub="subscription, netto" highlight />
         <StatCard label="Engangsbeløb" value={kroner(engang)} sub="perpetual, netto" />
@@ -140,7 +140,7 @@ export default async function TilkoebSide({
             {licensRaekker.length === 0 ? (
               <div className="px-5"><EmptyState title="Intet i perioden" icon={PackagePlus} /></div>
             ) : (
-              <table className="w-full text-sm">
+              <table className="mobilkort w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground border-b border-border">
                     <th className="px-5 py-2.5 font-medium">Licens</th>

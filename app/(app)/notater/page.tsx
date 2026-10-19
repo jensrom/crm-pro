@@ -77,7 +77,7 @@ export default async function NotatSide({
 
   return (
     <div className="max-w-[1600px] flex flex-col gap-5">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="kpi-grid grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
         <StatCard label="Åbne notater" value={tal(aabne.length)} sub={`${tal(alle.length)} i alt`} />
         <StatCard label="Salg" value={tal(aabne.filter((n) => n.track === "salg").length)} sub="åbne på salgssporet" />
         <StatCard label="Teknik" value={tal(aabne.filter((n) => n.track === "teknik").length)} sub="åbne på teknik-sporet" />

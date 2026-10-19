@@ -1,5 +1,6 @@
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { AppTopbar } from "@/components/layout/AppTopbar";
+import { MobilNav } from "@/components/layout/MobilNav";
 import { hentIndstillinger } from "@/lib/analysis";
 import { kraevBruger } from "@/lib/auth";
 import { kanLaese } from "@/lib/roller";
@@ -29,9 +30,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         omraader={{ salg: kanLaese(bruger.ret.salg), teknik: kanLaese(bruger.ret.teknik) }}
       />
       <div className="lg:pl-[var(--sidebar-width)]">
-        <AppTopbar bruger={bruger} />
-        <main className="p-5 lg:p-7 animate-in">{children}</main>
+        <AppTopbar bruger={bruger} maerke={{ logo: i.brandLogo, tekst: i.brandMarkText }} />
+        <main className="px-4 pt-4 pb-[calc(84px+env(safe-area-inset-bottom))] sm:px-5 sm:pt-5 lg:p-7 animate-in">{children}</main>
       </div>
+      <MobilNav
+        brand={{ subtitle: i.brandSubtitle, markText: i.brandMarkText, logo: i.brandLogo }}
+        hotAntal={hotAntal}
+        visIndstillinger={bruger.ret.indstillinger}
+        omraader={{ salg: kanLaese(bruger.ret.salg), teknik: kanLaese(bruger.ret.teknik) }}
+        bruger={bruger}
+      />
     </div>
   );
 }

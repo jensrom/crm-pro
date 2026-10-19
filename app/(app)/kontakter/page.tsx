@@ -32,7 +32,7 @@ export default async function KontakterSide() {
             <EmptyState title="Ingen kontakter endnu" icon={Users} description="Tilføj dem fra den enkelte kundes side." />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="mobilkort w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground border-b border-border">
                     <th className="px-5 py-2.5 font-medium">Navn</th>
@@ -58,8 +58,8 @@ export default async function KontakterSide() {
                           "–"
                         )}
                       </td>
-                      <td className="px-3 py-2.5 text-muted-foreground">{c.title ?? "–"}</td>
-                      <td className="px-3 py-2.5 text-muted-foreground">{label(BESLUTNINGSROLLER, c.decisionRole ?? "")}</td>
+                      <td className="px-3 py-2.5 text-muted-foreground" data-mobil={c.title ? undefined : "skjul"}>{c.title ?? "–"}</td>
+                      <td className="px-3 py-2.5 text-muted-foreground" data-mobil={c.decisionRole ? undefined : "skjul"}>{label(BESLUTNINGSROLLER, c.decisionRole ?? "")}</td>
                       <td className="px-5 py-2.5">
                         <div className="flex flex-col gap-0.5">
                           {c.email && (

@@ -18,7 +18,7 @@ const BESKEDER: Record<string, string> = {
   "profil-gemt": "Afsenderprofilen er gemt.",
   "profil-slettet": "Afsenderprofilen er slettet.",
 };
-const FEJL: Record<string, string> = { "profil-navn": "Afsenderprofilen skal have et navn, fx Horsens." };
+const FEJL: Record<string, string> = { "profil-navn": "Afsenderprofilen skal have et navn, fx Aarhus." };
 
 type Profil = Awaited<ReturnType<typeof db.senderProfile.findMany>>[number] & { _count: { users: number } };
 
@@ -26,10 +26,10 @@ type Profil = Awaited<ReturnType<typeof db.senderProfile.findMany>>[number] & { 
 function ProfilFelter({ p, fx }: { p?: Profil; fx: string }) {
   return (
     <>
-      <div><Label htmlFor={`${fx}navn`}>Navn på profilen</Label><Input id={`${fx}navn`} name="name" required defaultValue={p?.name ?? ""} placeholder="fx Horsens" /></div>
-      <div><Label htmlFor={`${fx}af`}>Afdeling (dokumenthoved)</Label><Input id={`${fx}af`} name="department" defaultValue={p?.department ?? ""} placeholder="fx Novotek A/S, Horsens" /></div>
+      <div><Label htmlFor={`${fx}navn`}>Navn på profilen</Label><Input id={`${fx}navn`} name="name" required defaultValue={p?.name ?? ""} placeholder="fx Aarhus" /></div>
+      <div><Label htmlFor={`${fx}af`}>Afdeling (dokumenthoved)</Label><Input id={`${fx}af`} name="department" defaultValue={p?.department ?? ""} placeholder="fx Nordvik Systems ApS, Aarhus" /></div>
       <div><Label htmlFor={`${fx}a`}>Adresse</Label><Input id={`${fx}a`} name="address" defaultValue={p?.address ?? ""} /></div>
-      <div><Label htmlFor={`${fx}z`}>Postnr. og by</Label><Input id={`${fx}z`} name="zipCity" defaultValue={p?.zipCity ?? ""} placeholder="fx 8700 Horsens" /></div>
+      <div><Label htmlFor={`${fx}z`}>Postnr. og by</Label><Input id={`${fx}z`} name="zipCity" defaultValue={p?.zipCity ?? ""} placeholder="fx 8000 Aarhus C" /></div>
       <div><Label htmlFor={`${fx}t`}>Telefon (hovednummer)</Label><Input id={`${fx}t`} name="phone" defaultValue={p?.phone ?? ""} /></div>
       <div><Label htmlFor={`${fx}m`}>Mail (fælles)</Label><Input id={`${fx}m`} name="email" type="email" defaultValue={p?.email ?? ""} /></div>
       <details className="sm:col-span-2 group">
@@ -83,7 +83,7 @@ export default async function DokumentIndstillinger({ searchParams }: { searchPa
       <Card>
         <CardHeader
           title="Afsenderprofiler"
-          description="Én profil pr. afdeling, fx Horsens og Glostrup. Brugerens afdeling vælger profilen på nye tilbud og ordrer. Navn, mail og telefon på sælgeren kommer altid fra den bruger, der opretter dokumentet."
+          description="Én profil pr. afdeling, fx Aarhus og Odense. Brugerens afdeling vælger profilen på nye tilbud og ordrer. Navn, mail og telefon på sælgeren kommer altid fra den bruger, der opretter dokumentet."
         />
         <CardBody className="flex flex-col gap-3">
           {profiler.length === 0 && (
@@ -131,8 +131,8 @@ export default async function DokumentIndstillinger({ searchParams }: { searchPa
             description="Bruges i dokumenterne, når afsenderprofilen ikke selv udfylder feltet — typisk firmanavn, CVR, web og bank."
           />
           <CardBody className="grid sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2"><Label htmlFor="n">Firmanavn</Label><Input id="n" name="docCompanyName" defaultValue={s?.docCompanyName ?? ""} placeholder="fx Novotek Danmark A/S" /></div>
-            <div><Label htmlFor="af">Afdeling (dokumenthoved)</Label><Input id="af" name="docDepartment" defaultValue={s?.docDepartment ?? ""} placeholder="fx Novotek A/S, Horsens" /></div>
+            <div className="sm:col-span-2"><Label htmlFor="n">Firmanavn</Label><Input id="n" name="docCompanyName" defaultValue={s?.docCompanyName ?? ""} placeholder="fx Nordvik Systems ApS" /></div>
+            <div><Label htmlFor="af">Afdeling (dokumenthoved)</Label><Input id="af" name="docDepartment" defaultValue={s?.docDepartment ?? ""} placeholder="fx Nordvik Systems ApS, Aarhus" /></div>
             <div><Label htmlFor="c">CVR</Label><Input id="c" name="docCvr" defaultValue={s?.docCvr ?? ""} /></div>
             <div><Label htmlFor="a">Adresse</Label><Input id="a" name="docAddress" defaultValue={s?.docAddress ?? ""} /></div>
             <div><Label htmlFor="z">Postnr. og by</Label><Input id="z" name="docZipCity" defaultValue={s?.docZipCity ?? ""} /></div>

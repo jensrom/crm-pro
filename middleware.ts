@@ -8,7 +8,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * (aktiv/spærret, rolle) slås op i databasen af siderne og handlingerne bagefter.
  */
 const COOKIE = "crmpro_session";
-const AABNE = ["/login", "/opsaetning", "/ingen-adgang"];
+const AABNE = ["/login", "/opsaetning", "/ingen-adgang", "/manifest.webmanifest", "/apple-icon"];
 
 async function gyldig(vaerdi: string | undefined) {
   if (!vaerdi) return false;

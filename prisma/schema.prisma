@@ -413,13 +413,13 @@ model User {
   @@map("users")
 }
 
-/// Afsenderprofil / afdeling, fx Horsens og Glostrup. Felter der står tomme,
+/// Afsenderprofil / afdeling, fx Aarhus og Odense. Felter der står tomme,
 /// hentes fra de fælles afsenderoplysninger under Indstillinger → Dokumenter.
 model SenderProfile {
   id          String  @id @default(cuid())
   /// Kort navn i lister, fx "Horsens"
   name        String
-  /// Afdeling i dokumenthovedet, fx "Novotek A/S, Horsens"
+  /// Afdeling i dokumenthovedet, fx "Nordvik Systems ApS, Aarhus"
   department  String?
   companyName String?
   cvr         String?
@@ -646,7 +646,7 @@ model Settings {
 
   // --- Dokumenter (licensbevis og ordrebekræftelse) ---
   docCompanyName  String?
-  /// Afdeling i dokumenthovedet, fx "Novotek A/S, Horsens"
+  /// Afdeling i dokumenthovedet, fx "Nordvik Systems ApS, Aarhus"
   docDepartment   String?
   docCvr          String?
   docAddress      String?

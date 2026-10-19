@@ -278,7 +278,7 @@ export default async function KundeSide({
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="kpi-grid grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-5">
         <div className="bg-card border border-border rounded-xl px-5 py-4">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Licenser</div>
           <div className="mt-1 text-2xl font-semibold tabular">{n.aktive} / {n.seats}</div>

@@ -3,67 +3,8 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
-import {
-  LayoutDashboard,
-  Building2,
-  Users,
-  KanbanSquare,
-  Package,
-  CalendarClock,
-  Inbox,
-  LifeBuoy,
-  Scissors,
-  Settings,
-  Flame,
-  PackagePlus,
-  FileText,
-  RefreshCw,
-} from "lucide-react";
-
-type NavItem = { label: string; href: string; icon: React.ElementType; boern?: NavItem[]; skilleFoer?: boolean };
-
-const SEKTIONER: { sektion: string; punkter: NavItem[] }[] = [
-  {
-    sektion: "Overblik",
-    punkter: [{ label: "Dashboard", href: "/dashboard", icon: LayoutDashboard }],
-  },
-  {
-    sektion: "Kunder",
-    punkter: [
-      {
-        label: "Kunder",
-        href: "/kunder",
-        icon: Building2,
-        boern: [
-          { label: "Kontakter", href: "/kontakter", icon: Users },
-          { label: "Hot", href: "/kunder?hot=1", icon: Flame },
-        ],
-      },
-    ],
-  },
-  {
-    sektion: "Salg",
-    punkter: [
-      { label: "Leads", href: "/leads", icon: Inbox },
-      { label: "Opportunities", href: "/opportunities", icon: KanbanSquare },
-      { label: "Ordreliste", href: "/ordrer", icon: FileText },
-      { label: "Fornyelser", href: "/fornyelser", icon: RefreshCw, skilleFoer: true },
-      { label: "Tilkøb", href: "/tilkoeb", icon: PackagePlus },
-      { label: "Produkter", href: "/produkter", icon: Package },
-    ],
-  },
-  {
-    sektion: "Teknik",
-    punkter: [
-      { label: "Sager", href: "/teknik/sager", icon: LifeBuoy },
-      { label: "Klippekort", href: "/teknik/klippekort", icon: Scissors },
-    ],
-  },
-  {
-    sektion: "Arbejde",
-    punkter: [{ label: "Aktiviteter", href: "/aktiviteter", icon: CalendarClock }],
-  },
-];
+import { Settings } from "lucide-react";
+import { synligeSektioner, erAktiv, type NavItem } from "./navigation";
 
 export type Brand = {
   subtitle: string | null;
@@ -91,23 +32,10 @@ export function AppSidebar({
   /** Hvilke områder brugerens rolle giver adgang til */
   omraader?: { salg: boolean; teknik: boolean };
 }) {
-  const synlige = SEKTIONER.filter((s) =>
-    s.sektion === "Salg" || s.sektion === "Arbejde" ? omraader.salg : s.sektion === "Teknik" ? omraader.teknik : true
-  );
+  const synlige = synligeSektioner(omraader);
   const sti = usePathname();
   const soegeparametre = useSearchParams();
-  const aktiv = (href: string) => {
-    const [hrefSti, hrefQuery] = href.split("?");
-    if (hrefQuery) {
-      if (sti !== hrefSti) return false;
-      const hrefParametre = new URLSearchParams(hrefQuery);
-      for (const [k, v] of hrefParametre.entries()) {
-        if (soegeparametre.get(k) !== v) return false;
-      }
-      return true;
-    }
-    return sti === hrefSti || sti.startsWith(hrefSti + "/");
-  };
+  const aktiv = (href: string) => erAktiv(href, sti, soegeparametre);
   const undertekst = brand.subtitle ?? "Idus Online · DK & FO";
   const maerke = (brand.markText ?? "CP").slice(0, 3);
 

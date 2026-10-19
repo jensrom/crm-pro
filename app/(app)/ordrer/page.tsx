@@ -71,7 +71,7 @@ export default async function OrdrelisteSide({
         <Card className="border-success/40 bg-success/[0.06]"><CardBody className="text-sm">Ordren er slettet. PDF'en i kundens filboks er bevaret.</CardBody></Card>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="kpi-grid grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
         <StatCard label="Ordrer i alt" value={tal(ordreDok.length)} sub={`${tal(tilbud.length)} tilbud`} />
         <StatCard label={`Ordreværdi ${nu.getFullYear()}`} value={sumIAar > 0 ? kroner(sumIAar) : "–"} sub={`${tal(iAar.length)} ordrer i år`} highlight />
         <StatCard label="Gyldige tilbud" value={tal(aabneTilbud.length)} sub="ikke udløbet" />
@@ -90,7 +90,7 @@ export default async function OrdrelisteSide({
           }
         />
 
-        <div className="px-5 py-3 border-b border-border flex flex-wrap items-center gap-3">
+        <div className="px-4 sm:px-5 py-3 border-b border-border flex flex-wrap items-center gap-3">
           <div className="flex rounded-lg border border-border overflow-hidden text-xs">
             {([["", "Alle"], ["ordre", "Ordrer"], ["tilbud", "Tilbud"]] as const).map(([k, l]) => (
               <Link
@@ -102,12 +102,12 @@ export default async function OrdrelisteSide({
               </Link>
             ))}
           </div>
-          <form action="/ordrer" className="flex items-center gap-2 ml-auto">
+          <form action="/ordrer" className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
             {kunde && <input type="hidden" name="kunde" value={kunde} />}
             {type && <input type="hidden" name="type" value={type} />}
-            <div className="relative">
+            <div className="relative flex-1 sm:flex-none">
               <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input name="q" defaultValue={soeg} placeholder="Nummer, kunde eller reference" className="h-8 text-xs pl-8 w-64" />
+              <Input name="q" defaultValue={soeg} placeholder="Nummer, kunde eller reference" className="h-8 text-xs pl-8 w-full sm:w-64" />
             </div>
             {(soeg || kunde) && <Link href={href({ q: undefined, kunde: undefined })} className="text-xs text-primary hover:underline">Nulstil</Link>}
           </form>
@@ -118,7 +118,7 @@ export default async function OrdrelisteSide({
             <div className="px-5"><EmptyState title={soeg ? "Ingen dokumenter matcher" : "Ingen tilbud eller ordrer endnu"} icon={FileText} /></div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="mobilkort w-full text-sm">
                 <thead>
                   <tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground border-b border-border bg-card">
                     <th className="px-5 py-2.5 font-medium">Nummer</th>

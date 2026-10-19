@@ -3,6 +3,17 @@
 Alt herunder er bygget oven på CRM-Pro 1.0.2. Den nyeste udgave kører på Vercel med Postgres (Neon).
 Opsætning og flytning af data står i `README.md`.
 
+## Mobil og anonymisering (19. oktober 2026)
+
+- **Mobil:** fast bundmenu (Overblik, Kunder, Salg, Sager, Menu) og en menuskuffe med resten,
+  nøgletal i to kolonner, lister som kort, faner og filtre der ruller vandret, 16 px felter
+  (ingen iOS-zoom), safe-area til notch/hjem-linje og "Føj til hjemmeskærm" (manifest + ikon).
+- **Anonymisering:** ingen henvisninger til den tidligere forhandler i kode, standardbetingelser eller
+  pladsholdere. Betingelserne bruger nu den neutrale part *the Supplier* / *leverandøren*.
+  `scripts/anonymiser.mjs` kører ved hver udrulning (`vercel-build`) og retter data der allerede
+  ligger i databasen: afsenderprofiler, dokumentoplysninger, gemte betingelser og alle øvrige
+  tekstfelter. Brugerne røres ikke. Kan også køres lokalt med `npm run db:anonymiser`.
+
 ## 1. Katalog: produkt → licenser (kun superadmin)
 
 - **Indstillinger → Katalog** med to niveauer: produkter (fx *Idus*) og licenserne under dem
@@ -13,7 +24,7 @@ Opsætning og flytning af data står i `README.md`.
   fremtidig dato venter og træder automatisk i kraft. Planlagte ændringer kan annulleres.
   Kunder med aftalt pris berøres ikke.
 - Pr. produkt: **kommercielle betingelser** og **generelle betingelser (T&C)**. Idus er forudfyldt med
-  Novoteks tekster. Linjen "Gyldighed" vises kun på tilbud.
+  standardteksterne. Linjen "Gyldighed" vises kun på tilbud.
 - Pr. licens: **tekst på tilbud og ordrebekræftelser** (beskrivelsen under positionen).
 - Salg → Produkter er nu kun til at se; redigering sker i Katalog.
 
@@ -47,7 +58,7 @@ Opsætning og flytning af data står i `README.md`.
   (påbegyndt måned tæller som hel), knapper til 12/24/36 måneder og
   **Synk til aftalen / Synk + næste periode**, så en ekstra licens følger kundens løbetid (fx 13–14 mdr.).
 - "Opdatér kundens aftaler": fornyelser flytter aftalens udløb, nye licenser registreres som tilkøb.
-- PDF-layout som Novoteks ordreskabelon: modtager til venstre, sælger/afdeling/ref./ordre- og tilbudsnr./
+- PDF-layout som en klassisk dansk ordreskabelon: modtager til venstre, sælger/afdeling/ref./ordre- og tilbudsnr./
   dato/side til højre, indledning med pladsholdere (%KUNDENAVN%, %KONTAKTPERSON%, %BRUGERENS NAVN%),
   positioner med beskrivelse, periode og "Pris netto pos. N", samlet nettopris, kommercielle
   betingelser, hilsen og T&C på egne sider. Brevfod i tre kolonner, logo på hver side.

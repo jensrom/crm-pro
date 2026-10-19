@@ -323,7 +323,7 @@ class Dok {
       this.sider[0].drawText(`1 af ${this.sider.length}`, { x: this.sideFelt.x, y: this.sideFelt.y, size: 9, font: this.f, color: SORT });
     }
     const a = this.afsender;
-    // Tre kolonner som Novoteks brevfod: firma | bank og CVR | afdeling
+    // Tre kolonner i brevfoden: firma | bank og CVR | afdeling
     const kol1 = [a.navn, a.adresse, a.postby, a.telefon ? `Tlf. ${a.telefon}` : null].filter(Boolean) as string[];
     const kol2 = [...(a.bank ?? "").split("\n").map((x) => x.trim()).filter(Boolean), a.cvr ? `CVR: ${a.cvr}` : null].filter(Boolean) as string[];
     const kol3 = [a.afdeling, a.mail, a.web].filter(Boolean) as string[];
@@ -430,7 +430,7 @@ export async function lavLicensbevis(d: {
 
 // ============================================================
 // TILBUD OG ORDREBEKRÆFTELSE
-// Opbygget som Novoteks egne dokumenter: modtager til venstre, sælgerens
+// Opbygget som en klassisk dansk forretningsdokument-skabelon: modtager til venstre, sælgerens
 // oplysninger til højre, en indledning og derefter positionerne én for én
 // med beskrivelse, periode og nettopris. Til sidst samlet nettopris,
 // kommercielle betingelser, hilsen og de generelle betingelser.

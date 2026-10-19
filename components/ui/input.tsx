@@ -6,7 +6,7 @@ const felt =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring disabled:opacity-50";
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
-  ({ className, ...props }, ref) => <input ref={ref} className={cn(felt, "h-9", className)} {...props} />
+  ({ className, ...props }, ref) => <input ref={ref} className={cn(felt, "h-10 sm:h-9", className)} {...props} />
 );
 Input.displayName = "Input";
 
@@ -17,7 +17,7 @@ Textarea.displayName = "Textarea";
 
 export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(
   ({ className, children, ...props }, ref) => (
-    <select ref={ref} className={cn(felt, "h-9 pr-8", className)} {...props}>
+    <select ref={ref} className={cn(felt, "h-10 sm:h-9 pr-8", className)} {...props}>
       {children}
     </select>
   )
