@@ -16,17 +16,17 @@ import {
 
 /**
  * Farverne er valideret for farveblindhed mod både lys og mørk flade.
- * Lys: #4B4F57 / #7FA08F · Mørk: #C3C6CC / #7FA08F
+ * Glossy glas: blå søjler, kølige gitterlinjer. Lys og mørk har hver sin kontrast.
  */
 function farver(moerk: boolean) {
   return {
-    serie1: moerk ? "#C3C6CC" : "#4B4F57",
-    serie2: moerk ? "#7FA08F" : "#7FA08F",
-    gitter: moerk ? "#2C2D31" : "#E2E3E5",
-    tekst: moerk ? "#8F9298" : "#6C6F76",
-    flade: moerk ? "#222326" : "#F9F9FA",
-    kant: moerk ? "#2C2D31" : "#DBDCDF",
-    ink: moerk ? "#D6D8DC" : "#30333A",
+    serie1: moerk ? "#6CB4FF" : "#2A72C4",
+    serie2: moerk ? "#7FE0B5" : "#1F7A55",
+    gitter: moerk ? "rgba(255,255,255,.08)" : "rgba(12,32,58,.09)",
+    tekst: moerk ? "#A3B3C6" : "#3D5168",
+    flade: moerk ? "#162030" : "#FFFFFF",
+    kant: moerk ? "rgba(255,255,255,.14)" : "rgba(12,32,58,.14)",
+    ink: moerk ? "#E3EAF3" : "#0F1F33",
   };
 }
 
@@ -141,7 +141,7 @@ export function UdnyttelseDiagram({ data }: { data: { baand: string; antal: numb
           <Bar dataKey="antal" radius={0} maxBarSize={64}>
             <LabelList dataKey="antal" position="top" style={{ fill: c.tekst, fontSize: 11, fontWeight: 600 }} />
             {data.map((d, i) => (
-              <Cell key={i} fill={d.fuld ? "#B1434F" : c.serie1} />
+              <Cell key={i} fill={d.fuld ? (c.serie1 === "#6CB4FF" ? "#FF9AA8" : "#A82234") : c.serie1} />
             ))}
           </Bar>
         </BarChart>

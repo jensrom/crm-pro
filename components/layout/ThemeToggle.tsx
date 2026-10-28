@@ -34,7 +34,7 @@ export function ThemeToggle({ stor = false }: { stor?: boolean }) {
     <button
       onClick={skift}
       aria-label={moerk ? "Skift til lyst tema" : "Skift til mørkt tema"}
-      className={`${stor ? "h-10 w-10" : "h-8 w-8"} grid place-items-center rounded-lg border border-border hover:bg-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+      className={`${stor ? "h-10 w-10" : "h-9 w-9"} grid place-items-center rounded-lg knap-glas`}
     >
       {moerk ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
     </button>

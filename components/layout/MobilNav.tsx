@@ -73,8 +73,8 @@ export function MobilNav({
       {/* ---------- Bundmenu ---------- */}
       <nav
         aria-label="Hovedmenu"
-        className="lg:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 backdrop-blur-md"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        className="glas glas-nav lg:hidden fixed left-3 right-3 z-40 rounded-xl px-0.5"
+        style={{ bottom: "calc(10px + env(safe-area-inset-bottom))" }}
       >
         <ul className="flex items-stretch">
           {faste.map((p) => {
@@ -86,12 +86,12 @@ export function MobilNav({
                   aria-current={on ? "page" : undefined}
                   className={cn(
                     "relative flex h-[60px] flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors",
-                    on ? "text-foreground" : "text-muted-foreground active:text-foreground"
+                    on ? "text-primary font-semibold" : "text-muted-foreground active:text-foreground"
                   )}
                 >
-                  <span className={cn("absolute top-0 inset-x-5 h-[2px] transition-colors", on ? "bg-foreground" : "bg-transparent")} />
-                  <p.icon className="h-[22px] w-[22px]" strokeWidth={on ? 2.1 : 1.7} />
-                  {p.label}
+                  <span aria-hidden className={cn("absolute inset-x-1 inset-y-1.5 rounded-lg transition-opacity", on ? "nav-on opacity-100" : "opacity-0")} />
+                  <p.icon className="relative h-[22px] w-[22px]" strokeWidth={on ? 2.1 : 1.7} />
+                  <span className="relative">{p.label}</span>
                 </Link>
               </li>
             );
@@ -104,15 +104,15 @@ export function MobilNav({
               aria-controls="mobilmenu"
               className={cn(
                 "relative flex h-[60px] w-full flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors",
-                aaben || ingenFastAktiv ? "text-foreground" : "text-muted-foreground"
+                aaben || ingenFastAktiv ? "text-primary font-semibold" : "text-muted-foreground"
               )}
             >
-              <span className={cn("absolute top-0 inset-x-5 h-[2px]", ingenFastAktiv ? "bg-foreground" : "bg-transparent")} />
+              <span aria-hidden className={cn("absolute inset-x-1 inset-y-1.5 rounded-lg transition-opacity", ingenFastAktiv ? "nav-on opacity-100" : "opacity-0")} />
               <span className="relative">
                 <Menu className="h-[22px] w-[22px]" strokeWidth={ingenFastAktiv ? 2.1 : 1.7} />
-                {hotAntal > 0 && <span className="absolute -top-0.5 -right-1 h-2 w-2 bg-orange-500" />}
+                {hotAntal > 0 && <span className="absolute -top-0.5 -right-1 h-2 w-2 rounded-full bg-hot" />}
               </span>
-              Menu
+              <span className="relative">Menu</span>
             </button>
           </li>
         </ul>
@@ -136,19 +136,19 @@ export function MobilNav({
           aria-modal="true"
           aria-label="Menu"
           className={cn(
-            "absolute inset-x-0 bottom-0 flex max-h-[88dvh] flex-col border-t border-border bg-background shadow-[0_-12px_40px_rgba(20,22,26,0.18)]",
+            "glas glas-nav absolute inset-x-0 bottom-0 flex max-h-[88dvh] flex-col rounded-t-xl !bg-[color:var(--glas-solid)]",
             "transition-transform duration-300 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)]",
             aaben ? "translate-y-0" : "translate-y-full"
           )}
           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         >
           {/* Hoved: mærke og bruger */}
-          <div className="flex items-center gap-3 border-b border-border px-4 py-3.5">
+          <div className="flex items-center gap-3 border-b border-[color:var(--linje)] px-4 py-3.5">
             {brand.logo ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img src={brand.logo} alt="Logo" className="h-9 w-9 object-contain bg-white/90 p-0.5 shrink-0" />
             ) : (
-              <div className="h-9 w-9 bg-primary grid place-items-center text-primary-foreground text-xs font-bold shrink-0">{maerke}</div>
+              <div className="knap-glossy h-9 w-9 rounded-md grid place-items-center text-xs font-bold shrink-0">{maerke}</div>
             )}
             <div className="min-w-0 flex-1">
               <div className="font-serif text-[15px] font-semibold leading-tight">CRM-Pro</div>
@@ -158,7 +158,7 @@ export function MobilNav({
               type="button"
               onClick={() => setAaben(false)}
               aria-label="Luk menu"
-              className="h-10 w-10 grid place-items-center border border-border text-muted-foreground active:bg-secondary"
+              className="knap-glas h-10 w-10 rounded-md grid place-items-center !text-muted-foreground"
             >
               <X className="h-5 w-5" />
             </button>
@@ -178,14 +178,14 @@ export function MobilNav({
                         href={p.href}
                         aria-current={on ? "page" : undefined}
                         className={cn(
-                          "flex h-12 items-center gap-2.5 border px-3 text-sm font-medium transition-colors",
-                          on ? "border-foreground/25 bg-secondary text-foreground" : "border-border bg-card text-foreground/85 active:bg-secondary"
+                          "flex h-12 items-center gap-2.5 rounded-md px-3 text-sm font-medium transition-colors",
+                          on ? "nav-on text-foreground" : "bg-[color:var(--hover)] shadow-[0_0_0_1px_var(--linje)] text-foreground/90 active:bg-secondary"
                         )}
                       >
                         <p.icon className={cn("h-[18px] w-[18px] shrink-0", erHot ? "text-orange-500" : "text-muted-foreground")} />
                         <span className="truncate">{p.label}</span>
                         {erHot && hotAntal > 0 && (
-                          <span className="ml-auto text-[10px] font-semibold tabular-nums px-1.5 py-0.5 bg-orange-500 text-white">{hotAntal}</span>
+                          <span className="ml-auto rounded-sm text-[10px] font-semibold tabular-nums px-1.5 py-0.5 bg-hot text-white">{hotAntal}</span>
                         )}
                       </Link>
                     );
@@ -197,8 +197,8 @@ export function MobilNav({
               <Link
                 href="/indstillinger"
                 className={cn(
-                  "mt-1 flex h-12 items-center gap-2.5 border px-3 text-sm font-medium",
-                  aktiv("/indstillinger") ? "border-foreground/25 bg-secondary" : "border-border bg-card active:bg-secondary"
+                  "mt-1 flex h-12 items-center gap-2.5 rounded-md px-3 text-sm font-medium",
+                  aktiv("/indstillinger") ? "nav-on" : "bg-[color:var(--hover)] shadow-[0_0_0_1px_var(--linje)] active:bg-secondary"
                 )}
               >
                 <Settings className="h-[18px] w-[18px] text-muted-foreground" />
@@ -208,8 +208,8 @@ export function MobilNav({
           </div>
 
           {/* Fod: bruger, tema og log ud */}
-          <div className="flex items-center gap-3 border-t border-border px-4 py-3">
-            <div className="h-9 w-9 grid place-items-center bg-secondary text-xs font-semibold tracking-wide shrink-0">{bruger.initials}</div>
+          <div className="flex items-center gap-3 border-t border-[color:var(--linje)] px-4 py-3">
+            <div className="knap-glas h-9 w-9 rounded-md grid place-items-center text-xs font-semibold tracking-wide shrink-0">{bruger.initials}</div>
             <div className="min-w-0 flex-1">
               <div className="text-sm font-medium truncate flex items-center gap-1.5">
                 {bruger.erSuperAdmin ? <Crown className="h-3.5 w-3.5" /> : bruger.erAdmin && <ShieldCheck className="h-3.5 w-3.5" />}
@@ -219,7 +219,7 @@ export function MobilNav({
             </div>
             <ThemeToggle stor />
             <form action={logUd}>
-              <button type="submit" aria-label="Log ud" className="h-10 w-10 grid place-items-center border border-border active:bg-secondary">
+              <button type="submit" aria-label="Log ud" className="knap-glas h-10 w-10 rounded-md grid place-items-center">
                 <LogOut className="h-[18px] w-[18px]" />
               </button>
             </form>

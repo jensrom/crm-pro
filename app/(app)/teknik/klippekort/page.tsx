@@ -92,9 +92,9 @@ export default async function KlippekortSide({
                         <td className="px-3 py-2.5 text-right tabular">{varighed(k.usedMinutes)}</td>
                         <td className={cn("px-3 py-2.5 text-right tabular font-medium", s.restMin <= 0 && "text-danger")}>{varighed(s.restMin)}</td>
                         <td className="px-3 py-2.5">
-                          <div className="h-2 rounded-none bg-secondary overflow-hidden" role="img" aria-label={`${Math.round(s.forbrugt * 100)} procent brugt`}>
+                          <div className="h-2 rounded-sm bg-secondary overflow-hidden" role="img" aria-label={`${Math.round(s.forbrugt * 100)} procent brugt`}>
                             <div
-                              className="h-full rounded-none"
+                              className="h-full rounded-sm"
                               style={{
                                 width: `${Math.min(100, Math.max(0, s.forbrugt * 100))}%`,
                                 background: s.opbrugt ? "#B91C1C" : s.naestenOpbrugt ? "#B45309" : "#047857",

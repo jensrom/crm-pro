@@ -20,14 +20,15 @@ const config: Config = {
         accent: { DEFAULT: "hsl(var(--accent))", foreground: "hsl(var(--accent-foreground))" },
         popover: { DEFAULT: "hsl(var(--popover))", foreground: "hsl(var(--popover-foreground))" },
         card: { DEFAULT: "hsl(var(--card))", foreground: "hsl(var(--card-foreground))" },
-        // Signalfarver: dæmpede toner, der kun bruges til status og advarsler.
-        success: { DEFAULT: "#3f8a68", foreground: "#f9f9fa", light: "#e1ece6" }, // salviegrøn
-        warning: { DEFAULT: "#b07a2a", foreground: "#f9f9fa", light: "#f1e8d9" }, // okker
-        danger:  { DEFAULT: "#b1434f", foreground: "#f9f9fa", light: "#f2e1e3" }, // dæmpet rød
-        info:    { DEFAULT: "#4a7393", foreground: "#f9f9fa", light: "#e2e9ef" }, // stålblå
+        // Signalfarver som rgb-tripler i globals.css, så de skifter med temaet.
+        success: { DEFAULT: "rgb(var(--success-rgb) / <alpha-value>)", foreground: "#ffffff" },
+        warning: { DEFAULT: "rgb(var(--warning-rgb) / <alpha-value>)", foreground: "#ffffff" },
+        danger:  { DEFAULT: "rgb(var(--danger-rgb) / <alpha-value>)", foreground: "#ffffff" },
+        info:    { DEFAULT: "rgb(var(--info-rgb) / <alpha-value>)", foreground: "#ffffff" },
+        hot: "#b84e14",
       },
-      // Kantet stil ("arkitekt"): flader (kort, paneler) får --radius-flade,
-      // alt andet — knapper, felter, tags, rækker — står skarpt.
+      // "Blank is": flader (kort, paneler) får --radius-flade (8 px),
+      // knapper, felter, tags og rækker --radius (4 px).
       borderRadius: {
         DEFAULT: "var(--radius)",
         sm: "var(--radius)",

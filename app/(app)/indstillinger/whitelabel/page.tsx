@@ -14,7 +14,7 @@ const FEJL: Record<string, string> = {
 };
 
 const BESKEDER: Record<string, string> = {
-  gemt: "Udseendet er gemt.",
+  gemt: "Logo og undertekst er gemt.",
   note: "Noten om datagrundlaget er gemt.",
 };
 
@@ -46,8 +46,8 @@ export default async function WhitelabelSide({
 
       <Card>
         <CardHeader
-          title="Udseende"
-          description="Logo og undertekst i sidebjælken. Navnet CRM-Pro står fast."
+          title="Logo og undertekst"
+          description="Logo og undertekst i sidebjælken. Navnet CRM-Pro står fast. Baggrund og glas styres under Udseende."
         />
         <CardBody>
           <form action={gemWhitelabel} className="flex flex-col gap-5">

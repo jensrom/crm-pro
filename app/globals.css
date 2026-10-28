@@ -6,88 +6,144 @@
 
 @layer base {
   :root {
-    /* CRM-Pro 2026 — dæmpet neutral grå. Ingen ren hvid, ingen ren sort og
-       ingen farvetone i fladerne; farve er forbeholdt status og signaler.
-       Alle værdier er HSL-tripler, som komponentbiblioteket forventer. */
-    --background: 220 6% 94.5%;      /* #eff0f1 */
-    --foreground: 220 7% 20%;        /* #30333a — blødere end sort */
+    /* CRM-Pro — glossy glas, lyst tema ("blank is").
+       HSL-tripler til komponentbiblioteket; glas-værdierne nederst er rå CSS. */
+    --background: 210 38% 94%;       /* #eaf0f6 */
+    --foreground: 213 55% 13%;       /* #0f1f33 */
 
-    --card: 220 8% 98%;              /* #f9f9fa — off-white */
-    --card-foreground: 220 7% 20%;
+    --card: 0 0% 100%;
+    --card-foreground: 213 55% 13%;
 
-    --popover: 220 8% 98%;
-    --popover-foreground: 220 7% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 213 55% 13%;
 
-    --primary: 220 7% 24%;           /* grafit #383b42 */
-    --primary-foreground: 220 8% 97%;
+    --primary: 212 65% 46%;          /* #2a72c4 — glossy blå */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 6% 90.5%;       /* #e5e6e8 */
-    --secondary-foreground: 220 6% 28%;
+    --secondary: 210 33% 91%;
+    --secondary-foreground: 213 45% 20%;
 
-    --muted: 220 6% 90.5%;
-    --muted-foreground: 220 5% 45%;  /* #6c6f76 */
+    --muted: 210 30% 90%;
+    --muted-foreground: 213 26% 32%; /* #3d5168 — 7:1 på glas */
 
-    --accent: 220 6% 32%;
-    --accent-foreground: 220 8% 97%;
+    --accent: 212 65% 46%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 352 45% 48%;      /* dæmpet rød #b1434f */
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 352 66% 40%;      /* #a82234 */
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 220 6% 86.5%;          /* #dbdcdf */
-    --input: 220 6% 84%;
-    --ring: 220 5% 55%;
+    --border: 212 28% 84%;
+    --input: 212 25% 78%;
+    --ring: 212 65% 46%;
 
-    --radius: 0px;
-    --radius-flade: 2px;
+    /* Signalfarver (rgb-tripler) */
+    --success-rgb: 31 122 85;
+    --warning-rgb: 139 90 16;
+    --danger-rgb: 168 34 52;
+    --info-rgb: 30 96 160;
 
-    /* Sidebaren: en tone mørkere end indholdet, aktivt punkt som grå flade. */
-    --sidebar-bg: 220 6% 92%;        /* #e9eaec */
-    --sidebar-fg: 220 5% 40%;
-    --sidebar-fg-strong: 220 8% 17%;
-    --sidebar-active-bg: 220 6% 85%; /* #d6d8db */
-    --sidebar-active-fg: 220 9% 15%;
-    --sidebar-hover-bg: 220 6% 88.5%;
-    --sidebar-border: 220 6% 86.5%;
+    /* Blank is: let afrundede hjørner */
+    --radius: 4px;
+    --radius-flade: 8px;
+
+    --sidebar-bg: 0 0% 100%;
+    --sidebar-fg: 213 26% 32%;
+    --sidebar-fg-strong: 213 60% 11%;
+    --sidebar-active-bg: 0 0% 100%;
+    --sidebar-active-fg: 213 60% 11%;
+    --sidebar-hover-bg: 0 0% 100%;
+    --sidebar-border: 212 28% 84%;
     --sidebar-width: 240px;
     --topbar-height: 56px;
+
+    /* Glas */
+    --glas-top: rgba(255,255,255,.70);
+    --glas-bund: rgba(255,255,255,.46);
+    --glas-solid: rgba(250,252,254,.94);
+    --glans: rgba(255,255,255,.80);
+    --rim: #ffffff;
+    --rim-svag: rgba(255,255,255,.10);
+    --kant: rgba(12,32,58,.10);
+    --skygge: rgba(12,32,58,.18);
+    --skygge-tung: rgba(12,32,58,.26);
+    --linje: rgba(12,32,58,.09);
+    --felt: rgba(255,255,255,.90);
+    --felt-kant: rgba(12,32,58,.18);
+    --placeholder: #5b6c80;
+    --spor: rgba(12,32,58,.07);
+    --pille-top: #ffffff;
+    --pille-bund: rgba(255,255,255,.86);
+    --knap2-top: #ffffff;
+    --knap2-bund: rgba(238,243,249,.92);
+    --hover: rgba(255,255,255,.55);
+    --bund-lys: #ffffff;
+    --baggrund-gang: 1;
   }
 
   .dark {
-    --background: 220 5% 11%;        /* #1b1c1e — grafit, ikke sort */
-    --foreground: 220 6% 85%;        /* #d6d8dc — ikke ren hvid */
+    /* Mørkt tema: grafitblå bund, dæmpet glans, lyse kanter og sorte skygger. */
+    --background: 215 47% 7%;        /* #0a111c */
+    --foreground: 213 38% 92%;       /* #e3eaf3 */
 
-    --card: 220 5% 14%;              /* #222326 */
-    --card-foreground: 220 6% 85%;
+    --card: 215 35% 13%;
+    --card-foreground: 213 38% 92%;
 
-    --popover: 220 5% 15%;
-    --popover-foreground: 220 6% 85%;
+    --popover: 215 35% 13%;
+    --popover-foreground: 213 38% 92%;
 
-    --primary: 220 6% 80%;           /* lys grafit */
-    --primary-foreground: 220 6% 12%;
+    --primary: 210 100% 75%;         /* #7dbcff — links og fremhævninger */
+    --primary-foreground: 215 47% 9%;
 
-    --secondary: 220 5% 19%;
-    --secondary-foreground: 220 6% 78%;
+    --secondary: 215 25% 18%;
+    --secondary-foreground: 213 30% 86%;
 
-    --muted: 220 5% 19%;
-    --muted-foreground: 220 4% 58%;
+    --muted: 215 25% 16%;
+    --muted-foreground: 213 22% 71%; /* #a3b3c6 */
 
-    --accent: 220 5% 72%;
-    --accent-foreground: 220 6% 12%;
+    --accent: 210 100% 75%;
+    --accent-foreground: 215 47% 9%;
 
-    --destructive: 352 50% 62%;
-    --destructive-foreground: 220 6% 12%;
+    --destructive: 352 85% 74%;
+    --destructive-foreground: 215 47% 9%;
 
-    --border: 220 5% 21%;
-    --input: 220 5% 24%;
-    --ring: 220 4% 50%;
+    --border: 215 22% 22%;
+    --input: 215 20% 28%;
+    --ring: 210 100% 75%;
 
-    --sidebar-bg: 220 5% 9%;
-    --sidebar-fg: 220 4% 60%;
-    --sidebar-fg-strong: 220 6% 88%;
-    --sidebar-active-bg: 220 5% 18%;
-    --sidebar-active-fg: 220 6% 90%;
-    --sidebar-hover-bg: 220 5% 14%;
-    --sidebar-border: 220 5% 15%;
+    --success-rgb: 127 224 181;
+    --warning-rgb: 255 210 140;
+    --danger-rgb: 255 160 172;
+    --info-rgb: 150 200 255;
+
+    --sidebar-bg: 215 35% 13%;
+    --sidebar-fg: 213 22% 71%;
+    --sidebar-fg-strong: 213 40% 96%;
+    --sidebar-active-bg: 215 30% 22%;
+    --sidebar-active-fg: 213 40% 96%;
+    --sidebar-hover-bg: 215 30% 18%;
+    --sidebar-border: 215 22% 18%;
+
+    --glas-top: rgba(255,255,255,.12);
+    --glas-bund: rgba(255,255,255,.05);
+    --glas-solid: rgba(22,32,48,.94);
+    --glans: rgba(255,255,255,.18);
+    --rim: rgba(255,255,255,.50);
+    --rim-svag: rgba(255,255,255,.04);
+    --kant: rgba(0,0,0,.55);
+    --skygge: rgba(0,0,0,.45);
+    --skygge-tung: rgba(0,0,0,.62);
+    --linje: rgba(255,255,255,.09);
+    --felt: rgba(0,0,0,.32);
+    --felt-kant: rgba(255,255,255,.18);
+    --placeholder: #8fa0b4;
+    --spor: rgba(0,0,0,.32);
+    --pille-top: rgba(255,255,255,.24);
+    --pille-bund: rgba(255,255,255,.11);
+    --knap2-top: rgba(255,255,255,.17);
+    --knap2-bund: rgba(255,255,255,.07);
+    --hover: rgba(255,255,255,.06);
+    --bund-lys: #17263d;
+    --baggrund-gang: 1.25;
   }
 }
 
@@ -96,6 +152,8 @@
 
   body {
     @apply bg-background text-foreground;
+    background-image: radial-gradient(1100px 700px at 10% -10%, var(--bund-lys) 0%, rgba(255,255,255,0) 60%);
+    background-attachment: fixed;
     font-feature-settings: "rlig" 1, "calt" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -193,4 +251,189 @@
   }
   table.mobilkort td:empty,
   table.mobilkort td[data-mobil="skjul"] { display: none; }
+}
+
+
+/* ==================================================================
+   Glossy glas ("blank is")
+   Ligger uden for @layer, så det vinder over Tailwinds hjælpeklasser.
+   ================================================================== */
+
+/* Appens baggrund (Indstillinger → Udseende): svagt mønster bag glasset */
+#app-baggrund {
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: var(--app-moenster, none);
+  background-size: cover; background-position: center;
+  opacity: calc(var(--app-styrke, 0) * var(--baggrund-gang));
+  transition: opacity .3s;
+}
+@media (max-width: 1023px) {
+  #app-baggrund[data-mobil="nej"] { display: none; }
+}
+
+/* Fuldt glas: Card, sidebjælke, topbar, menuer og dialoger */
+/* Elementet skal være positioneret (relative/fixed/sticky) — Card sætter selv relative. */
+.glas {
+  background: linear-gradient(180deg, var(--glas-top) 0%, var(--glas-bund) 100%) !important;
+  border-color: transparent !important;
+  box-shadow: inset 0 1px 1px var(--rim), 0 0 0 1px var(--kant), 0 2px 4px -1px var(--skygge),
+              0 16px 36px -12px var(--skygge), 0 36px 72px -28px var(--skygge-tung) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(160%);
+  backdrop-filter: blur(10px) saturate(160%);
+  isolation: isolate;
+}
+/* Glanskuppel foroven og lys refleks-kant hele vejen rundt */
+.glas::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; z-index: -1;
+  background: radial-gradient(130% 70% at 25% -18%, var(--glans) 0%, rgba(255,255,255,0) 58%);
+}
+.glas::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; padding: 1.25px; z-index: 1;
+  background: linear-gradient(145deg, var(--rim) 0%, var(--rim-svag) 40%, var(--rim-svag) 62%, var(--rim) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+/* Panel uden afrunding (fast sidebjælke) */
+.glas-panel {
+  background: linear-gradient(180deg, var(--glas-top) 0%, var(--glas-bund) 100%) !important;
+  box-shadow: inset -1px 0 0 var(--rim), 1px 0 0 var(--kant), 12px 0 32px -20px var(--skygge-tung) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  backdrop-filter: blur(14px) saturate(160%);
+}
+
+/* Navigation på mobil (bundmenu, menuskuffe): lidt mere fylde, så indhold bag den ikke forstyrrer */
+.glas.glas-nav { background: linear-gradient(180deg, var(--glas-top) 0%, var(--glas-bund) 100%), rgba(255,255,255,.38) !important; }
+.dark .glas.glas-nav { background: linear-gradient(180deg, var(--glas-top) 0%, var(--glas-bund) 100%), rgba(10,17,28,.55) !important; }
+.dark .glas-panel { background: linear-gradient(180deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.03) 100%), rgba(10,17,28,.45) !important; }
+
+/* Topbar: glasbjælke med hårfin bundlinje */
+.glas-topbar {
+  background: linear-gradient(180deg, var(--glas-top) 0%, var(--glas-bund) 100%);
+  box-shadow: inset 0 -1px 0 var(--linje), inset 0 1px 0 var(--rim), 0 8px 24px -18px var(--skygge-tung);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  backdrop-filter: blur(14px) saturate(160%);
+}
+
+/* Lettere glas på øvrige flader, der bruger bg-card direkte.
+   (Ingen pseudo-elementer her — de må ikke ændre layout.) */
+.bg-card:not(input):not(select):not(textarea):not(.glas) {
+  background: radial-gradient(130% 70% at 25% -18%, var(--glans) 0%, rgba(255,255,255,0) 58%),
+              linear-gradient(180deg, var(--glas-top) 0%, var(--glas-bund) 100%);
+  box-shadow: inset 0 1px 1px var(--rim), 0 0 0 1px var(--kant), 0 8px 24px -12px var(--skygge);
+  border-color: transparent;
+  -webkit-backdrop-filter: blur(10px) saturate(160%);
+  backdrop-filter: blur(10px) saturate(160%);
+}
+
+/* Tonede glasflader */
+.glas.toning-blaa { background: linear-gradient(180deg, rgba(214,236,255,.82) 0%, rgba(176,214,248,.52) 100%) !important; }
+.glas.toning-groen { background: linear-gradient(180deg, rgba(220,245,232,.82) 0%, rgba(178,228,204,.50) 100%) !important; }
+.glas.toning-orange { background: linear-gradient(180deg, rgba(255,243,232,.84) 0%, rgba(255,216,184,.52) 100%) !important; }
+.dark .glas.toning-blaa { background: linear-gradient(180deg, rgba(80,150,235,.30) 0%, rgba(40,100,190,.12) 100%) !important; }
+.dark .glas.toning-groen { background: linear-gradient(180deg, rgba(70,200,140,.24) 0%, rgba(30,140,90,.10) 100%) !important; }
+.dark .glas.toning-orange { background: linear-gradient(180deg, rgba(240,145,70,.26) 0%, rgba(200,100,30,.08) 100%) !important; }
+
+/* Hot-knap (kundesiden), når kunden er markeret */
+.knap-hot {
+  color: #fff !important; border: 0 !important;
+  background: linear-gradient(180deg, rgba(255,255,255,.28) 0%, rgba(255,255,255,0) 41%), linear-gradient(180deg, #d0661f 0%, #a2420f 100%) !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.26), 0 0 0 1px rgba(120,40,0,.4), 0 8px 18px -6px rgba(184,78,20,.6) !important;
+}
+
+/* Nøgletal vipper let ved hover; resten står stille */
+.vip { transition: transform .35s cubic-bezier(.22,1,.36,1); }
+@media (hover: hover) {
+  .vip:hover { transform: perspective(900px) rotateX(3deg) rotateY(-2deg) translateY(-4px); }
+}
+
+/* Primærknap: glossy blå, glans kun på øverste del af hensyn til kontrast (5,6:1) */
+.knap-glossy {
+  color: #fff !important; border: 0 !important;
+  background: linear-gradient(180deg, rgba(255,255,255,.30) 0%, rgba(255,255,255,.06) 40%, rgba(255,255,255,0) 41%),
+              linear-gradient(180deg, #2a72c4 0%, #164a8c 100%) !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.26), inset 0 -2px 4px rgba(5,30,70,.35),
+              0 0 0 1px rgba(10,40,90,.4), 0 8px 20px -6px rgba(31,95,180,.6);
+  text-shadow: 0 -1px 0 rgba(5,30,70,.45);
+  transition: transform .12s, box-shadow .12s, filter .12s;
+}
+.knap-glossy:hover:not(:disabled) { filter: brightness(1.08); }
+.knap-glossy:active:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 2px 6px rgba(5,30,70,.5), 0 0 0 1px rgba(10,40,90,.4); }
+
+/* Sekundærknap: hvidt glas med synlig kant */
+.knap-glas {
+  color: hsl(var(--foreground)) !important; border: 0 !important;
+  background: linear-gradient(180deg, var(--knap2-top) 0%, var(--knap2-bund) 100%) !important;
+  box-shadow: inset 0 1px 0 var(--rim), 0 0 0 1px var(--felt-kant), 0 2px 6px -2px var(--skygge);
+  transition: transform .12s, filter .12s;
+}
+.knap-glas:hover:not(:disabled) { filter: brightness(1.04); }
+.knap-glas:active:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 2px 4px var(--skygge), 0 0 0 1px var(--felt-kant); }
+
+/* Felter: tydelig brønd */
+.felt {
+  background: var(--felt) !important;
+  border-color: transparent !important;
+  box-shadow: inset 0 1px 2px var(--skygge), 0 0 0 1px var(--felt-kant);
+}
+.felt::placeholder { color: var(--placeholder); opacity: 1; }
+.felt:focus, .felt:focus-visible {
+  outline: none;
+  box-shadow: inset 0 1px 2px var(--skygge), 0 0 0 1.5px hsl(var(--ring)), 0 0 0 5px hsl(var(--ring) / .22) !important;
+}
+
+/* Faner i et fordybet spor; den valgte er en glas-pille */
+.spor {
+  display: inline-flex; gap: 4px; padding: 4px; max-width: 100%; box-sizing: border-box;
+  border-radius: calc(var(--radius) + 4px);
+  background: var(--spor); box-shadow: inset 0 1px 3px var(--skygge);
+}
+.pille {
+  display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px;
+  border-radius: var(--radius); white-space: nowrap; flex-shrink: 0;
+  font-size: 14px; font-weight: 500; color: hsl(var(--muted-foreground));
+  transition: color .15s, background .15s;
+}
+.pille:hover { color: hsl(var(--foreground)); }
+.pille[aria-current="page"], .pille[aria-selected="true"] {
+  color: hsl(var(--foreground)); font-weight: 600;
+  background: linear-gradient(180deg, var(--pille-top), var(--pille-bund));
+  box-shadow: inset 0 1px 0 var(--rim), 0 0 0 1px var(--kant), 0 3px 10px -3px var(--skygge-tung);
+}
+@media (max-width: 639px) { .pille { height: 40px; } }
+
+/* Aktivt menupunkt i sidebjælke og menuskuffe */
+.nav-on {
+  background: linear-gradient(180deg, var(--pille-top), var(--pille-bund)) !important;
+  box-shadow: inset 0 1px 0 var(--rim), 0 0 0 1px var(--kant), 0 6px 14px -6px var(--skygge-tung);
+}
+
+/* Glossy skyder (Indstillinger → Udseende) */
+input.glas-skyder { -webkit-appearance: none; appearance: none; width: 100%; height: 28px; background: transparent; margin: 0; }
+input.glas-skyder::-webkit-slider-runnable-track { height: 10px; border-radius: 999px; background: linear-gradient(90deg, #6cbcff 0, #2a72c4 var(--pct), var(--spor) var(--pct)); box-shadow: inset 0 2px 4px var(--skygge); }
+input.glas-skyder::-moz-range-track { height: 10px; border-radius: 999px; background: var(--spor); box-shadow: inset 0 2px 4px var(--skygge); }
+input.glas-skyder::-moz-range-progress { height: 10px; border-radius: 999px; background: linear-gradient(90deg, #6cbcff, #2a72c4); }
+input.glas-skyder::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; margin-top: -8px; border-radius: 50%; border: 0; background: radial-gradient(70% 55% at 50% 22%, #fff 0%, #f2f6fa 55%, #d9e3ee 100%); box-shadow: 0 0 0 1px rgba(12,32,58,.18), 0 4px 10px rgba(12,32,58,.3); }
+input.glas-skyder::-moz-range-thumb { width: 26px; height: 26px; border-radius: 50%; border: 0; background: radial-gradient(70% 55% at 50% 22%, #fff 0%, #f2f6fa 55%, #d9e3ee 100%); box-shadow: 0 0 0 1px rgba(12,32,58,.18), 0 4px 10px rgba(12,32,58,.3); }
+
+/* Glossy mærker */
+.maerke-glans { background-image: linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,0) 55%); }
+
+/* Tydelig fokusmarkering ved tastaturbrug */
+a:focus-visible, button:focus-visible, summary:focus-visible, [role="tab"]:focus-visible {
+  outline: 2px solid hsl(var(--ring)); outline-offset: 2px;
+}
+
+/* Mobil: tunge sløringer slås fra på kort (ydelse) — kun navigation beholder dem */
+@media (max-width: 1023px) {
+  .bg-card:not(input):not(select):not(textarea):not(.glas) { -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .glas:not(.glas-nav) { -webkit-backdrop-filter: none; backdrop-filter: none; background: linear-gradient(180deg, var(--glas-top) 0%, var(--glas-bund) 100%), var(--glas-solid) !important; }
+}
+
+/* Brugere der har bedt om mindre gennemsigtighed eller bevægelse */
+@media (prefers-reduced-transparency: reduce) {
+  .glas, .glas-panel, .bg-card { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: var(--glas-solid) !important; }
+  #app-baggrund { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vip:hover { transform: none; }
 }
