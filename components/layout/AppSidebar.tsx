@@ -41,12 +41,8 @@ export function AppSidebar({
 
   return (
     <aside
-      className="fixed inset-y-0 left-0 z-30 hidden lg:flex flex-col border-r"
-      style={{
-        width: "var(--sidebar-width)",
-        background: "hsl(var(--sidebar-bg))",
-        borderColor: "hsl(var(--sidebar-border))",
-      }}
+      className="glas-panel fixed inset-y-0 left-0 z-30 hidden lg:flex flex-col"
+      style={{ width: "var(--sidebar-width)" }}
     >
       <div
         className="flex items-center gap-2.5 px-4 border-b shrink-0"
@@ -56,7 +52,7 @@ export function AppSidebar({
           /* eslint-disable-next-line @next/next/no-img-element */
           <img src={brand.logo} alt="Logo" className="h-7 w-7 rounded-md object-contain bg-white/90 p-0.5 shrink-0" />
         ) : (
-          <div className="h-7 w-7 rounded-md bg-primary grid place-items-center text-primary-foreground text-xs font-bold shrink-0">
+          <div className="knap-glossy h-8 w-8 rounded-md grid place-items-center text-xs font-bold shrink-0">
             {maerke}
           </div>
         )}
@@ -103,7 +99,7 @@ export function AppSidebar({
       <div className="p-2.5 border-t shrink-0" style={{ borderColor: "hsl(var(--sidebar-border))" }}>
         <Link
           href="/indstillinger"
-          className={cn("nav-item", aktiv("/indstillinger") ? "font-semibold" : "hover:bg-[hsl(var(--sidebar-hover-bg))] hover:!text-[hsl(var(--sidebar-fg-strong))]")}
+          className={cn("nav-item", aktiv("/indstillinger") ? "nav-on font-semibold" : "hover:bg-[color:var(--hover)] hover:!text-[hsl(var(--sidebar-fg-strong))]")}
           style={{
             background: aktiv("/indstillinger") ? "hsl(var(--sidebar-active-bg))" : undefined,
             color: aktiv("/indstillinger") ? "hsl(var(--sidebar-active-fg))" : "hsl(var(--sidebar-fg))",
@@ -113,7 +109,7 @@ export function AppSidebar({
           Indstillinger
           {opdatering?.erNyereTilgaengelig && (
             <span
-              className="ml-auto h-2 w-2 rounded-full bg-orange-500 shrink-0"
+              className="ml-auto h-2 w-2 rounded-full bg-hot shrink-0"
               title={`Ny version tilgængelig${opdatering.nyeste?.version ? `: ${opdatering.nyeste.version}` : ""}`}
             />
           )}
@@ -130,7 +126,7 @@ function NavLink({ punkt: p, on, hotAntal, lille }: { punkt: NavItem; on: boolea
     <Link
       href={p.href}
       aria-current={on ? "page" : undefined}
-      className={cn("nav-item", lille && "!py-1.5 text-[13px]", on ? "font-semibold" : "hover:bg-[hsl(var(--sidebar-hover-bg))] hover:!text-[hsl(var(--sidebar-fg-strong))]")}
+      className={cn("nav-item", lille && "!py-1.5 text-[13px]", on ? "nav-on font-semibold" : "hover:bg-[color:var(--hover)] hover:!text-[hsl(var(--sidebar-fg-strong))]")}
       style={{
         background: on ? "hsl(var(--sidebar-active-bg))" : undefined,
         color: on ? "hsl(var(--sidebar-active-fg))" : "hsl(var(--sidebar-fg))",
@@ -139,7 +135,7 @@ function NavLink({ punkt: p, on, hotAntal, lille }: { punkt: NavItem; on: boolea
       <p.icon className={cn("shrink-0", lille ? "h-3.5 w-3.5" : "h-4 w-4")} />
       {p.label}
       {erHot && hotAntal > 0 && (
-        <span className="ml-auto text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded-none bg-orange-500 text-white">
+        <span className="ml-auto text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded-sm bg-hot text-white">
           {hotAntal}
         </span>
       )}

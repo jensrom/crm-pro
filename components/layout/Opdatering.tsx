@@ -83,9 +83,9 @@ export function Opdatering() {
       title="Hent de nyeste data. Sker også af sig selv hvert 20. sekund."
       aria-label="Opdater"
       className={[
-        "flex items-center gap-1.5 h-8 pl-2 pr-2.5 rounded-lg border text-xs transition-colors",
+        "flex items-center gap-1.5 h-9 pl-2.5 pr-3 rounded-lg text-xs transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-70",
-        gammel ? "border-warning/50 text-warning" : "border-border text-muted-foreground hover:bg-secondary",
+        gammel ? "border border-warning/50 text-warning" : "knap-glas !text-muted-foreground",
       ].join(" ")}
     >
       <RefreshCw className={`h-3.5 w-3.5 ${venter ? "animate-spin" : ""}`} />

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { kraevSuperAdmin } from "@/lib/auth";
+import { gyldigBaggrund, gyldigStyrke } from "@/lib/baggrunde";
 
 const txt = (v: FormDataEntryValue | null) => {
   const s = typeof v === "string" ? v.trim() : "";
@@ -53,6 +54,39 @@ export async function gemWhitelabel(formData: FormData) {
   });
   opfrisk();
   redirect("/indstillinger/whitelabel?besked=gemt");
+}
+
+/** Baggrundsbilledet: stort nok til en skærm, småt nok til at gå gennem en server-handling (4,5 MB). */
+const MAKS_BAGGRUND_BYTES = 3_000_000;
+const BAGGRUND_TYPER = ["image/jpeg", "image/png", "image/webp"];
+
+/** Indstillinger → Udseende: appens svage baggrund under glasset. */
+export async function gemUdseende(formData: FormData) {
+  await kraevSuperAdmin();
+  const moenster = gyldigBaggrund(txt(formData.get("bgPattern")));
+  const data: { bgPattern: string; bgStrength: number; bgMobile: boolean; bgImage?: string | null } = {
+    bgPattern: moenster,
+    bgStrength: gyldigStyrke(Number(formData.get("bgStrength"))),
+    bgMobile: formData.get("bgMobile") === "on",
+  };
+
+  if (formData.get("fjernBillede") === "on") data.bgImage = null;
+  const fil = formData.get("bgFil");
+  if (fil instanceof File && fil.size > 0) {
+    if (!BAGGRUND_TYPER.includes(fil.type)) redirect("/indstillinger/udseende?fejl=filtype");
+    if (fil.size > MAKS_BAGGRUND_BYTES) redirect("/indstillinger/udseende?fejl=stoerrelse");
+    data.bgImage = `data:${fil.type};base64,${Buffer.from(await fil.arrayBuffer()).toString("base64")}`;
+    data.bgPattern = "billede";
+  }
+  // "Eget billede" uden et billede giver ingen mening — så falder vi tilbage til standard.
+  if (data.bgPattern === "billede") {
+    const har = data.bgImage ?? (await db.settings.findUnique({ where: { id: "singleton" }, select: { bgImage: true } }))?.bgImage;
+    if (!har) data.bgPattern = "aurora";
+  }
+
+  await db.settings.upsert({ where: { id: "singleton" }, update: data, create: { id: "singleton", ...data } });
+  revalidatePath("/", "layout");
+  redirect("/indstillinger/udseende?besked=gemt");
 }
 
 export async function gemDatagrundlag(formData: FormData) {

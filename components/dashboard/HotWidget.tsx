@@ -13,7 +13,7 @@ export function HotWidget({ rows }: { rows: HotRaekke[] }) {
   if (rows.length === 0) return null;
 
   return (
-    <Card className="border-orange-300/60 bg-orange-500/[0.03]">
+    <Card className="toning-orange">
       <CardHeader
         title={
           <span className="inline-flex items-center gap-2">

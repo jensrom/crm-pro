@@ -244,7 +244,7 @@ export default async function KundeSide({
             {hot.isHot && (
               <span
                 title={hot.hotSetBy ? `Markeret Hot af ${hot.hotSetBy}` : "Markeret Hot"}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-none text-xs font-medium bg-orange-500/10 text-orange-600"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-medium bg-orange-500/10 text-orange-600"
               >
                 <Flame className="h-3 w-3" /> Hot
               </span>
@@ -265,11 +265,11 @@ export default async function KundeSide({
           {teknikS && (
           <form action={skiftHot.bind(null, kunde.id, !hot.isHot)}>
             <Button
-              variant={hot.isHot ? "primary" : "secondary"}
+              variant="secondary"
               size="sm"
               type="submit"
               title={hot.isHot ? "Fjern Hot-markering" : "Marker Hot — mulighed for at hente flere timer"}
-              className={hot.isHot ? "!bg-orange-500 hover:!bg-orange-600 !text-white !border-orange-500" : ""}
+              className={hot.isHot ? "knap-hot" : ""}
             >
               <Flame className="h-3.5 w-3.5" /> {hot.isHot ? "Hot" : "Marker Hot"}
             </Button>
@@ -859,9 +859,9 @@ export default async function KundeSide({
                           {varighed(Math.max(0, s.restMin))} tilbage af {varighed(s.koebteMin)}
                         </span>
                       </div>
-                      <div className="mt-2 h-1.5 rounded-none bg-muted overflow-hidden" aria-hidden>
+                      <div className="mt-2 h-1.5 rounded-sm bg-muted overflow-hidden" aria-hidden>
                         <div
-                          className={cn("h-full rounded-none", s.opbrugt ? "bg-danger" : s.naestenOpbrugt ? "bg-warning" : "bg-primary/70")}
+                          className={cn("h-full rounded-sm", s.opbrugt ? "bg-danger" : s.naestenOpbrugt ? "bg-warning" : "bg-primary/70")}
                           style={{ width: `${Math.min(100, Math.round(s.forbrugt * 100))}%` }}
                         />
                       </div>

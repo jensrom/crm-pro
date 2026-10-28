@@ -6,6 +6,12 @@ export type Indstillinger = {
   brandSubtitle: string | null;
   brandMarkText: string | null;
   brandLogo: string | null;
+  /** Appens baggrund (Indstillinger → Udseende) */
+  bgPattern: string | null;
+  bgStrength: number | null;
+  bgMobile: boolean;
+  /** Om der er uploadet et eget baggrundsbillede (selve billedet hentes via /api/baggrund) */
+  bgHarBillede: boolean;
   updatedBy: string | null;
   updatedAt: Date | null;
 };
@@ -26,6 +32,10 @@ export async function hentIndstillinger(): Promise<Indstillinger> {
     brandSubtitle: s.brandSubtitle,
     brandMarkText: s.brandMarkText,
     brandLogo: s.brandLogo,
+    bgPattern: s.bgPattern,
+    bgStrength: s.bgStrength,
+    bgMobile: s.bgMobile,
+    bgHarBillede: !!s.bgImage,
     updatedBy: s.updatedBy,
     updatedAt: s.updatedAt,
   };

@@ -664,6 +664,16 @@ model Settings {
   /// Fast tekst/betingelser nederst på ordrebekræftelsen
   docOrderText    String?
 
+  // --- Udseende: svag baggrund under glasset (Indstillinger → Udseende) ---
+  /// ingen | aurora | isflager | dybhav | billede. Tom = aurora.
+  bgPattern  String?
+  /// Styrke i procent (0–60). Tom = 32.
+  bgStrength Int?
+  /// Eget baggrundsbillede som data-URL (bruges når bgPattern = "billede")
+  bgImage    String?
+  /// Vis baggrunden på telefoner og tablets
+  bgMobile   Boolean  @default(true)
+
   updatedAt      DateTime @updatedAt
   /// Initialer på den der gemte sidst. Tom = ukendt (fx indlæst data).
   updatedBy String?

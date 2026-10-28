@@ -189,13 +189,13 @@ export function Tavle({ kort, redigerBase, skrivbareSpor }: {
 
                       <div className="flex flex-wrap items-center gap-1.5 text-xs">
                         <span
-                          className="inline-flex items-center gap-1 rounded-none px-2 py-0.5 text-[11px] font-medium text-white"
+                          className="inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-[11px] font-medium text-white"
                           style={{ background: faerdig ? "#94A3B8" : sp.bg }}
                         >
                           {sp.label}
                         </span>
                         {k.priority === "hoej" && !faerdig && (
-                          <span className="rounded-none px-2 py-0.5 text-[11px] font-medium bg-danger/10 text-danger border border-danger/20">
+                          <span className="rounded-sm px-2 py-0.5 text-[11px] font-medium bg-danger/10 text-danger border border-danger/20">
                             {pr.label}
                           </span>
                         )}

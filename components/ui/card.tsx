@@ -1,9 +1,9 @@
 import { cn } from "@/lib/utils";
 
 export function Card({ className, children }: { className?: string; children: React.ReactNode }) {
-  // Off-white kort med hårfin kant og en næsten usynlig skygge.
+  // Glossy glas: halvgennemsigtig flade, glanskuppel, refleks-kant og lagdelte skygger (globals.css → .glas).
   return (
-    <div className={cn("min-w-0 bg-card border border-border rounded-xl shadow-[0_1px_2px_rgba(20,22,26,0.035)] dark:shadow-none", className)}>
+    <div className={cn("glas relative min-w-0 rounded-xl", className)}>
       {children}
     </div>
   );
@@ -21,7 +21,7 @@ export function CardHeader({
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-wrap items-start justify-between gap-x-4 gap-y-3 px-4 sm:px-5 py-3.5 sm:py-4 border-b border-border", className)}>
+    <div className={cn("flex flex-wrap items-start justify-between gap-x-4 gap-y-3 px-4 sm:px-5 py-3.5 sm:py-4 border-b border-[color:var(--linje)]", className)}>
       <div className="min-w-0 flex-1 basis-[13rem]">
         <h2 className="text-sm font-semibold text-foreground">{title}</h2>
         {description && <p className="text-xs text-muted-foreground mt-0.5 max-w-prose">{description}</p>}
@@ -54,9 +54,9 @@ export function StatCard({
   return (
     <div
       className={cn(
-        "bg-card border border-border rounded-xl px-3.5 py-3 sm:px-5 sm:py-4 min-w-0",
-        highlight && "border-primary/40 bg-primary/[0.04]",
-        tone === "success" && "border-success/35 bg-success/[0.07]"
+        "glas vip relative rounded-xl px-3.5 py-3 sm:px-5 sm:py-4 min-w-0",
+        highlight && "toning-blaa",
+        tone === "success" && "toning-groen"
       )}
     >
       <div className={cn("text-[10px] sm:text-xs font-medium uppercase tracking-wide truncate", tone === "success" ? "text-success" : "text-muted-foreground")}>{label}</div>

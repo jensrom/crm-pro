@@ -32,7 +32,7 @@ export function AppTopbar({ bruger, maerke }: { bruger: TopbarBruger; maerke?: {
 
   return (
     <header
-      className="sticky top-0 z-30 flex items-center gap-3 sm:gap-4 border-b border-border bg-background/90 backdrop-blur px-4 sm:px-5"
+      className="glas-topbar sticky top-0 z-30 flex items-center gap-3 sm:gap-4 px-4 sm:px-5"
       style={{ height: "var(--topbar-height)", paddingTop: "env(safe-area-inset-top)", boxSizing: "content-box" }}
     >
       <Link href="/dashboard" className="lg:hidden shrink-0" aria-label="Til dashboard">
@@ -40,7 +40,7 @@ export function AppTopbar({ bruger, maerke }: { bruger: TopbarBruger; maerke?: {
           /* eslint-disable-next-line @next/next/no-img-element */
           <img src={maerke.logo} alt="" className="h-7 w-7 object-contain bg-white/90 p-0.5" />
         ) : (
-          <div className="h-7 w-7 bg-primary grid place-items-center text-primary-foreground text-[10px] font-bold">
+          <div className="knap-glossy h-8 w-8 rounded-md grid place-items-center text-[10px] font-bold">
             {(maerke?.tekst ?? "CP").slice(0, 3)}
           </div>
         )}
@@ -66,7 +66,7 @@ export function AppTopbar({ bruger, maerke }: { bruger: TopbarBruger; maerke?: {
             type="submit"
             aria-label="Log ud"
             title="Log ud"
-            className="h-8 w-8 grid place-items-center rounded-lg border border-border hover:bg-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="knap-glas h-9 w-9 grid place-items-center rounded-lg"
           >
             <LogOut className="h-4 w-4" />
           </button>

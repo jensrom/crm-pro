@@ -85,7 +85,7 @@ export default async function SagerSide({
               key={f.v}
               href={`/teknik/sager?status=${f.v}${prioritet ? `&prioritet=${prioritet}` : ""}`}
               className={cn(
-                "px-3 py-2 sm:py-1.5 rounded-none text-xs font-medium border transition-colors whitespace-nowrap shrink-0",
+                "px-3 py-2 sm:py-1.5 rounded-sm text-xs font-medium border transition-colors whitespace-nowrap shrink-0",
                 (status ?? "aabne") === f.v
                   ? "bg-primary text-primary-foreground border-primary"
                   : "bg-secondary text-muted-foreground border-border hover:text-foreground"
@@ -100,7 +100,7 @@ export default async function SagerSide({
               key={f.v}
               href={`/teknik/sager?status=${status ?? "aabne"}&prioritet=${f.v}`}
               className={cn(
-                "px-3 py-2 sm:py-1.5 rounded-none text-xs font-medium border transition-colors whitespace-nowrap shrink-0",
+                "px-3 py-2 sm:py-1.5 rounded-sm text-xs font-medium border transition-colors whitespace-nowrap shrink-0",
                 (prioritet ?? "alle") === f.v
                   ? "bg-primary text-primary-foreground border-primary"
                   : "bg-secondary text-muted-foreground border-border hover:text-foreground"

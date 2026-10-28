@@ -3,6 +3,24 @@
 Alt herunder er bygget oven på CRM-Pro 1.0.2. Den nyeste udgave kører på Vercel med Postgres (Neon).
 Opsætning og flytning af data står i `README.md`.
 
+## Glossy glas-design (28. oktober 2026)
+
+- **Nyt udtryk:** iPhone-agtigt klart glas på kort, sidebjælke, topbar, bundmenu og dialoger —
+  glanskuppel foroven, lys refleks-kant, lagdelte kolde skygger. Hjørner "blank is": 4 px på
+  knapper og felter, 8 px på kort.
+- **Lyst og mørkt tema** bygget på samme tokens (globals.css). Mørkt: grafitblå bund, dæmpet glans,
+  lyse kanter, sorte skygger; signalfarver (grøn/gul/rød/blå) skifter med temaet.
+- **Indstillinger → Udseende (ny):** vælg en meget svag baggrund under hele appen — Ingen, Isblå
+  aurora, Isflager, Dybt hav eller eget billede (JPG/PNG/WebP, højst 3 MB). Styrke 0–60 % med
+  forvalg Svag/Middel/Tydelig, valgfrit på mobil. Live forhåndsvisning; gemmes for alle brugere.
+  Nye felter på Settings: `bgPattern`, `bgStrength`, `bgImage`, `bgMobile` (lægges på automatisk
+  ved udrulning via `prisma db push`).
+- **Rettelser fra designgennemgangen:** tydelige søge- og indtastningsfelter (brønd med kant og blå
+  fokusring), sekundærknapper med synlig kant, faner som glas-piller i et fordybet spor, primærknap
+  med kontrast 5,6:1, Hot-mærke 4,6:1, fokusmarkering ved tastatur, nøgletal vipper let ved hover,
+  glossy skyder, diagrammer i blå/grøn, svævende bundmenu på mobil, ingen blur på kort på mobil
+  (ydelse), respekt for "reducer gennemsigtighed/bevægelse".
+
 ## Mobil og anonymisering (19. oktober 2026)
 
 - **Mobil:** fast bundmenu (Overblik, Kunder, Salg, Sager, Menu) og en menuskuffe med resten,
