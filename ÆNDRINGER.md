@@ -3,6 +3,30 @@
 Alt herunder er bygget oven på CRM-Pro 1.0.2. Den nyeste udgave kører på Vercel med Postgres (Neon).
 Opsætning og flytning af data står i `README.md`.
 
+## SUB-nøgler, tilkøb med restpris og godkendelse af tilbud (28. oktober 2026)
+
+- **SUB-nøglen er kontrakten.** Én nøgle (SUB-00001) kan rumme flere licenser. Under Produkter vises
+  kundens licenser grupperet under nøglen med udløb, licensbevis, knappen **Tilkøb** og nøglens tilbud
+  og ordrer. Udløbet er det seneste udløb blandt nøglens abonnementer. Har licenserne forskellige
+  udløb, vises en advarsel.
+- **Eksisterende data:** hver gammel licenslinje får sin egen nøgle og beholder sit SUB-nummer, første
+  gang kunden åbnes. Linjer slås sammen under én nøgle ved at vælge nøglen på linjen
+  (feltet *SUB-nøgle*). Tomme nøgler fjernes automatisk.
+- **Tilkøb med restpris:** *Tilkøb* på en nøgle åbner et tilbud, hvor prisen regnes fra startdatoen
+  til nøglens udløb. Påbegyndte måneder tæller som hele. Prisen er nøglens aftalte pris (ellers
+  listepris) og kan rettes. Serveren regner perioden igen, så tilbuddet altid følger nøglen.
+  Eksempel: 3 licenser til 450 kr./md., udløb 31.03.2027. Tilkøb af 1 den 28.10.2026 giver
+  1 × 450 × 6 mdr. = 2.700 kr.
+- **Godkendelse:** et tilbud har status *Afventer kunden*, *Godkendt* eller *Afvist*.
+  *Markér som godkendt* tager kundens accept som bilag (PDF, .msg, .eml, billede; højst 4 MB).
+  Bilaget gemmes i filboksen under den nye kategori **Accepter**, og det knyttes til tilbuddet.
+  Med flueben laves ordrebekræftelsen samtidig, og licenserne lægges på nøglen.
+- **Salesforce:** tilbud og ordrer har et felt til linket til Opportunity'en. Linket følger med fra
+  tilbud til ordre og vises på ordren, i ordrelisten og på nøglen. Kun https-adresser accepteres.
+- **Database (lægges på automatisk ved udrulning):** ny tabel `contracts`. Nye felter:
+  `customer_products.contractId` samt `status`, `acceptedAt`, `acceptedBy`, `acceptAttachmentId`,
+  `salesforceUrl` og `contractId` på `orders`. Der slettes ingen data.
+
 ## Glossy glas-design (28. oktober 2026)
 
 - **Nyt udtryk:** iPhone-agtigt klart glas på kort, sidebjælke, topbar, bundmenu og dialoger —

@@ -81,6 +81,7 @@ model Company {
   attachments      Attachment[]
   licenseChanges   LicenseChange[]
   orders           Order[]
+  contracts        Contract[]
 
   @@index([isActive])
   @@index([customerStatus])
@@ -267,12 +268,43 @@ model LicenseChange {
   @@map("license_changes")
 }
 
+// ============================================================
+// KONTRAKTER — SUB-nøglen
+// Én kontrakt med kunden = én SUB-nøgle (SUB-00001). Licenslinjerne ligger
+// under nøglen; tilkøb lægges ind på den og følger dens udløb. Udløbet er det
+// seneste udløb blandt nøglens abonnementslinjer, så det kan aldrig gå ud af
+// trit med linjerne.
+// ============================================================
+
+model Contract {
+  id        String @id @default(cuid())
+  companyId String
+  /// Nøglen, vises som SUB-00001
+  subNumber Int    @unique
+  /// Valgfrit kaldenavn, fx "Hovedaftale" eller "Lager Esbjerg"
+  name      String?
+  notes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lines   CustomerProduct[]
+  orders  Order[]
+
+  @@index([companyId])
+  @@map("contracts")
+}
+
 model CustomerProduct {
   id        String @id @default(cuid())
   companyId String
   productId String
+  /// SUB-nøglen (kontrakten) linjen hører under. Tom = ikke placeret endnu (rettes automatisk).
+  contractId String?
 
-  /// Fast licensnummer for linjen, vises som SUB-00001 på licensbeviser
+  /// Forældet: linjens gamle egne SUB-nummer. Nøglen ligger nu på Contract.subNumber.
   subNumber   Int? @unique
   seats       Int  @default(1) // tildelte licenser, som portalen viser dem
   activeSeats Int  @default(0) // licenser faktisk i brug
@@ -293,10 +325,12 @@ model CustomerProduct {
   /// Initialer på den der gemte sidst. Tom = ukendt (fx indlæst data).
   updatedBy String?
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product  Product   @relation(fields: [productId], references: [id])
+  contract Contract? @relation(fields: [contractId], references: [id], onDelete: SetNull)
 
   @@index([companyId, isActive])
+  @@index([contractId])
   @@map("customer_products")
 }
 
@@ -718,15 +752,29 @@ model Order {
   /// Afsenderprofilen dokumentet er udstedt fra (afdeling, adresse, brevfod)
   senderProfileId String?
 
+  /// SUB-nøglen tilbuddet/ordren gælder (tilkøb på en eksisterende kontrakt)
+  contractId String?
+  /// Kun tilbud: aaben | godkendt | afvist
+  status     String    @default("aaben")
+  /// Hvornår kunden accepterede tilbuddet
+  acceptedAt DateTime?
+  acceptedBy String?
+  /// Filboks-posten med kundens accept (fx mailen)
+  acceptAttachmentId String?
+  /// Link til Opportunity i Salesforce
+  salesforceUrl String?
+
   createdAt DateTime @default(now())
   createdBy String?
 
   company       Company?       @relation(fields: [companyId], references: [id], onDelete: SetNull)
   senderProfile SenderProfile? @relation(fields: [senderProfileId], references: [id], onDelete: SetNull)
+  contract      Contract?      @relation(fields: [contractId], references: [id], onDelete: SetNull)
   lines         OrderLine[]
 
   @@unique([kind, number])
   @@index([companyId])
+  @@index([contractId])
   @@index([orderDate])
   @@map("orders")
 }
@@ -747,7 +795,7 @@ model OrderLine {
   months       Int?
   licenseModel String  @default("sub")
   sortOrder    Int     @default(0)
-  /// nyt | fornyelse | fri
+  /// nyt | fornyelse | tilkoeb | fri. tilkoeb = ekstra licenser på ordrens SUB-nøgle, afregnet for restperioden.
   lineKind     String  @default("nyt")
   /// Kundens licenslinje som fornyelsen gælder
   customerProductId String?

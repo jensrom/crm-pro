@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { laesSessionKiks } from "@/lib/sessionkiks";
+import { opretKontrakt, ryddTommeKontrakter } from "@/lib/kontrakter";
 
 const txt = (v: FormDataEntryValue | null) => {
   const s = typeof v === "string" ? v.trim() : "";
@@ -64,7 +65,7 @@ export async function gemKunde(id: string, formData: FormData) {
 
 /** Opretter eller opdaterer en licenslinje: pakke, antal licenser, aftalt pris. */
 export async function gemLicenslinje(kundeId: string, formData: FormData) {
-  await kraevSkriv("salg");
+  const mig = await kraevSkriv("salg");
   const id = txt(formData.get("linjeId"));
   const productId = txt(formData.get("productId"));
   const data = {
@@ -78,8 +79,22 @@ export async function gemLicenslinje(kundeId: string, formData: FormData) {
     ...(formData.has("endDate") ? { endDate: startDato(formData.get("endDate")) } : {}),
     ...(formData.has("termMonths") ? { termMonths: Math.max(1, heltal(formData.get("termMonths")) ?? 12) } : {}),
   };
-  if (id) await db.customerProduct.update({ where: { id }, data });
-  else if (productId) await db.customerProduct.create({ data: { companyId: kundeId, ...data, productId } });
+  // SUB-nøglen: en eksisterende kontrakt på kunden, eller "ny" = en ny nøgle
+  const valgtNoegle = txt(formData.get("contractId"));
+  let contractId: string | undefined;
+  if (valgtNoegle === "ny") {
+    const nuvaerende = id ? await db.customerProduct.findUnique({ where: { id }, select: { contractId: true, contract: { select: { _count: { select: { lines: true } } } } } }) : null;
+    // En linje der allerede er alene på sin nøgle, beholder den
+    contractId = nuvaerende?.contractId && nuvaerende.contract?._count.lines === 1
+      ? nuvaerende.contractId
+      : (await opretKontrakt(db, kundeId, mig.initials)).id;
+  } else if (valgtNoegle) {
+    const k = await db.contract.findFirst({ where: { id: valgtNoegle, companyId: kundeId }, select: { id: true } });
+    if (k) contractId = k.id;
+  }
+  if (id) await db.customerProduct.update({ where: { id }, data: { ...data, ...(contractId ? { contractId } : {}) } });
+  else if (productId) await db.customerProduct.create({ data: { companyId: kundeId, ...data, productId, ...(contractId ? { contractId } : {}) } });
+  await ryddTommeKontrakter(kundeId);
   opfrisk(kundeId);
 }
 
@@ -96,6 +111,7 @@ export async function skiftPakke(linjeId: string, productId: string) {
 export async function sletLicenslinje(id: string) {
   await kraevSkriv("salg");
   const linje = await db.customerProduct.delete({ where: { id } });
+  await ryddTommeKontrakter(linje.companyId);
   opfrisk(linje.companyId);
 }
 

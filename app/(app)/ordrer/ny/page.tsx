@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, Boxes, FileText, RefreshCw } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Boxes, ExternalLink, FileText, KeyRound, PackagePlus, RefreshCw } from "lucide-react";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,18 +7,22 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { GruppeFlueben } from "@/components/dokumenter/GruppeFlueben";
 import { PeriodeFelter, type SynkMaal } from "@/components/dokumenter/PeriodeFelter";
 import { db } from "@/lib/db";
-import { ANTAL_FRIE_LINJER, brugerensProfilId, subNr } from "@/lib/dokumenter";
+import { ANTAL_FRIE_LINJER, brugerensProfilId, subNr, noegleNr } from "@/lib/dokumenter";
 import { kraevSkriv } from "@/lib/auth";
 import { erEngang, hentKatalog, licensmodel, listepris } from "@/lib/katalog";
 import { KundeVaelger } from "@/components/dokumenter/KundeVaelger";
 import { aftaleUdloeb, dagTekst, fornyelsesPeriode, isoDag, plusDage } from "@/lib/perioder";
 import { opretOrdre } from "@/app/actions/ordrer";
+import { TilkoebRaekke } from "@/components/dokumenter/TilkoebRaekke";
+import { forskelligeUdloeb, kontraktTerm, kontraktUdloeb } from "@/lib/kontrakter";
 
 export const dynamic = "force-dynamic";
 
 const FEJL: Record<string, string> = {
   modtager: "Dokumentet skal have en modtager.",
   linjer: "Sæt flueben ved mindst én fornyelse eller licens, eller skriv en fri linje.",
+  udloebet: "SUB-nøglen er udløbet før tilkøbets startdato. Forny nøglen først, eller ret startdatoen.",
+  salesforce: "Salesforce-linket skal være en fuld adresse, der starter med https://",
 };
 
 /**
@@ -26,14 +30,15 @@ const FEJL: Record<string, string> = {
  *   ?kunde=<id>          forudfylder modtager og viser kundens aftaler
  *   ?forny=<id>,<id>|alle  forvælger fornyelse af de licenslinjer
  *   ?fornyProdukt=<id>   forvælger fornyelse af alle kundens licenser under et produkt
+ *   ?kontrakt=<id>       tilkøb på en SUB-nøgle: restpris frem til nøglens udløb
  *   ?type=tilbud|ordre
  */
 export default async function NyOrdre({
   searchParams,
 }: {
-  searchParams: Promise<{ kunde?: string; fejl?: string; forny?: string; fornyProdukt?: string; type?: string }>;
+  searchParams: Promise<{ kunde?: string; fejl?: string; forny?: string; fornyProdukt?: string; type?: string; kontrakt?: string }>;
 }) {
-  const { kunde: kundeId, fejl, forny, fornyProdukt, type } = await searchParams;
+  const { kunde: kundeId, fejl, forny, fornyProdukt, type, kontrakt: kontraktId } = await searchParams;
   const nu = new Date();
   const fornyelse = !!(forny || fornyProdukt);
   const kind = type === "tilbud" ? "tilbud" : type === "ordre" ? "ordre" : fornyelse ? "ordre" : "tilbud";
@@ -46,8 +51,8 @@ export default async function NyOrdre({
           include: {
             customerProducts: {
               where: { isActive: true },
-              include: { product: { include: { family: true } } },
-              orderBy: { subNumber: "asc" },
+              include: { product: { include: { family: true } }, contract: { select: { subNumber: true } } },
+              orderBy: [{ contract: { subNumber: "asc" } }, { createdAt: "asc" }],
             },
             contacts: { where: { isActive: true }, orderBy: [{ isPrimary: "desc" }], take: 1 },
           },
@@ -60,6 +65,17 @@ export default async function NyOrdre({
     db.senderProfile.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true, department: true } }),
     brugerensProfilId(mig.id),
   ]);
+
+  // Tilkøb på en SUB-nøgle
+  const kontrakt =
+    kunde && kontraktId
+      ? await db.contract.findFirst({
+          where: { id: kontraktId, companyId: kunde.id },
+          include: { lines: { where: { isActive: true }, include: { product: { include: { family: true } } }, orderBy: { createdAt: "asc" } } },
+        })
+      : null;
+  const kUdloeb = kontrakt ? kontraktUdloeb(kontrakt.lines, nu) : null;
+  const kSkaev = kontrakt ? forskelligeUdloeb(kontrakt.lines, nu) : false;
 
   const grupper = [
     ...familier.map((f) => ({ id: f.id, navn: f.name, licenser: f.products })),
@@ -94,14 +110,18 @@ export default async function NyOrdre({
   const adresse = kunde
     ? [kunde.address, [kunde.zipCode, kunde.city].filter(Boolean).join(" "), kunde.country !== "Danmark" ? kunde.country : null].filter(Boolean).join("\n")
     : "";
-  const standardIntro = fornyelse
+  const standardIntro = kontrakt
+    ? kind === "tilbud"
+      ? `Hermed fremsendes tilbud på tilkøb til jeres aftale ${subNr(kontrakt.subNumber)} for %KUNDENAVN%. De nye licenser følger den eksisterende aftale, så prisen er beregnet for restperioden frem til aftalens udløb.`
+      : `Hermed bekræftes tilkøb til jeres aftale ${subNr(kontrakt.subNumber)} for %KUNDENAVN%. De nye licenser følger den eksisterende aftale og er afregnet for restperioden frem til aftalens udløb.`
+    : fornyelse
     ? kind === "tilbud"
       ? "Hermed fremsendes tilbud på fornyelse af jeres aftale for %KUNDENAVN%."
       : "Hermed bekræftes fornyelse af jeres aftale for %KUNDENAVN%."
     : "";
 
   const qs = (t: string) =>
-    `/ordrer/ny?type=${t}${kunde ? `&kunde=${kunde.id}` : ""}${forny ? `&forny=${forny}` : ""}${fornyProdukt ? `&fornyProdukt=${fornyProdukt}` : ""}`;
+    `/ordrer/ny?type=${t}${kunde ? `&kunde=${kunde.id}` : ""}${forny ? `&forny=${forny}` : ""}${fornyProdukt ? `&fornyProdukt=${fornyProdukt}` : ""}${kontrakt ? `&kontrakt=${kontrakt.id}` : ""}`;
 
   return (
     <div className="flex flex-col gap-5 max-w-6xl">
@@ -112,6 +132,7 @@ export default async function NyOrdre({
         <h1 className="mt-1.5 text-xl font-semibold flex items-center gap-2">
           <FileText className="h-5 w-5" /> {kind === "tilbud" ? "Nyt tilbud" : "Ny ordrebekræftelse"}
           {fornyelse && <Badge variant="info"><RefreshCw className="h-3 w-3 mr-1 inline" />Fornyelse</Badge>}
+          {kontrakt && <Badge variant="info"><KeyRound className="h-3 w-3 mr-1 inline" />Tilkøb på {subNr(kontrakt.subNumber)}</Badge>}
         </h1>
       </div>
 
@@ -134,6 +155,7 @@ export default async function NyOrdre({
       <form key={kunde?.id ?? "ingen"} action={opretOrdre} className="flex flex-col gap-5">
         <input type="hidden" name="kind" value={kind} />
         {kunde && <input type="hidden" name="companyId" value={kunde.id} />}
+        {kontrakt && <input type="hidden" name="contractId" value={kontrakt.id} />}
 
         <Card>
           <CardHeader title="Modtager" />
@@ -144,6 +166,10 @@ export default async function NyOrdre({
             <div className="flex flex-col gap-4">
               <div><Label htmlFor="re">Mail</Label><Input id="re" name="recipientEmail" type="email" defaultValue={kontakt?.email ?? kunde?.email ?? ""} /></div>
               <div><Label htmlFor="rr">Deres rekv. nr. / PO</Label><Input id="rr" name="reference" /></div>
+              <div>
+                <Label htmlFor="sf" hint="kopiér adressen på Opportunity'en">Salesforce-link</Label>
+                <Input id="sf" name="salesforceUrl" type="url" inputMode="url" placeholder="https://….lightning.force.com/lightning/r/Opportunity/006…/view" />
+              </div>
               {profiler.length > 0 && (
                 <div>
                   <Label htmlFor="sp">Afsender (afdeling)</Label>
@@ -168,7 +194,71 @@ export default async function NyOrdre({
           </CardBody>
         </Card>
 
-        {kunde && aftaler.length > 0 && (
+        {kontrakt && (
+          <Card>
+            <CardHeader
+              title={<span className="flex items-center gap-2"><PackagePlus className="h-4 w-4" />Tilkøb på {subNr(kontrakt.subNumber)}{kontrakt.name ? ` · ${kontrakt.name}` : ""}</span>}
+              description={
+                kUdloeb
+                  ? `Nøglen udløber ${dagTekst(kUdloeb)} (aftale ${kontraktTerm(kontrakt.lines)} mdr.). Tilkøb afregnes fra startdatoen til udløbet — påbegyndte måneder tæller som hele. Prisen er nøglens aftalte pris; ret den, hvis tilbuddet skal have en anden.`
+                  : "Nøglen har ingen løbende abonnementer, så tilkøb afregnes som engangskøb."
+              }
+            />
+            <CardBody className="p-0">
+              {kSkaev && (
+                <div className="mx-5 mb-3 rounded-lg bg-warning/[0.1] px-3 py-2 text-xs flex items-start gap-2">
+                  <AlertTriangle className="h-3.5 w-3.5 text-warning mt-0.5 shrink-0" />
+                  Licenserne på nøglen har forskellige udløb. Tilkøb af en licens nøglen allerede har, følger den licens; nye licenser følger det seneste udløb.
+                </div>
+              )}
+              <div className="hidden lg:grid grid-cols-[auto_1fr_70px_100px_minmax(300px,1.3fr)] gap-x-3 px-5 py-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                <span className="w-4" /><span /><span>Antal</span><span>Pris</span><span>Start → udløb · beløb</span>
+              </div>
+              <ul className="divide-y divide-border border-t border-border">
+                {kontrakt.lines.map((l) => {
+                  const engang = erEngang(l.product.licenseModel);
+                  const pris = engang ? listepris(l.product) : l.unitPriceMonth ?? listepris(l.product);
+                  return (
+                    <TilkoebRaekke
+                      key={l.id}
+                      productId={l.productId}
+                      navn={l.product.name}
+                      info={`Nøglen har ${l.seats} · ${engang ? licensmodel(l.product.licenseModel).label : l.unitPriceMonth != null ? "aftalt pris" : "listepris"}`}
+                      pris={pris}
+                      engang={engang}
+                      udloeb={engang ? null : isoDag(aftaleUdloeb(l, nu))}
+                      start={isoDag(nu)}
+                      valgt={kontrakt.lines.length === 1}
+                    />
+                  );
+                })}
+              </ul>
+              <details className="border-t border-border">
+                <summary className="cursor-pointer px-5 py-2.5 text-sm font-medium text-primary">Tilføj en anden licens til nøglen</summary>
+                <ul className="divide-y divide-border border-t border-border">
+                  {grupper.flatMap((g) =>
+                    g.licenser
+                      .filter((p) => !kontrakt.lines.some((l) => l.productId === p.id))
+                      .map((p) => (
+                        <TilkoebRaekke
+                          key={p.id}
+                          productId={p.id}
+                          navn={g.id === "uden" ? p.name : `${g.navn} · ${p.name}`}
+                          info={`${licensmodel(p.licenseModel).label} · listepris`}
+                          pris={listepris(p)}
+                          engang={erEngang(p.licenseModel)}
+                          udloeb={kUdloeb ? isoDag(kUdloeb) : null}
+                          start={isoDag(nu)}
+                        />
+                      ))
+                  )}
+                </ul>
+              </details>
+            </CardBody>
+          </Card>
+        )}
+
+        {!kontrakt && kunde && aftaler.length > 0 && (
           <Card>
             <CardHeader
               title={<span className="flex items-center gap-2"><RefreshCw className="h-4 w-4" />Fornyelse af kundens aftaler</span>}
@@ -188,7 +278,7 @@ export default async function NyOrdre({
                       <div className="min-w-0 pt-1">
                         <div className="text-sm font-medium flex flex-wrap items-center gap-2">
                           {l.product.family && !l.product.name.toLowerCase().startsWith(l.product.family.name.toLowerCase()) ? `${l.product.family.name} · ` : ""}{l.product.name}
-                          <Badge variant="muted">{subNr(l.subNumber)}</Badge>
+                          <Badge variant="muted">{noegleNr(l)}</Badge>
                         </div>
                         <div className="text-xs text-muted-foreground">
                           Udløber {dagTekst(aftaleUdloeb(l, nu))} · aftale {l.termMonths} mdr. · {l.seats} licenser
@@ -207,6 +297,7 @@ export default async function NyOrdre({
           </Card>
         )}
 
+        {!kontrakt && (
         <Card>
           <CardHeader
             title="Nye licenser, tilkøb og ydelser"
@@ -255,6 +346,7 @@ export default async function NyOrdre({
             ))}
           </CardBody>
         </Card>
+        )}
 
         <Card>
           <CardHeader title="Frie positioner" description="Fx klippekort, opsætning eller kursus. Udfyld måneder for et abonnement — tomt = engangsbeløb." />
@@ -285,7 +377,9 @@ export default async function NyOrdre({
                 <span>
                   Opdatér kundens aftaler
                   <span className="block text-xs text-muted-foreground">
-                    Fornyelser flytter aftalens udløb til periodens slutdato. Nye licenser registreres som tilkøb. Engangsydelser og frie positioner rører ikke kunden.
+                    {kontrakt
+                      ? `Tilkøbet lægges på ${subNr(kontrakt.subNumber)} med nøglens udløb. Engangsydelser og frie positioner rører ikke kunden.`
+                      : "Fornyelser flytter aftalens udløb til periodens slutdato. Nye licenser registreres som tilkøb. Engangsydelser og frie positioner rører ikke kunden."}
                   </span>
                 </span>
               </label>
