@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { kraevSuperAdmin } from "@/lib/auth";
+import { bygDemomiljoe } from "@/lib/demomiljoe";
 
 /**
  * Fiktive demosager — salgsmuligheder, teknik-sager, notater og logbogsposter
@@ -255,4 +256,16 @@ export async function taelDemodata() {
 
 function opfrisk() {
   revalidatePath("/", "layout");
+}
+
+/**
+ * Sletter alle kunder og bygger demomiljøet op fra bunden (lib/demomiljoe.ts).
+ * Kræver at brugeren har sat flueben ved, at backuppen er hentet.
+ */
+export async function bygDemomiljoeHandling(formData: FormData) {
+  const mig = await kraevSuperAdmin();
+  if (formData.get("backup") !== "1") redirect("/indstillinger?demo=backup#demomiljoe");
+  const r = await bygDemomiljoe(mig.initials);
+  opfrisk();
+  redirect(`/indstillinger?demo=bygget&antal=${r.kunder}&produkter=${r.produkter}&licenser=${r.licenser}#demomiljoe`);
 }
