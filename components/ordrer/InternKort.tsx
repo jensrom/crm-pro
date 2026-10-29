@@ -3,6 +3,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { BekraeftSlet } from "@/components/ui/bekraeft-slet";
+import { BekraeftHandling } from "@/components/ui/bekraeft-handling";
 import { cn } from "@/lib/utils";
 import { dato } from "@/lib/format";
 import { INTERN_STATUS, findInternStatus, kanLaveLicensbevis } from "@/lib/intern";
@@ -113,7 +114,20 @@ export function InternKort({ o, kanSende, kanStyre }: { o: Ordre; kanSende: bool
               <li key={s.key}>
                 {kanStyre && !aktiv ? (
                   <form action={skiftInternStatus.bind(null, o.id, s.key)}>
-                    <button type="submit" title={`Sæt til ${s.label}`} className="w-full flex items-start gap-1.5 rounded-md border border-border p-1.5 hover:bg-secondary/60">{indhold}</button>
+                    <BekraeftHandling
+                      title={`Sæt til ${s.label}`}
+                      titel={`Skift status til ${s.label}?`}
+                      tekst={
+                        <>
+                          Ordren står i dag som <strong className="text-foreground">{INTERN_STATUS[nu]?.label ?? "–"}</strong>.{" "}
+                          {i < nu ? "Du går et trin tilbage i forløbet." : i > nu + 1 ? "Du springer trin over i forløbet." : "Ordren flyttes til næste trin."}
+                        </>
+                      }
+                      jaTekst="Ja, skift status"
+                      className="w-full flex items-start gap-1.5 rounded-md border border-border p-1.5 hover:bg-secondary/60"
+                    >
+                      {indhold}
+                    </BekraeftHandling>
                   </form>
                 ) : (
                   <div className={cn("flex items-start gap-1.5 rounded-md border p-1.5", aktiv ? "border-primary bg-primary/[0.06]" : "border-border")}>{indhold}</div>
