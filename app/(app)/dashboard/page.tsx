@@ -33,7 +33,7 @@ export default async function Dashboard() {
       where: { isActive: true, isHot: true },
       orderBy: { hotSince: "desc" },
       select: { id: true, name: true, hotSince: true, hotSetBy: true },
-    } as any),
+    }),
   ]);
 
   const seats = kunder.reduce((s, k) => s + k.n.seats, 0);
@@ -89,7 +89,7 @@ export default async function Dashboard() {
         hver kunde som baggrundsviden om virksomhedens størrelse og indgår hverken i pris eller scope.
       </p>
 
-      <HotWidget rows={hotte as any} />
+      <HotWidget rows={hotte} />
 
       {udenPris > 0 && (
         <Card className="border-warning/40 bg-warning/[0.05]">

@@ -1,6 +1,7 @@
 import "server-only";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { COOKIE, LEVETID_SEK, laesSessionKiks, pak } from "@/lib/sessionkiks";
@@ -56,7 +57,12 @@ export type Session = {
   erSuperAdmin: boolean;
 };
 
-export async function hentSession(): Promise<Session | null> {
+/**
+ * Den indloggede bruger. Slås op i databasen, så en deaktiveret bruger eller
+ * en ændret rolle virker med det samme. Hentes én gang pr. forespørgsel
+ * (React cache), selv om layout, side og handlinger hver især spørger.
+ */
+export const hentSession = cache(async (): Promise<Session | null> => {
   const kiks = await laesSessionKiks();
   if (!kiks) return null;
 
@@ -75,7 +81,7 @@ export async function hentSession(): Promise<Session | null> {
     erAdmin: ["admin", "superadmin"].includes(normaliserRolle(bruger.role)),
     erSuperAdmin: bruger.role === "superadmin",
   };
-}
+});
 
 export async function antalBrugere() {
   return db.user.count();

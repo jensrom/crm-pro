@@ -1,28 +1,15 @@
 "use server";
 
+/**
+ * Teknik: sager (med kommentarer), klippekort, tidsregistrering og kundens logbog.
+ */
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
-import { hentSession, kraevAdmin, kraevLogbog, kraevSkriv, kraevTid } from "@/lib/auth";
 import { redirect } from "next/navigation";
-
-const txt = (v: FormDataEntryValue | null) => {
-  const s = typeof v === "string" ? v.trim() : "";
-  return s === "" ? null : s;
-};
-const num = (v: FormDataEntryValue | null) => {
-  const s = txt(v);
-  if (s == null) return null;
-  const n = Number(s.replace(/\s/g, "").replace(",", "."));
-  return Number.isFinite(n) ? n : null;
-};
-const heltal = (v: FormDataEntryValue | null) => {
-  const n = num(v);
-  return n == null ? null : Math.round(n);
-};
-const dato = (v: FormDataEntryValue | null) => {
-  const s = txt(v);
-  return s ? new Date(s) : null;
-};
+import { kraevAdmin, kraevLogbog, kraevSkriv, kraevTid } from "@/lib/auth";
+import { formular } from "@/lib/formular";
+import { LOGTYPER, SAGSPRIORITET, SAGSSTATUS } from "@/lib/labels";
+import { medLoebenummer } from "@/lib/nummerserie";
 
 function opfrisk(kundeId?: string | null, sagId?: string | null) {
   revalidatePath("/dashboard");
@@ -33,14 +20,32 @@ function opfrisk(kundeId?: string | null, sagId?: string | null) {
   if (sagId) revalidatePath(`/teknik/sager/${sagId}`);
 }
 
-/** Næste ledige nummer i en fortløbende serie. */
-async function naesteSagsnummer() {
-  const sidste = await db.ticket.findFirst({ orderBy: { number: "desc" }, select: { number: true } });
-  return (sidste?.number ?? 0) + 1;
+const naesteSagsnummer = async () => ((await db.ticket.aggregate({ _max: { number: true } }))._max.number ?? 0) + 1;
+const naesteKortnummer = async () => ((await db.hourBundle.aggregate({ _max: { number: true } }))._max.number ?? 0) + 1;
+
+/**
+ * Løst/lukket-tidspunkterne. Et tidspunkt der allerede står, bevares — så
+ * en sag der gemmes igen, ikke får en ny løst-dato hver gang.
+ */
+function statusTider(status: string, foer?: { resolvedAt: Date | null; closedAt: Date | null } | null) {
+  const nu = new Date();
+  const loest = status === "loest" || status === "lukket";
+  return {
+    resolvedAt: loest ? foer?.resolvedAt ?? nu : null,
+    closedAt: status === "lukket" ? foer?.closedAt ?? nu : null,
+  };
 }
-async function naesteKortnummer() {
-  const sidste = await db.hourBundle.findFirst({ orderBy: { number: "desc" }, select: { number: true } });
-  return (sidste?.number ?? 0) + 1;
+
+/** Kontakt og produkt skal høre til kunden/kataloget — ellers gemmes de ikke. */
+async function gyldigKontakt(companyId: string, contactId: string | null) {
+  if (!contactId) return null;
+  const k = await db.contact.findFirst({ where: { id: contactId, companyId }, select: { id: true } });
+  return k?.id ?? null;
+}
+async function gyldigtProdukt(productId: string | null) {
+  if (!productId) return null;
+  const p = await db.product.findUnique({ where: { id: productId }, select: { id: true } });
+  return p?.id ?? null;
 }
 
 // ============================================================
@@ -49,43 +54,51 @@ async function naesteKortnummer() {
 
 export async function opretSag(formData: FormData) {
   await kraevSkriv("teknik");
-  const companyId = txt(formData.get("companyId"));
-  const title = txt(formData.get("title"));
+  const f = formular(formData);
+  const companyId = f.tekst("companyId");
+  const title = f.tekst("title");
   if (!companyId || !title) return;
 
-  const sag = await db.ticket.create({
-    data: {
-      number: await naesteSagsnummer(),
-      companyId,
-      contactId: txt(formData.get("contactId")),
-      productId: txt(formData.get("productId")),
-      title,
-      description: txt(formData.get("description")),
-      status: txt(formData.get("status")) ?? "aaben",
-      priority: txt(formData.get("priority")) ?? "normal",
-      dueAt: dato(formData.get("dueAt")),
-    },
-  });
+  const status = f.valg("status", SAGSSTATUS, "aaben");
+  const [contactId, productId] = await Promise.all([gyldigKontakt(companyId, f.tekst("contactId")), gyldigtProdukt(f.tekst("productId"))]);
+  const sag = await medLoebenummer(naesteSagsnummer, (number) =>
+    db.ticket.create({
+      data: {
+        number,
+        companyId,
+        contactId,
+        productId,
+        title,
+        description: f.tekst("description"),
+        status,
+        priority: f.valg("priority", SAGSPRIORITET, "normal"),
+        dueAt: f.dato("dueAt"),
+        ...statusTider(status),
+      },
+    })
+  );
   opfrisk(companyId, sag.id);
   redirect(`/teknik/sager/${sag.id}`);
 }
 
 export async function gemSag(id: string, formData: FormData) {
   await kraevSkriv("teknik");
-  const status = txt(formData.get("status")) ?? "aaben";
-  const nu = new Date();
+  const f = formular(formData);
+  const foer = await db.ticket.findUnique({ where: { id }, select: { companyId: true, resolvedAt: true, closedAt: true } });
+  if (!foer) return;
+  const status = f.valg("status", SAGSSTATUS, "aaben");
+  const [contactId, productId] = await Promise.all([gyldigKontakt(foer.companyId, f.tekst("contactId")), gyldigtProdukt(f.tekst("productId"))]);
   const sag = await db.ticket.update({
     where: { id },
     data: {
-      title: txt(formData.get("title")) ?? "Uden titel",
-      description: txt(formData.get("description")),
+      title: f.tekst("title") ?? "Uden titel",
+      description: f.tekst("description"),
       status,
-      priority: txt(formData.get("priority")) ?? "normal",
-      contactId: txt(formData.get("contactId")),
-      productId: txt(formData.get("productId")),
-      dueAt: dato(formData.get("dueAt")),
-      resolvedAt: status === "loest" || status === "lukket" ? nu : null,
-      closedAt: status === "lukket" ? nu : null,
+      priority: f.valg("priority", SAGSPRIORITET, "normal"),
+      contactId,
+      productId,
+      dueAt: f.dato("dueAt"),
+      ...statusTider(status, foer),
     },
   });
   opfrisk(sag.companyId, sag.id);
@@ -94,44 +107,38 @@ export async function gemSag(id: string, formData: FormData) {
 /** Hurtigt statusskift fra en liste, uden at åbne sagen. */
 export async function skiftSagsstatus(id: string, status: string) {
   await kraevSkriv("teknik");
-  const nu = new Date();
-  const sag = await db.ticket.update({
-    where: { id },
-    data: {
-      status,
-      resolvedAt: status === "loest" || status === "lukket" ? nu : null,
-      closedAt: status === "lukket" ? nu : null,
-    },
-  });
+  if (!SAGSSTATUS.some((s) => s.key === status)) return;
+  const foer = await db.ticket.findUnique({ where: { id }, select: { resolvedAt: true, closedAt: true } });
+  if (!foer) return;
+  const sag = await db.ticket.update({ where: { id }, data: { status, ...statusTider(status, foer) } });
   opfrisk(sag.companyId, sag.id);
 }
 
 export async function sletSag(id: string) {
   await kraevSkriv("teknik");
-  const sag = await db.ticket.delete({ where: { id } });
+  // Tid registreret på sagen bliver stående på kunden (og kortet) — kun koblingen til sagen fjernes.
+  const sag = await db.$transaction(async (tx) => {
+    await tx.timeLog.updateMany({ where: { ticketId: id }, data: { ticketId: null } });
+    return tx.ticket.delete({ where: { id } });
+  });
   opfrisk(sag.companyId);
   redirect("/teknik/sager");
 }
 
 export async function skrivKommentar(sagId: string, formData: FormData) {
-  await kraevSkriv("teknik");
-  const content = txt(formData.get("content"));
+  const mig = await kraevSkriv("teknik");
+  const f = formular(formData);
+  const content = f.tekst("content");
   if (!content) return;
-  const mig = await hentSession();
   await db.ticketComment.create({
-    data: {
-      ticketId: sagId,
-      content,
-      isInternal: formData.get("isInternal") === "on",
-      author: mig?.initials ?? null,
-    },
+    data: { ticketId: sagId, content, isInternal: f.flueben("isInternal"), author: mig.initials },
   });
   revalidatePath(`/teknik/sager/${sagId}`);
 }
 
 export async function sletKommentar(id: string, sagId: string) {
   await kraevSkriv("teknik");
-  await db.ticketComment.delete({ where: { id } });
+  await db.ticketComment.deleteMany({ where: { id, ticketId: sagId } });
   revalidatePath(`/teknik/sager/${sagId}`);
 }
 
@@ -141,37 +148,43 @@ export async function sletKommentar(id: string, sagId: string) {
 
 export async function opretKlippekort(formData: FormData) {
   await kraevSkriv("teknik");
-  const companyId = txt(formData.get("companyId"));
-  const timer = num(formData.get("totalHours"));
+  const f = formular(formData);
+  const companyId = f.tekst("companyId");
+  const timer = f.tal("totalHours");
   if (!companyId || timer == null || timer <= 0) return;
 
-  await db.hourBundle.create({
-    data: {
-      number: await naesteKortnummer(),
-      companyId,
-      name: txt(formData.get("name")),
-      totalHours: timer,
-      price: num(formData.get("price")),
-      purchaseDate: dato(formData.get("purchaseDate")) ?? new Date(),
-      expiresAt: dato(formData.get("expiresAt")),
-      notes: txt(formData.get("notes")),
-    },
-  });
+  await medLoebenummer(naesteKortnummer, (number) =>
+    db.hourBundle.create({
+      data: {
+        number,
+        companyId,
+        name: f.tekst("name"),
+        totalHours: timer,
+        price: f.tal("price"),
+        purchaseDate: f.dato("purchaseDate") ?? new Date(),
+        expiresAt: f.dato("expiresAt"),
+        notes: f.tekst("notes"),
+      },
+    })
+  );
   opfrisk(companyId);
 }
 
 export async function gemKlippekort(id: string, formData: FormData) {
   await kraevSkriv("teknik");
+  const f = formular(formData);
+  const timer = f.tal("totalHours");
   const kort = await db.hourBundle.update({
     where: { id },
     data: {
-      name: txt(formData.get("name")),
-      totalHours: num(formData.get("totalHours")) ?? 0,
-      price: num(formData.get("price")),
-      purchaseDate: dato(formData.get("purchaseDate")) ?? undefined,
-      expiresAt: dato(formData.get("expiresAt")),
-      notes: txt(formData.get("notes")),
-      isActive: formData.get("isActive") === "on",
+      name: f.tekst("name"),
+      // Et tomt eller ugyldigt timetal ændrer ikke kortet
+      ...(timer != null && timer > 0 ? { totalHours: timer } : {}),
+      price: f.tal("price"),
+      ...(f.dato("purchaseDate") ? { purchaseDate: f.dato("purchaseDate")! } : {}),
+      expiresAt: f.dato("expiresAt"),
+      notes: f.tekst("notes"),
+      isActive: f.flueben("isActive"),
     },
   });
   opfrisk(kort.companyId);
@@ -180,8 +193,10 @@ export async function gemKlippekort(id: string, formData: FormData) {
 export async function sletKlippekort(id: string) {
   await kraevSkriv("teknik");
   // Tidsposterne slippes fri i stedet for at forsvinde — timerne er stadig brugt.
-  await db.timeLog.updateMany({ where: { bundleId: id }, data: { bundleId: null } });
-  const kort = await db.hourBundle.delete({ where: { id } });
+  const kort = await db.$transaction(async (tx) => {
+    await tx.timeLog.updateMany({ where: { bundleId: id }, data: { bundleId: null } });
+    return tx.hourBundle.delete({ where: { id } });
+  });
   opfrisk(kort.companyId);
 }
 
@@ -189,47 +204,52 @@ export async function sletKlippekort(id: string) {
 // TID
 // ============================================================
 
+type Tx = Parameters<Parameters<typeof db.$transaction>[0]>[0];
+
 /** Genberegner et klippekorts forbrug ud fra de tidsposter der peger på det. */
-async function opdaterForbrug(bundleId: string | null | undefined) {
+async function opdaterForbrug(tx: Tx, bundleId: string | null | undefined) {
   if (!bundleId) return;
-  const sum = await db.timeLog.aggregate({
-    where: { bundleId },
-    _sum: { durationMin: true },
-  });
-  await db.hourBundle.update({
-    where: { id: bundleId },
-    data: { usedMinutes: sum._sum.durationMin ?? 0 },
-  });
+  const sum = await tx.timeLog.aggregate({ where: { bundleId }, _sum: { durationMin: true } });
+  await tx.hourBundle.update({ where: { id: bundleId }, data: { usedMinutes: sum._sum.durationMin ?? 0 } });
 }
 
 export async function registrerTid(formData: FormData) {
   await kraevTid();
-  const companyId = txt(formData.get("companyId"));
-  const minutter = heltal(formData.get("durationMin"));
-  if (!companyId || minutter == null || minutter <= 0) return;
+  const f = formular(formData);
+  const companyId = f.tekst("companyId");
+  const minutter = f.heltal("durationMin");
+  if (!companyId || minutter == null || minutter <= 0 || minutter > 24 * 60) return;
 
-  const bundleId = txt(formData.get("bundleId"));
-  const ticketId = txt(formData.get("ticketId"));
+  // Kort og sag skal høre til samme kunde som tiden
+  const [kort, sag] = await Promise.all([
+    f.tekst("bundleId") ? db.hourBundle.findFirst({ where: { id: f.tekst("bundleId")!, companyId }, select: { id: true } }) : null,
+    f.tekst("ticketId") ? db.ticket.findFirst({ where: { id: f.tekst("ticketId")!, companyId }, select: { id: true } }) : null,
+  ]);
 
-  await db.timeLog.create({
-    data: {
-      companyId,
-      ticketId,
-      bundleId,
-      date: dato(formData.get("date")) ?? new Date(),
-      durationMin: minutter,
-      description: txt(formData.get("description")),
-      isBillable: formData.get("isBillable") !== "off",
-    },
+  await db.$transaction(async (tx) => {
+    await tx.timeLog.create({
+      data: {
+        companyId,
+        ticketId: sag?.id ?? null,
+        bundleId: kort?.id ?? null,
+        date: f.dato("date") ?? new Date(),
+        durationMin: minutter,
+        description: f.tekst("description"),
+        isBillable: formData.get("isBillable") !== "off",
+      },
+    });
+    await opdaterForbrug(tx, kort?.id);
   });
-  await opdaterForbrug(bundleId);
-  opfrisk(companyId, ticketId);
+  opfrisk(companyId, sag?.id);
 }
 
 export async function sletTid(id: string) {
   await kraevTid();
-  const post = await db.timeLog.delete({ where: { id } });
-  await opdaterForbrug(post.bundleId);
+  const post = await db.$transaction(async (tx) => {
+    const p = await tx.timeLog.delete({ where: { id } });
+    await opdaterForbrug(tx, p.bundleId);
+    return p;
+  });
   opfrisk(post.companyId, post.ticketId);
 }
 
@@ -238,17 +258,12 @@ export async function sletTid(id: string) {
 // ============================================================
 
 export async function skrivLog(kundeId: string, formData: FormData) {
-  await kraevLogbog();
-  const content = txt(formData.get("content"));
+  const mig = await kraevLogbog();
+  const f = formular(formData);
+  const content = f.tekst("content");
   if (!content) return;
-  const mig = await hentSession();
   await db.logEntry.create({
-    data: {
-      companyId: kundeId,
-      kind: txt(formData.get("kind")) ?? "note",
-      content,
-      author: mig?.initials ?? null,
-    },
+    data: { companyId: kundeId, kind: f.valg("kind", LOGTYPER, "note"), content, author: mig.initials },
   });
   revalidatePath(`/kunder/${kundeId}`);
   revalidatePath("/dashboard");
@@ -256,12 +271,12 @@ export async function skrivLog(kundeId: string, formData: FormData) {
 
 export async function skiftFastgjort(id: string, kundeId: string, fastgjort: boolean) {
   await kraevLogbog();
-  await db.logEntry.update({ where: { id }, data: { pinned: fastgjort } });
+  await db.logEntry.updateMany({ where: { id, companyId: kundeId }, data: { pinned: fastgjort } });
   revalidatePath(`/kunder/${kundeId}`);
 }
 
 export async function sletLog(id: string, kundeId: string) {
   await kraevAdmin();
-  await db.logEntry.delete({ where: { id } });
+  await db.logEntry.deleteMany({ where: { id, companyId: kundeId } });
   revalidatePath(`/kunder/${kundeId}`);
 }

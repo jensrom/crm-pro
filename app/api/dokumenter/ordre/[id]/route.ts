@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { hentSession } from "@/lib/auth";
 import { ordrePdf } from "@/lib/ordre-pdf";
+import { kanLaese } from "@/lib/roller";
 
 export const runtime = "nodejs";
 
@@ -8,6 +9,7 @@ export const runtime = "nodejs";
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await hentSession();
   if (!session) return new NextResponse("Ikke logget ind", { status: 401 });
+  if (!kanLaese(session.ret.salg)) return new NextResponse("Ingen adgang", { status: 403 });
   const { id } = await params;
   const r = await ordrePdf(id);
   if (!r) return new NextResponse("Ordren findes ikke", { status: 404 });

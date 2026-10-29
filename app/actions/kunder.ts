@@ -1,32 +1,15 @@
 "use server";
 
-import { kraevAdmin, kraevSkriv } from "@/lib/auth";
-
-import { db } from "@/lib/db";
+/**
+ * Kunden: stamdata, tilstand, Hot, licenslinjer (på SUB-nøgler) og kontakter.
+ */
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { laesSessionKiks } from "@/lib/sessionkiks";
+import { db } from "@/lib/db";
+import { kraevAdmin, kraevSkriv } from "@/lib/auth";
+import { formular } from "@/lib/formular";
+import { BESLUTNINGSROLLER, FAKTURERING, KONFIDENSER, KUNDESTATUS, PRIORITETER } from "@/lib/labels";
 import { opretKontrakt, ryddTommeKontrakter } from "@/lib/kontrakter";
-
-const txt = (v: FormDataEntryValue | null) => {
-  const s = typeof v === "string" ? v.trim() : "";
-  return s === "" ? null : s;
-};
-const num = (v: FormDataEntryValue | null) => {
-  const s = txt(v);
-  if (s == null) return null;
-  const n = Number(s.replace(/\s/g, "").replace(",", "."));
-  return Number.isFinite(n) ? n : null;
-};
-const heltal = (v: FormDataEntryValue | null) => {
-  const n = num(v);
-  return n == null ? null : Math.round(n);
-};
-
-const startDato = (v: FormDataEntryValue | null) => {
-  const m = txt(v)?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12) : null;
-};
 
 function opfrisk(kundeId?: string | null) {
   revalidatePath("/dashboard");
@@ -35,77 +18,95 @@ function opfrisk(kundeId?: string | null) {
   if (kundeId) revalidatePath(`/kunder/${kundeId}`);
 }
 
+/** Kun http(s)-adresser gemmes som links — aldrig javascript: eller lignende. */
+function webadresse(s: string | null) {
+  if (!s) return null;
+  const med = /^https?:\/\//i.test(s) ? s : `https://${s}`;
+  try {
+    const u = new URL(med);
+    return u.protocol === "https:" || u.protocol === "http:" ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function gemKunde(id: string, formData: FormData) {
   await kraevSkriv("kunder");
+  const f = formular(formData);
   await db.company.update({
     where: { id },
     data: {
-      name: txt(formData.get("name")) ?? "Uden navn",
-      orgNumber: txt(formData.get("orgNumber")),
-      industry: txt(formData.get("industry")),
-      country: txt(formData.get("country")) ?? "Danmark",
-      address: txt(formData.get("address")),
-      city: txt(formData.get("city")),
-      zipCode: txt(formData.get("zipCode")),
-      phone: txt(formData.get("phone")),
-      email: txt(formData.get("email")),
-      website: txt(formData.get("website")),
-      employees: heltal(formData.get("employees")),
-      revenueMdkk: num(formData.get("revenueMdkk")),
-      sizeConfidence: txt(formData.get("sizeConfidence")),
-      sizeNote: txt(formData.get("sizeNote")),
-      sourceUrl: txt(formData.get("sourceUrl")),
-      priority: txt(formData.get("priority")),
-      notes: txt(formData.get("notes")),
+      name: f.tekst("name") ?? "Uden navn",
+      orgNumber: f.tekst("orgNumber"),
+      industry: f.tekst("industry"),
+      country: f.tekst("country") ?? "Danmark",
+      address: f.tekst("address"),
+      city: f.tekst("city"),
+      zipCode: f.tekst("zipCode"),
+      phone: f.tekst("phone"),
+      email: f.tekst("email"),
+      website: webadresse(f.tekst("website")),
+      employees: f.heltal("employees"),
+      revenueMdkk: f.tal("revenueMdkk"),
+      sizeConfidence: f.valgfrit("sizeConfidence", KONFIDENSER),
+      sizeNote: f.tekst("sizeNote"),
+      sourceUrl: webadresse(f.tekst("sourceUrl")),
+      priority: f.valgfrit("priority", PRIORITETER),
+      notes: f.tekst("notes"),
     },
   });
   opfrisk(id);
   redirect(`/kunder/${id}`);
 }
 
-/** Opretter eller opdaterer en licenslinje: pakke, antal licenser, aftalt pris. */
+/**
+ * Opretter eller opdaterer en licenslinje: licens, antal, aftalt pris, periode
+ * og SUB-nøgle. "ny" som nøgle = en ny kontrakt (en linje der allerede er alene
+ * på sin nøgle, beholder den).
+ */
 export async function gemLicenslinje(kundeId: string, formData: FormData) {
   const mig = await kraevSkriv("salg");
-  const id = txt(formData.get("linjeId"));
-  const productId = txt(formData.get("productId"));
+  const f = formular(formData);
+  const id = f.tekst("linjeId");
+  const productId = f.tekst("productId");
+
+  const eksisterende = id ? await db.customerProduct.findFirst({ where: { id, companyId: kundeId } }) : null;
+  if (id && !eksisterende) return;
+
   const data = {
-    seats: heltal(formData.get("seats")) ?? 0,
-    activeSeats: heltal(formData.get("activeSeats")) ?? 0,
-    unitPriceMonth: num(formData.get("unitPriceMonth")),
-    billingInterval: txt(formData.get("billingInterval")) ?? "annual",
-    notes: txt(formData.get("notes")),
+    seats: Math.max(0, f.heltal("seats") ?? 0),
+    activeSeats: Math.max(0, f.heltal("activeSeats") ?? 0),
+    unitPriceMonth: f.tal("unitPriceMonth"),
+    billingInterval: f.valg("billingInterval", FAKTURERING, "annual"),
+    notes: f.tekst("notes"),
     ...(productId ? { productId } : {}),
-    ...(startDato(formData.get("startDate")) ? { startDate: startDato(formData.get("startDate"))! } : {}),
-    ...(formData.has("endDate") ? { endDate: startDato(formData.get("endDate")) } : {}),
-    ...(formData.has("termMonths") ? { termMonths: Math.max(1, heltal(formData.get("termMonths")) ?? 12) } : {}),
+    ...(f.dato("startDate") ? { startDate: f.dato("startDate")! } : {}),
+    ...(f.har("endDate") ? { endDate: f.dato("endDate") } : {}),
+    ...(f.har("termMonths") ? { termMonths: Math.max(1, f.heltal("termMonths") ?? 12) } : {}),
   };
-  // SUB-nøglen: en eksisterende kontrakt på kunden, eller "ny" = en ny nøgle
-  const valgtNoegle = txt(formData.get("contractId"));
-  let contractId: string | undefined;
-  if (valgtNoegle === "ny") {
-    const nuvaerende = id ? await db.customerProduct.findUnique({ where: { id }, select: { contractId: true, contract: { select: { _count: { select: { lines: true } } } } } }) : null;
-    // En linje der allerede er alene på sin nøgle, beholder den
-    contractId = nuvaerende?.contractId && nuvaerende.contract?._count.lines === 1
-      ? nuvaerende.contractId
-      : (await opretKontrakt(db, kundeId, mig.initials)).id;
-  } else if (valgtNoegle) {
-    const k = await db.contract.findFirst({ where: { id: valgtNoegle, companyId: kundeId }, select: { id: true } });
-    if (k) contractId = k.id;
-  }
-  if (id) await db.customerProduct.update({ where: { id }, data: { ...data, ...(contractId ? { contractId } : {}) } });
-  else if (productId) await db.customerProduct.create({ data: { companyId: kundeId, ...data, productId, ...(contractId ? { contractId } : {}) } });
+
+  await db.$transaction(async (tx) => {
+    const valgt = f.tekst("contractId");
+    let contractId: string | undefined;
+    if (valgt === "ny") {
+      const alene = eksisterende?.contractId
+        ? (await tx.customerProduct.count({ where: { contractId: eksisterende.contractId } })) === 1
+        : false;
+      contractId = alene ? eksisterende!.contractId! : (await opretKontrakt(tx, kundeId, mig.initials)).id;
+    } else if (valgt) {
+      const k = await tx.contract.findFirst({ where: { id: valgt, companyId: kundeId }, select: { id: true } });
+      contractId = k?.id;
+    }
+    if (eksisterende) {
+      await tx.customerProduct.update({ where: { id: eksisterende.id }, data: { ...data, ...(contractId ? { contractId } : {}) } });
+    } else if (productId) {
+      await tx.customerProduct.create({
+        data: { companyId: kundeId, ...data, productId, contractId: contractId ?? (await opretKontrakt(tx, kundeId, mig.initials)).id },
+      });
+    }
+  });
   await ryddTommeKontrakter(kundeId);
   opfrisk(kundeId);
-}
-
-/** Flytter en kunde til en anden pakke — fx ved opgradering. */
-export async function skiftPakke(linjeId: string, productId: string) {
-  await kraevSkriv("salg");
-  const linje = await db.customerProduct.update({
-    where: { id: linjeId },
-    data: { productId },
-  });
-  opfrisk(linje.companyId);
 }
 
 export async function sletLicenslinje(id: string) {
@@ -118,11 +119,12 @@ export async function sletLicenslinje(id: string) {
 /** Sætter kundens tilstand og noterer hvornår og hvorfor. */
 export async function skiftKundestatus(id: string, formData: FormData) {
   await kraevSkriv("kunder");
+  const f = formular(formData);
   await db.company.update({
     where: { id },
     data: {
-      customerStatus: txt(formData.get("customerStatus")),
-      customerStatusNote: txt(formData.get("customerStatusNote")),
+      customerStatus: f.valg("customerStatus", KUNDESTATUS, "stabil"),
+      customerStatusNote: f.tekst("customerStatusNote"),
       customerStatusAt: new Date(),
     },
   });
@@ -130,40 +132,29 @@ export async function skiftKundestatus(id: string, formData: FormData) {
 }
 
 /**
- * Slaar "Hot" til/fra -- mulighed for at hente flere timer lige nu.
- * Bruges af teknikere naar en kunde har haardt fokus paa projektet.
- * Ingen admin-krav -- alle der er logget ind kan saette/fjerne den.
+ * "Hot" — mulighed for at hente flere timer lige nu. Sættes af teknikere,
+ * vises i sidebjælken og på dashboardene.
  */
 export async function skiftHot(id: string, isHot: boolean) {
-  await kraevSkriv("teknik");
-  const kiks = await laesSessionKiks();
+  const mig = await kraevSkriv("teknik");
   await db.company.update({
     where: { id },
-    // isHot/hotSince/hotSetBy mangler i de genererede Prisma-typer indtil
-    // `prisma generate` er koert uden for denne sandbox (se PORTABEL.md).
-    data: {
-      isHot,
-      hotSince: isHot ? new Date() : null,
-      hotSetBy: isHot ? (kiks?.initials ?? null) : null,
-    } as any,
+    data: { isHot, hotSince: isHot ? new Date() : null, hotSetBy: isHot ? mig.initials : null },
   });
   opfrisk(id);
 }
 
 /**
- * Sletter en kunde og alt der hænger på den: kontakter, licenslinjer, sager,
- * klippekort, tidsposter, logbog og salgsmuligheder. Kan ikke fortrydes —
- * derfor kræver siden at du skriver kundens navn først.
+ * Sletter en kunde og alt der hænger på den (kontakter, licenser, sager,
+ * klippekort, tid, logbog, salgsmuligheder, filer). Tilbud og ordrer bliver
+ * stående som dokumenter uden kunde. Kan ikke fortrydes — derfor skal kundens
+ * navn skrives som bekræftelse.
  */
 export async function sletKunde(id: string, formData: FormData) {
   await kraevAdmin();
   const kunde = await db.company.findUnique({ where: { id }, select: { name: true } });
   if (!kunde) redirect("/kunder");
-
-  const bekraeftelse = txt(formData.get("bekraeft"));
-  if (bekraeftelse !== kunde.name) {
-    redirect(`/kunder/${id}/slet?fejl=navn`);
-  }
+  if (formular(formData).tekst("bekraeft") !== kunde.name) redirect(`/kunder/${id}/slet?fejl=navn`);
 
   await db.company.delete({ where: { id } });
   revalidatePath("/kunder");
@@ -174,17 +165,18 @@ export async function sletKunde(id: string, formData: FormData) {
 
 export async function opretKontakt(kundeId: string, formData: FormData) {
   await kraevSkriv("kunder");
-  const fornavn = txt(formData.get("firstName"));
+  const f = formular(formData);
+  const fornavn = f.tekst("firstName");
   if (!fornavn) return;
   await db.contact.create({
     data: {
       companyId: kundeId,
       firstName: fornavn,
-      lastName: txt(formData.get("lastName")) ?? "",
-      email: txt(formData.get("email")),
-      phone: txt(formData.get("phone")),
-      title: txt(formData.get("title")),
-      decisionRole: txt(formData.get("decisionRole")),
+      lastName: f.tekst("lastName") ?? "",
+      email: f.tekst("email"),
+      phone: f.tekst("phone"),
+      title: f.tekst("title"),
+      decisionRole: f.valgfrit("decisionRole", BESLUTNINGSROLLER),
     },
   });
   revalidatePath(`/kunder/${kundeId}`);
@@ -193,7 +185,7 @@ export async function opretKontakt(kundeId: string, formData: FormData) {
 
 export async function sletKontakt(id: string, kundeId: string) {
   await kraevSkriv("kunder");
-  await db.contact.delete({ where: { id } });
+  await db.contact.deleteMany({ where: { id, companyId: kundeId } });
   revalidatePath(`/kunder/${kundeId}`);
   revalidatePath("/kontakter");
 }

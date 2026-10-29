@@ -33,7 +33,7 @@ export default async function KunderSide({
       priority: k.priority,
       status: k.customerStatus,
       fuld: k.n.fuld,
-      isHot: (k as any).isHot ?? false,
+      isHot: k.isHot,
     };
   });
 

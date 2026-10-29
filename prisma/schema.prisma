@@ -244,6 +244,8 @@ model LicenseChange {
   id        String @id @default(cuid())
   companyId String
   productId String
+  /// Den licenslinje ændringen ramte. Tom på ældre poster (før SUB-nøgler).
+  customerProductId String?
 
   /// Positiv = tilkøb, negativ = reduktion
   quantity    Int
@@ -259,10 +261,12 @@ model LicenseChange {
   createdAt DateTime @default(now())
   createdBy String?
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product         Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customerProduct CustomerProduct? @relation(fields: [customerProductId], references: [id], onDelete: SetNull)
 
   @@index([companyId, date])
+  @@index([customerProductId])
   @@index([productId, date])
   @@index([date])
   @@map("license_changes")
@@ -325,12 +329,14 @@ model CustomerProduct {
   /// Initialer på den der gemte sidst. Tom = ukendt (fx indlæst data).
   updatedBy String?
 
-  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  product  Product   @relation(fields: [productId], references: [id])
-  contract Contract? @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product        Product         @relation(fields: [productId], references: [id])
+  contract       Contract?       @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  licenseChanges LicenseChange[]
 
   @@index([companyId, isActive])
   @@index([contractId])
+  @@index([productId])
   @@map("customer_products")
 }
 
@@ -374,6 +380,7 @@ model Deal {
 
   @@index([stage])
   @@index([companyId])
+  @@index([productId])
   @@map("deals")
 }
 
@@ -404,6 +411,8 @@ model Activity {
 
   @@index([companyId])
   @@index([dueDate])
+  @@index([contactId])
+  @@index([dealId])
   @@map("activities")
 }
 
@@ -444,6 +453,7 @@ model User {
   senderProfile SenderProfile? @relation(fields: [senderProfileId], references: [id], onDelete: SetNull)
 
   @@index([isActive])
+  @@index([senderProfileId])
   @@map("users")
 }
 
@@ -518,6 +528,8 @@ model Ticket {
   @@index([status])
   @@index([companyId])
   @@index([priority, status])
+  @@index([contactId])
+  @@index([productId])
   @@map("tickets")
 }
 
@@ -776,6 +788,8 @@ model Order {
   @@index([companyId])
   @@index([contractId])
   @@index([orderDate])
+  @@index([sourceOrderId])
+  @@index([senderProfileId])
   @@map("orders")
 }
 

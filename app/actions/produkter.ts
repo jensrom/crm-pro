@@ -3,18 +3,8 @@
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { kraevSkriv, kraevSuperAdmin } from "@/lib/auth";
-
-const txt = (v: FormDataEntryValue | null) => {
-  const s = typeof v === "string" ? v.trim() : "";
-  return s === "" ? null : s;
-};
-const num = (v: FormDataEntryValue | null) => {
-  const s = txt(v);
-  if (s == null) return null;
-  const n = Number(s.replace(/\s/g, "").replace(",", "."));
-  return Number.isFinite(n) ? n : null;
-};
+import { kraevSuperAdmin } from "@/lib/auth";
+import { formular } from "@/lib/formular";
 
 function opfrisk() {
   revalidatePath("/produkter");
@@ -32,24 +22,6 @@ export async function skiftAktiv(id: string, aktiv: boolean) {
 }
 
 /**
- * Flytter flere kunder til samme produkt på én gang.
- * Linjer der allerede ligger på målproduktet springes over.
- */
-export async function flytFlereLinjer(formData: FormData) {
-  await kraevSkriv("salg");
-  const productId = txt(formData.get("productId"));
-  const ids = formData.getAll("linjeId").filter((v): v is string => typeof v === "string" && v !== "");
-  if (!productId || ids.length === 0) return;
-
-  await db.customerProduct.updateMany({
-    where: { id: { in: ids }, NOT: { productId } },
-    data: { productId },
-  });
-  opfrisk();
-  redirect(`/produkter?pakke=${productId}&besked=flyttet`);
-}
-
-/**
  * Sletter et produkt endeligt.
  *
  * Har produktet kunder på, skal du sige hvad der skal ske med deres licenslinjer:
@@ -61,28 +33,28 @@ export async function flytFlereLinjer(formData: FormData) {
  */
 export async function sletProduktEndeligt(id: string, formData: FormData) {
   await kraevSuperAdmin();
-  const flytTil = txt(formData.get("flytTil"));
-  const sletLinjer = formData.get("sletLinjer") === "on";
+  const f = formular(formData);
+  const flytTil = f.tekst("flytTil");
+  const sletLinjer = f.flueben("sletLinjer");
 
   const produkt = await db.product.findUnique({ where: { id } });
   if (!produkt) redirect("/indstillinger/produkter?fejl=findes-ikke");
 
   const linjer = await db.customerProduct.count({ where: { productId: id } });
 
-  if (linjer > 0) {
-    if (flytTil && flytTil !== id) {
-      const maal = await db.product.findUnique({ where: { id: flytTil } });
-      if (!maal) redirect(`/indstillinger/produkter?slet=${id}&fejl=ukendt-maal`);
-      await db.customerProduct.updateMany({ where: { productId: id }, data: { productId: flytTil } });
-    } else if (sletLinjer) {
-      await db.customerProduct.deleteMany({ where: { productId: id } });
-    } else {
-      redirect(`/indstillinger/produkter?slet=${id}&fejl=vaelg-handling`);
-    }
+  const flyt = linjer > 0 && !!flytTil && flytTil !== id;
+  if (flyt && !(await db.product.findUnique({ where: { id: flytTil! }, select: { id: true } }))) {
+    redirect(`/indstillinger/produkter?slet=${id}&fejl=ukendt-maal`);
   }
+  if (linjer > 0 && !flyt && !sletLinjer) redirect(`/indstillinger/produkter?slet=${id}&fejl=vaelg-handling`);
 
-  await db.deal.updateMany({ where: { productId: id }, data: { productId: null } });
-  await db.product.delete({ where: { id } });
+  // Alt eller intet: linjerne flyttes/slettes, salgsmuligheder slippes, og licensen slettes i én transaktion
+  await db.$transaction(async (tx) => {
+    if (flyt) await tx.customerProduct.updateMany({ where: { productId: id }, data: { productId: flytTil! } });
+    else if (linjer > 0) await tx.customerProduct.deleteMany({ where: { productId: id } });
+    await tx.deal.updateMany({ where: { productId: id }, data: { productId: null } });
+    await tx.product.delete({ where: { id } });
+  });
 
   opfrisk();
   redirect(`/indstillinger/katalog?besked=licens-slettet&navn=${encodeURIComponent(produkt.name)}`);

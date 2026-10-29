@@ -10,22 +10,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { erEngang } from "@/lib/katalog";
 import { erAutomatisk, lavVarenummer, normaliserVarenummer, unikVarenummer } from "@/lib/varenummer";
+import { tekst, tal } from "@/lib/formular";
 
-const txt = (v: FormDataEntryValue | null) => {
-  const s = typeof v === "string" ? v.trim() : "";
-  return s === "" ? null : s;
-};
-const num = (v: FormDataEntryValue | null) => {
-  const s = txt(v);
-  if (s == null) return null;
-  const n = Number(s.replace(/\s/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", "."));
-  return Number.isFinite(n) ? n : null;
-};
 const model = (v: FormDataEntryValue | null) => (v === "perpetual" ? "perpetual" : v === "fee" ? "fee" : "sub");
 
 /** "2026-10-05" → lokal midnat den dag. Tom/ugyldig = nu. */
 function datoFra(v: FormDataEntryValue | null) {
-  const s = txt(v);
+  const s = tekst(v);
   if (!s) return new Date();
   const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return new Date();
@@ -54,7 +45,7 @@ const KAT = "/indstillinger/katalog";
  */
 async function varenummer(id: string | null, familyId: string | null, navn: string, formData: FormData) {
   const fam = familyId ? await db.productFamily.findUnique({ where: { id: familyId }, select: { name: true } }) : null;
-  const indtastet = normaliserVarenummer(txt(formData.get("sku")) ?? "");
+  const indtastet = normaliserVarenummer(tekst(formData.get("sku")) ?? "");
   const auto = formData.get("skuAuto") !== "0" || !indtastet;
   const base = auto ? lavVarenummer(fam?.name, navn) : indtastet;
   const andre = await db.product.findMany({ where: { sku: { not: null }, ...(id ? { id: { not: id } } : {}) }, select: { sku: true } });
@@ -65,14 +56,14 @@ async function varenummer(id: string | null, familyId: string | null, navn: stri
 
 export async function opretProduktFamilie(formData: FormData) {
   await kraevSuperAdmin();
-  const name = txt(formData.get("name"));
+  const name = tekst(formData.get("name"));
   if (!name) redirect(`${KAT}?fejl=navn`);
   const sidste = await db.productFamily.findFirst({ orderBy: { sortOrder: "desc" } });
   const f = await db.productFamily.create({
     data: {
       name,
-      description: txt(formData.get("description")),
-      sortOrder: Math.round(num(formData.get("sortOrder")) ?? (sidste?.sortOrder ?? 0) + 1),
+      description: tekst(formData.get("description")),
+      sortOrder: Math.round(tal(formData.get("sortOrder")) ?? (sidste?.sortOrder ?? 0) + 1),
     },
   });
   opfrisk();
@@ -81,17 +72,17 @@ export async function opretProduktFamilie(formData: FormData) {
 
 export async function gemProduktFamilie(id: string, formData: FormData) {
   await kraevSuperAdmin();
-  const name = txt(formData.get("name"));
+  const name = tekst(formData.get("name"));
   const foer = await db.productFamily.findUnique({ where: { id }, include: { products: { select: { id: true, name: true, sku: true } } } });
   if (!foer) redirect(`${KAT}?fejl=findes-ikke`);
   await db.productFamily.update({
     where: { id },
     data: {
       ...(name ? { name } : {}),
-      description: txt(formData.get("description")),
-      commercialTerms: txt(formData.get("commercialTerms")),
-      generalTerms: txt(formData.get("generalTerms")),
-      sortOrder: Math.round(num(formData.get("sortOrder")) ?? 0),
+      description: tekst(formData.get("description")),
+      commercialTerms: tekst(formData.get("commercialTerms")),
+      generalTerms: tekst(formData.get("generalTerms")),
+      sortOrder: Math.round(tal(formData.get("sortOrder")) ?? 0),
       isActive: formData.get("isActive") === "on",
     },
   });
@@ -128,12 +119,12 @@ export async function sletProduktFamilie(id: string) {
 
 export async function opretLicens(formData: FormData) {
   const mig = await kraevSuperAdmin();
-  const name = txt(formData.get("name"));
-  const familyId = txt(formData.get("familyId"));
+  const name = tekst(formData.get("name"));
+  const familyId = tekst(formData.get("familyId"));
   if (!name || !familyId) redirect(`${KAT}?fejl=licens-mangler`);
 
   const licenseModel = model(formData.get("licenseModel"));
-  const pris = num(formData.get("price"));
+  const pris = tal(formData.get("price"));
   const sidste = await db.product.findFirst({ where: { familyId }, orderBy: { sortOrder: "desc" } });
   const nu = new Date();
 
@@ -145,12 +136,12 @@ export async function opretLicens(formData: FormData) {
       pricePerUserMonth: erEngang(licenseModel) ? null : pris,
       oneTimePrice: erEngang(licenseModel) ? pris : null,
       sku: await varenummer(null, familyId, name, formData),
-      description: txt(formData.get("description")),
-      documentText: txt(formData.get("documentText")),
+      description: tekst(formData.get("description")),
+      documentText: tekst(formData.get("documentText")),
       tier: "egen",
-      icon: txt(formData.get("icon")) ?? "package",
-      color: txt(formData.get("color")) ?? "graa",
-      sortOrder: Math.round(num(formData.get("sortOrder")) ?? (sidste?.sortOrder ?? 0) + 1),
+      icon: tekst(formData.get("icon")) ?? "package",
+      color: tekst(formData.get("color")) ?? "graa",
+      sortOrder: Math.round(tal(formData.get("sortOrder")) ?? (sidste?.sortOrder ?? 0) + 1),
     },
   });
   await db.productPrice.create({
@@ -166,8 +157,8 @@ export async function opretLicens(formData: FormData) {
  */
 export async function gemLicens(id: string, formData: FormData) {
   await kraevSuperAdmin();
-  const name = txt(formData.get("name"));
-  const familyId = txt(formData.get("familyId"));
+  const name = tekst(formData.get("name"));
+  const familyId = tekst(formData.get("familyId"));
   const foer = await db.product.findUnique({ where: { id } });
   if (!foer) redirect(`${KAT}?fejl=findes-ikke`);
 
@@ -192,11 +183,11 @@ export async function gemLicens(id: string, formData: FormData) {
           : { pricePerUserMonth: foer.oneTimePrice, oneTimePrice: null }
         : {}),
       sku: await varenummer(id, familyId ?? foer.familyId, name ?? foer.name, formData),
-      description: txt(formData.get("description")),
-      documentText: txt(formData.get("documentText")),
-      icon: txt(formData.get("icon")) ?? "package",
-      color: txt(formData.get("color")) ?? "graa",
-      sortOrder: Math.round(num(formData.get("sortOrder")) ?? 0),
+      description: tekst(formData.get("description")),
+      documentText: tekst(formData.get("documentText")),
+      icon: tekst(formData.get("icon")) ?? "package",
+      color: tekst(formData.get("color")) ?? "graa",
+      sortOrder: Math.round(tal(formData.get("sortOrder")) ?? 0),
       isActive: formData.get("isActive") === "on",
     },
   });
@@ -216,7 +207,7 @@ export async function aendrPris(id: string, formData: FormData) {
   const p = await db.product.findUnique({ where: { id } });
   if (!p) redirect(`${KAT}?fejl=findes-ikke`);
 
-  const pris = num(formData.get("price"));
+  const pris = tal(formData.get("price"));
   const validFrom = datoFra(formData.get("validFrom"));
   const nu = new Date();
   const straks = validFrom.getTime() <= nu.getTime();
@@ -227,7 +218,7 @@ export async function aendrPris(id: string, formData: FormData) {
       price: pris,
       validFrom,
       appliedAt: straks ? nu : null,
-      note: txt(formData.get("note")),
+      note: tekst(formData.get("note")),
       createdBy: mig.initials,
     },
   });

@@ -23,7 +23,8 @@ export async function sikrAfdelinger() {
     const mangler: Record<string, string | number> = {};
     for (const [k, v] of Object.entries(a)) {
       if (k === "name" || k === "sortOrder") continue;
-      if ((fundet as any)[k] == null || (fundet as any)[k] === "") mangler[k] = v;
+      const nu = (fundet as Record<string, unknown>)[k];
+      if (nu == null || nu === "") mangler[k] = v;
     }
     if (Object.keys(mangler).length) await db.senderProfile.update({ where: { id: fundet.id }, data: mangler });
   }

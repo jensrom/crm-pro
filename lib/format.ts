@@ -19,7 +19,6 @@ export const datoKort = (d: Date | string | null | undefined) =>
   d == null ? "–" : new Intl.DateTimeFormat(da, { day: "2-digit", month: "2-digit", year: "2-digit" }).format(new Date(d));
 
 /** Sortering der respekterer dansk alfabet (Æ, Ø, Å sidst). */
-export const daSort = (a: string, b: string) => a.localeCompare(b, da);
 
 /** Klokkeslæt alene: 14:32 */
 export const klokken = (d: Date | string | null | undefined) =>

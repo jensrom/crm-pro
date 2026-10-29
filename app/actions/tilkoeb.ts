@@ -12,25 +12,7 @@ import { kraevAdmin, kraevSkriv } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { registrerLicensaendring as registrer } from "@/lib/licenser";
-
-const txt = (v: FormDataEntryValue | null) => {
-  const s = typeof v === "string" ? v.trim() : "";
-  return s === "" ? null : s;
-};
-const num = (v: FormDataEntryValue | null) => {
-  const s = txt(v);
-  if (s == null) return null;
-  const n = Number(s.replace(/\s/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", "."));
-  return Number.isFinite(n) ? n : null;
-};
-
-function datoFra(v: FormDataEntryValue | null) {
-  const s = txt(v);
-  const m = s?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return new Date();
-  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12);
-  return Number.isNaN(d.getTime()) ? new Date() : d;
-}
+import { formular } from "@/lib/formular";
 
 function opfrisk(kundeId: string) {
   revalidatePath(`/kunder/${kundeId}`);
@@ -42,8 +24,9 @@ function opfrisk(kundeId: string) {
 
 export async function registrerLicensaendring(kundeId: string, formData: FormData) {
   const mig = await kraevSkriv("salg");
-  const productId = txt(formData.get("productId"));
-  const antal = Math.round(num(formData.get("antal")) ?? 0);
+  const f = formular(formData);
+  const productId = f.tekst("productId");
+  const antal = f.heltal("antal") ?? 0;
   const reduktion = formData.get("retning") === "reduktion";
   const tilbage = `/kunder/${kundeId}?fane=produkter`;
 
@@ -63,10 +46,10 @@ export async function registrerLicensaendring(kundeId: string, formData: FormDat
   // Prisen pr. licens: det du skriver — ellers kundens aftalte pris, ellers listeprisen.
   const perpetual = produkt.licenseModel === "perpetual";
   const pris =
-    num(formData.get("unitPrice")) ??
+    f.tal("unitPrice") ??
     (perpetual ? produkt.oneTimePrice : linje?.unitPriceMonth ?? produkt.pricePerUserMonth);
-  const dato = datoFra(formData.get("date"));
-  const note = txt(formData.get("note"));
+  const dato = f.dato("date") ?? new Date();
+  const note = f.tekst("note");
 
   await db.$transaction((tx) =>
     registrer(tx, {
@@ -77,6 +60,7 @@ export async function registrerLicensaendring(kundeId: string, formData: FormDat
       date: dato,
       note,
       initials: mig.initials,
+      linjeId: linje?.id ?? null,
       ny: { startDate: dato },
     })
   );
@@ -94,10 +78,13 @@ export async function fortrydLicensaendring(id: string) {
   const post = await db.licenseChange.findUnique({ where: { id } });
   if (!post) return;
 
-  const linje = await db.customerProduct.findFirst({
-    where: { companyId: post.companyId, productId: post.productId, isActive: true },
-    orderBy: { createdAt: "asc" },
-  });
+  // Den præcise linje, hvis posten kender den — ellers (ældre poster) kundens første linje med licensen
+  const linje = post.customerProductId
+    ? await db.customerProduct.findUnique({ where: { id: post.customerProductId } })
+    : await db.customerProduct.findFirst({
+        where: { companyId: post.companyId, productId: post.productId, isActive: true },
+        orderBy: { createdAt: "asc" },
+      });
 
   await db.$transaction(async (tx) => {
     if (linje) {

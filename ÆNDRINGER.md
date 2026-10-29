@@ -3,6 +3,40 @@
 Alt herunder er bygget oven på CRM-Pro 1.0.2. Den nyeste udgave kører på Vercel med Postgres (Neon).
 Opsætning og flytning af data står i `README.md`.
 
+## Backend-gennemgang (29. oktober 2026)
+
+Se `BACKEND.md` for opbygning, mapper og regler.
+
+- **Fil-download virkede ikke i produktionen.** `.gitignore` udelukkede alle mapper med navnet `filer/`, så `/api/filer/[id]` aldrig blev committet.
+  - Ruten er genskabt med adgangskontrol og `nosniff`. Kun PDF og billeder vises direkte; andre filer (fx uploadet HTML) hentes som download.
+  - `.gitignore` er rettet, så mønstrene kun gælder roden.
+- **Formularer:** al læsning sker via `lib/formular.ts`.
+  - Dansk talformat (`1.250,50`) tolkes nu ens overalt. Før blev `1.250` til 1,25 i kunder, salg og teknik.
+  - Datoer gemmes som lokal middag, så de ikke forskydes af tidszoner.
+  - Status, prioritet, stadie, logtype, faktureringsinterval, beslutningsrolle og kundestatus valideres mod de faste lister.
+  - Web-adresser accepteres kun som http(s).
+- **Nummerserier:** TIL-, ORD-, SAG- og KK-numre er sikre ved samtidige oprettelser (`lib/nummerserie.ts`). Før kunne to oprettelser i samme sekund give en fejl.
+- **Transaktioner:**
+  - Tid og klippekortets forbrug.
+  - Sletning af klippekort.
+  - Sletning af produkt med linjer.
+  - Licenslinje og SUB-nøgle.
+  - Flytning af notater.
+- **Dataintegritet:**
+  - En licensændring husker den præcise linje, den ramte (`customerProductId`), så *Fortryd* rammer rigtigt, selv om kunden har licensen på flere SUB-nøgler.
+  - Tid, kontakt, klippekort og sag kontrolleres for at tilhøre samme kunde.
+  - En sags løst- og lukket-dato bevares, når sagen gemmes igen.
+  - Sletter man en sag, bliver tiden stående på kunden og klippekortet.
+- **Ydelse:**
+  - Indeks på alle fremmednøgler.
+  - Sessionen slås op én gang pr. forespørgsel.
+- **Adgang:** PDF-ruterne kræver læseadgang til salg. Optællingen af demodata kræver superadministrator.
+- **Oprydning:**
+  - Fem ubrugte server actions er fjernet. De var unødig angrebsflade.
+  - Den gamle demodata-indlæser er fjernet. Det nye demomiljø erstatter den.
+  - Alle `as any` er fjernet.
+  - Ubrugte hjælpefunktioner er fjernet.
+
 ## Demomiljø og produkter i kundelisten (29. oktober 2026)
 
 - **Indstillinger → Demomiljø:**
