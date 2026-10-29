@@ -1,7 +1,7 @@
 import { Card, CardBody } from "@/components/ui/card";
 import { KundeListe, type Raekke } from "@/components/kunder/KundeListe";
+import { grupperProdukter } from "@/lib/kundeprodukter";
 import { hentKunderMedNoegletal } from "@/lib/analysis";
-import { gaeldendeMaanedspris } from "@/lib/pricing";
 
 export const dynamic = "force-dynamic";
 
@@ -15,21 +15,19 @@ export default async function KunderSide({
 
   const raekker: Raekke[] = kunder.map((k) => {
     const linjer = k.customerProducts;
-    const pakkenavne = linjer.map((l) => l.product.name);
-    const foerste = linjer[0]?.product;
+    const liste = grupperProdukter(linjer);
     return {
       id: k.id,
       name: k.name,
       country: k.country,
       industry: k.industry,
-      pakke: pakkenavne.join(", ") || "Ingen",
-      pakkeIkon: foerste?.icon ?? null,
-      pakkeFarve: foerste?.color ?? null,
+      produkter: liste,
+      produktTekst: liste.map((p) => p.navn).join(", ") || "Ingen",
       seats: k.n.seats,
       aktive: k.n.aktive,
       udnyttelse: k.n.udnyttelse,
       aarsvaerdi: k.n.aarsvaerdi,
-      udenPris: linjer.some((l) => gaeldendeMaanedspris(l.unitPriceMonth, l.product) == null),
+      udenPris: liste.some((p) => p.udenPris),
       employees: k.employees,
       revenueMdkk: k.revenueMdkk,
       priority: k.priority,

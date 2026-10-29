@@ -8,16 +8,19 @@ import { Input, Select } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { PRIORITET, findKundestatus } from "@/lib/labels";
 import { kroner, millioner, procent, tal } from "@/lib/format";
-import { ProduktMaerke } from "@/lib/produktstil";
+import { ProduktChips } from "@/components/kunder/ProduktChips";
+import type { KundeProdukt } from "@/lib/kundeprodukter";
+
+export type { KundeProdukt };
 
 export type Raekke = {
   id: string;
   name: string;
   country: string;
   industry: string | null;
-  pakke: string;
-  pakkeIkon: string | null;
-  pakkeFarve: string | null;
+  produkter: KundeProdukt[];
+  /** Produktnavnene samlet — bruges til sortering */
+  produktTekst: string;
   seats: number;
   aktive: number;
   udnyttelse: number | null;
@@ -31,14 +34,14 @@ export type Raekke = {
   isHot: boolean;
 };
 
-type Noegle = keyof Raekke;
+type Noegle = Exclude<keyof Raekke, "produkter">;
 
 const KOLONNER: { key: Noegle; label: string; tal?: boolean; gruppe?: "kontekst" }[] = [
   { key: "name", label: "Kunde" },
   { key: "status", label: "Tilstand" },
   { key: "country", label: "Land" },
   { key: "industry", label: "Branche" },
-  { key: "pakke", label: "Pakke" },
+  { key: "produktTekst", label: "Produkter" },
   { key: "seats", label: "Licenser", tal: true },
   { key: "aktive", label: "Aktive", tal: true },
   { key: "udnyttelse", label: "Udnyt.", tal: true },
@@ -52,7 +55,7 @@ export function KundeListe({ raekker, initialHotKun = false }: { raekker: Raekke
   const [soeg, setSoeg] = useState("");
   const [land, setLand] = useState("alle");
   const [branche, setBranche] = useState("alle");
-  const [pakke, setPakke] = useState("alle");
+  const [produkt, setProdukt] = useState("alle");
   const [hotKun, setHotKun] = useState(initialHotKun);
   const [noegle, setNoegle] = useState<Noegle>("seats");
   const [retning, setRetning] = useState(-1);
@@ -61,8 +64,8 @@ export function KundeListe({ raekker, initialHotKun = false }: { raekker: Raekke
     () => Array.from(new Set(raekker.map((r) => r.industry).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, "da-DK")),
     [raekker]
   );
-  const pakker = useMemo(
-    () => Array.from(new Set(raekker.map((r) => r.pakke))).sort((a, b) => a.localeCompare(b, "da-DK")),
+  const produktnavne = useMemo(
+    () => Array.from(new Set(raekker.flatMap((r) => r.produkter.map((p) => p.navn)))).sort((a, b) => a.localeCompare(b, "da-DK")),
     [raekker]
   );
 
@@ -72,7 +75,7 @@ export function KundeListe({ raekker, initialHotKun = false }: { raekker: Raekke
       (r) =>
         (land === "alle" || r.country === land) &&
         (branche === "alle" || r.industry === branche) &&
-        (pakke === "alle" || r.pakke === pakke) &&
+        (produkt === "alle" || (produkt === "ingen" ? r.produkter.length === 0 : r.produkter.some((p) => p.navn === produkt))) &&
         (!hotKun || r.isHot) &&
         (!q || r.name.toLowerCase().includes(q))
     );
@@ -86,7 +89,7 @@ export function KundeListe({ raekker, initialHotKun = false }: { raekker: Raekke
       return (Number(x) - Number(y)) * retning;
     });
     return ud;
-  }, [raekker, soeg, land, branche, pakke, hotKun, noegle, retning]);
+  }, [raekker, soeg, land, branche, produkt, hotKun, noegle, retning]);
 
   function sorter(k: Noegle) {
     if (k === noegle) setRetning((r) => -r);
@@ -109,9 +112,10 @@ export function KundeListe({ raekker, initialHotKun = false }: { raekker: Raekke
           <option value="Danmark">Danmark</option>
           <option value="Færøerne">Færøerne</option>
         </Select>
-        <Select value={pakke} onChange={(e) => setPakke(e.target.value)} aria-label="Filtrér på pakke" className="w-full sm:w-44">
-          <option value="alle">Alle pakker</option>
-          {pakker.map((p) => <option key={p} value={p}>{p}</option>)}
+        <Select value={produkt} onChange={(e) => setProdukt(e.target.value)} aria-label="Filtrér på produkt" className="w-full sm:w-44">
+          <option value="alle">Alle produkter</option>
+          {produktnavne.map((p) => <option key={p} value={p}>{p}</option>)}
+          <option value="ingen">Uden produkter</option>
         </Select>
         <Select value={branche} onChange={(e) => setBranche(e.target.value)} aria-label="Filtrér på branche" className="w-full sm:w-48">
           <option value="alle">Alle brancher</option>
@@ -131,7 +135,7 @@ export function KundeListe({ raekker, initialHotKun = false }: { raekker: Raekke
         </button>
         <div className="col-span-2 sm:ml-auto text-xs text-muted-foreground tabular">
           {synlige.length} af {raekker.length} kunder · {tal(sumSeats)} licenser · {kroner(sumVaerdi)}/år
-          {manglerPris > 0 && ` · ${manglerPris} uden pakke`}
+          {manglerPris > 0 && ` · ${manglerPris} med licenser uden pris`}
         </div>
       </div>
 
@@ -168,11 +172,8 @@ export function KundeListe({ raekker, initialHotKun = false }: { raekker: Raekke
                   </td>
                   <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{r.country}</td>
                   <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{r.industry ?? "–"}</td>
-                  <td className="px-3 py-2.5 whitespace-nowrap">
-                    <span className="inline-flex items-center gap-2">
-                      <ProduktMaerke icon={r.pakkeIkon} color={r.pakkeFarve} size="sm" />
-                      {r.udenPris ? <Badge variant="warning">{r.pakke}</Badge> : <span className="text-muted-foreground">{r.pakke}</span>}
-                    </span>
+                  <td className="px-3 py-2.5">
+                    <ProduktChips produkter={r.produkter} />
                   </td>
                   <td className="px-3 py-2.5 text-right tabular">{r.seats}</td>
                   <td className="px-3 py-2.5 text-right tabular">{r.aktive}</td>

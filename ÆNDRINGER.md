@@ -3,6 +3,30 @@
 Alt herunder er bygget oven på CRM-Pro 1.0.2. Den nyeste udgave kører på Vercel med Postgres (Neon).
 Opsætning og flytning af data står i `README.md`.
 
+## Demomiljø og produkter i kundelisten (29. oktober 2026)
+
+- **Indstillinger → Demomiljø:**
+  - **Trin 1:** *Hent backup (JSON)*. Backuppen indeholder alle kunder, katalog, ordrer og filboksens filer.
+  - **Trin 2:** sæt flueben og vælg *Byg demomiljø*. Den sletter alle kunder og bygger 6 nye, fiktive kunder (4 danske og 2 færøske), hvor intet er ens.
+  - Hver kunde får mindst 2 af alt:
+    - Kontakter og SUB-nøgler.
+    - Abonnementer og perpetual-licenser, med licenshistorik.
+    - Salgsmuligheder i forskellige stadier og aktiviteter.
+    - Sager med kommentarer og tid, klippekort, notater og logbog.
+    - Filer: kontrakt, mødereferat og plan.
+    - Tilbud: et tilkøbstilbud med restpris og et fornyelsestilbud, med status åben, godkendt eller afvist. Godkendte tilbud har accept og ordre.
+    - Ordrer: en opstartsordre og en ydelsesordre.
+    - Salesforce-links.
+  - **8 fiktive produkter ved siden af Idus**, i alt 22 licenser og ydelser med to priser i prishistorikken:
+    - Vektor Asset, Pulsar Monitor, Lagerfyr, Planbro, Rundtur Mobile, Dokumentdok og Energispor.
+    - Konsulentydelser: implementering, kursus, rejse, projektledelse, datamigrering og integration.
+  - Brugere, indstillinger og eksisterende licenser røres ikke. Hver kørsel giver nye, tilfældige data.
+- **Kundeliste og dashboard:**
+  - Kolonnen *Pakke* er erstattet af *Produkter*: én mærkat pr. produkt med antal licenser.
+  - Filteret finder kunder med produktet, og *Uden produkter* er et nyt valg.
+  - Diagrammet *Licenser pr. licenstype* viser kun licenser i brug, uden ydelser.
+  - Perpetual-licenser tæller ikke længere som "uden pris".
+
 ## SUB-nøgler, tilkøb med restpris og godkendelse af tilbud (28. oktober 2026)
 
 - **SUB-nøglen er kontrakten.** Én nøgle (SUB-00001) kan rumme flere licenser. Under Produkter vises

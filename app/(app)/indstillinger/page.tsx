@@ -8,23 +8,26 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { BekraeftSlet } from "@/components/ui/bekraeft-slet";
 import { gemPipelineIndstilling } from "@/app/actions/salg";
-import { fjernDemodata, indlaesDemodata, taelDemodata } from "@/app/actions/demodata";
+import { bygDemomiljoeHandling, fjernDemodata, taelDemodata } from "@/app/actions/demodata";
 import { STANDARD_AFSLUTTET_DAGE, afsluttetDage } from "@/lib/pipeline";
 
+export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 const DEMO_BESKED: Record<string, string> = {
   indlaest: "Demodata er lagt ind.",
   fjernet: "Demodata er fjernet. Rigtige data er ikke rørt.",
   "ingen-kunder": "Der er ingen aktive kunder at lægge demodata på.",
+  bygget: "Demomiljøet er bygget.",
+  backup: "Sæt flueben ved, at du har hentet backuppen, før demomiljøet bygges.",
 };
 
 export default async function IndstillingerSide({
   searchParams,
 }: {
-  searchParams: Promise<{ demo?: string; antal?: string }>;
+  searchParams: Promise<{ demo?: string; antal?: string; produkter?: string; licenser?: string }>;
 }) {
-  const { demo, antal } = await searchParams;
+  const { demo, antal, produkter: nyeProdukter, licenser: nyeLicenser } = await searchParams;
   const [i, antalKunder, antalSager, produkter, pipe, demoAntal] = await Promise.all([
     hentIndstillinger(),
     db.company.count(),
@@ -94,29 +97,49 @@ export default async function IndstillingerSide({
       </Card>
 
       <Card>
+        <div id="demomiljoe" className="scroll-mt-24" />
         <CardHeader
-          title="Demodata"
-          description="Fiktive sager spredt over kunderne: leads og opportunities i alle stadier, teknik-sager med forskellig status og prioritet, notater og logbogsposter. Alt demodata er mærket og kan fjernes igen uden at røre rigtige data."
+          title="Demomiljø"
+          description="Sletter alle kunder og alt der hænger på dem og bygger 6 nye, fiktive kunder med mindst to af alt: kontakter, SUB-nøgler med abonnementer og perpetual-licenser, licenshistorik, salgsmuligheder, aktiviteter, sager med kommentarer og tid, klippekort, notater, logbog, filer, tilbud og ordrer. Desuden 8 fiktive produkter med prishistorik og ydelser. Brugere, indstillinger og eksisterende licenser (fx Idus) røres ikke. Hver kørsel giver nye tilfældige data."
         />
-        <CardBody className="flex flex-col gap-3">
+        <CardBody className="flex flex-col gap-4">
           {demo && DEMO_BESKED[demo] && (
-            <div className="rounded-lg bg-success/[0.08] px-3 py-2 text-sm">
-              {DEMO_BESKED[demo]}{demo === "indlaest" && antal ? ` ${antal} poster oprettet.` : ""}
+            <div className={demo === "backup" ? "rounded-lg bg-danger/[0.08] text-danger px-3 py-2 text-sm" : "rounded-lg bg-success/[0.08] px-3 py-2 text-sm"}>
+              {DEMO_BESKED[demo]}
+              {demo === "bygget" && antal ? ` ${antal} kunder, ${nyeProdukter ?? "8"} produkter og ${nyeLicenser ?? ""} licenser og ydelser er oprettet.` : ""}
+              {demo === "indlaest" && antal ? ` ${antal} poster oprettet.` : ""}
             </div>
           )}
-          <div className="flex flex-wrap items-center gap-3">
-            <form action={indlaesDemodata}>
-              <Button size="sm" type="submit">{demoAntal > 0 ? "Indlæs demodata igen" : "Indlæs demodata"}</Button>
-            </form>
-            {demoAntal > 0 && (
-              <form action={fjernDemodata}>
-                <BekraeftSlet hvad={`alle ${tal(demoAntal)} demoposter`} detalje="Kun poster mærket som demodata fjernes. Rigtige data røres ikke." className="h-8 px-3 text-xs font-medium border border-border bg-secondary hover:text-danger">Fjern demodata</BekraeftSlet>
+          <ol className="flex flex-col gap-3 text-sm">
+            <li className="flex flex-wrap items-center justify-between gap-3">
+              <span><b>1.</b> Hent en backup af alle kunder, katalog, ordrer og filer ({tal(antalKunder)} kunder lige nu).</span>
+              <a href="/api/backup" download>
+                <Button size="sm" variant="secondary" type="button">Hent backup (JSON)</Button>
+              </a>
+            </li>
+            <li>
+              <form action={bygDemomiljoeHandling} className="flex flex-wrap items-center justify-between gap-3">
+                <label className="flex items-center gap-2">
+                  <b>2.</b>
+                  <input type="checkbox" name="backup" value="1" required className="h-4 w-4 rounded border-input accent-[hsl(var(--primary))]" />
+                  Jeg har hentet og gemt backuppen
+                </label>
+                <BekraeftSlet
+                  hvad={`alle ${tal(antalKunder)} kunder og alt der hænger på dem`}
+                  detalje="Kontakter, licenser, sager, tilbud, ordrer, filer og logbog slettes permanent. Bagefter bygges 6 nye demokunder. Det tager 10–30 sekunder."
+                  className="inline-flex items-center gap-2 h-8 px-3 rounded-md text-xs font-semibold knap-glossy"
+                >
+                  Byg demomiljø
+                </BekraeftSlet>
               </form>
-            )}
-            <span className="text-xs text-muted-foreground">
-              {demoAntal > 0 ? `${tal(demoAntal)} demoposter i databasen nu.` : "Ingen demodata i databasen."}
-            </span>
-          </div>
+            </li>
+          </ol>
+          {demoAntal > 0 && (
+            <form action={fjernDemodata} className="text-xs text-muted-foreground flex items-center gap-2">
+              Ældre demoposter fra den gamle demofunktion: {tal(demoAntal)}.
+              <BekraeftSlet hvad={`alle ${tal(demoAntal)} gamle demoposter`} className="underline hover:text-danger">Fjern dem</BekraeftSlet>
+            </form>
+          )}
         </CardBody>
       </Card>
 

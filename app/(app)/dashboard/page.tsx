@@ -12,6 +12,8 @@ import { db } from "@/lib/db";
 import { kroner, millioner, procent, tal } from "@/lib/format";
 import { PRIORITET } from "@/lib/labels";
 import { ProduktMaerke, findFarve } from "@/lib/produktstil";
+import { ProduktChips } from "@/components/kunder/ProduktChips";
+import { grupperProdukter } from "@/lib/kundeprodukter";
 
 export const dynamic = "force-dynamic";
 
@@ -41,16 +43,20 @@ export default async function Dashboard() {
   const udenPris = kunder.filter((k) => k.n.udenPris > 0).length;
   const overforbrug = kunder.filter((k) => k.n.ledige < 0);
 
-  const pakkeData = pakker.map((p) => {
-    const linjer = kunder.flatMap((k) => k.customerProducts.filter((l) => l.productId === p.id));
-    return {
-      navn: p.name,
-      kunder: new Set(linjer.map((l) => l.companyId)).size,
-      licenser: linjer.reduce((s, l) => s + l.seats, 0),
-      prissat: p.pricePerUserMonth != null,
-      farve: findFarve(p.color).bg,
-    };
-  });
+  // Kun licenser kunderne har — engangsydelser er ikke licenser
+  const pakkeData = pakker
+    .filter((p) => p.licenseModel !== "fee")
+    .map((p) => {
+      const linjer = kunder.flatMap((k) => k.customerProducts.filter((l) => l.productId === p.id));
+      return {
+        navn: p.name,
+        kunder: new Set(linjer.map((l) => l.companyId)).size,
+        licenser: linjer.reduce((s, l) => s + l.seats, 0),
+        prissat: (p.licenseModel === "perpetual" ? p.oneTimePrice : p.pricePerUserMonth) != null,
+        farve: findFarve(p.color).bg,
+      };
+    })
+    .filter((d) => d.licenser > 0);
 
   const baand = [
     { baand: "100 % og op", antal: kunder.filter((k) => k.n.fuld).length, fuld: true },
@@ -71,7 +77,7 @@ export default async function Dashboard() {
         <StatCard
           label="Årlig licensværdi"
           value={kroner(aarsvaerdi)}
-          sub={udenPris > 0 ? `${udenPris} kunder mangler pakke — ikke med i tallet` : "på nuværende licenser"}
+          sub={udenPris > 0 ? `${udenPris} kunder har licenser uden pris — ikke med i tallet` : "på nuværende licenser"}
           highlight
         />
         <StatCard label="Åbne sager" value={tal(aabneSager.length)} sub={`${tal(aabneSager.reduce((s, d) => s + (d.seatDelta ?? 0), 0))} licenser i spil`} />
@@ -90,10 +96,10 @@ export default async function Dashboard() {
           <CardBody className="flex items-start gap-3">
             <TriangleAlert className="h-4 w-4 text-warning mt-0.5 shrink-0" />
             <div className="text-sm">
-              <p className="font-medium">{udenPris} kunder mangler pakkevalg</p>
+              <p className="font-medium">{udenPris} kunder har licenser uden pris</p>
               <p className="text-muted-foreground text-xs mt-0.5">
                 Deres licenser tæller ikke med i licensværdien før de er sat på Small, Medium eller Large.{" "}
-                <Link href="/produkter" className="text-primary hover:underline">Sæt pakker under Produkter</Link>.
+                <Link href="/produkter" className="text-primary hover:underline">Sæt priser under Produkter</Link>.
               </p>
             </div>
           </CardBody>
@@ -123,7 +129,7 @@ export default async function Dashboard() {
 
       <div className="grid gap-5 xl:grid-cols-2">
         <Card>
-          <CardHeader title="Licenser pr. pakke" description="Sådan fordeler de nuværende licenser sig i dag." />
+          <CardHeader title="Licenser pr. licenstype" description="Sådan fordeler kundernes licenser sig i dag." />
           <CardBody><PakkeDiagram data={pakkeData} /></CardBody>
         </Card>
         <Card>
@@ -144,7 +150,7 @@ export default async function Dashboard() {
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground border-b border-border">
                   <th className="px-5 py-2.5 font-medium">Kunde</th>
-                  <th className="px-3 py-2.5 font-medium">Pakke</th>
+                  <th className="px-3 py-2.5 font-medium">Produkter</th>
                   <th className="px-3 py-2.5 font-medium text-right">Licenser</th>
                   <th className="px-3 py-2.5 font-medium text-right">Udnyt.</th>
                   <th className="px-3 py-2.5 font-medium text-right">Årsværdi</th>
@@ -158,13 +164,8 @@ export default async function Dashboard() {
                     <td className="px-5 py-2.5">
                       <Link href={`/kunder/${k.id}`} className="font-medium hover:text-primary">{k.name}</Link>
                     </td>
-                    <td className="px-3 py-2.5 text-muted-foreground text-xs">
-                      <span className="inline-flex items-center gap-1.5">
-                        {k.customerProducts[0] && (
-                          <ProduktMaerke icon={k.customerProducts[0].product.icon} color={k.customerProducts[0].product.color} size="sm" />
-                        )}
-                        {k.customerProducts.map((l) => l.product.name).join(", ") || "–"}
-                      </span>
+                    <td className="px-3 py-2.5">
+                      <ProduktChips produkter={grupperProdukter(k.customerProducts)} />
                     </td>
                     <td className="px-3 py-2.5 text-right tabular">{k.n.aktive} / {k.n.seats}</td>
                     <td className={`px-3 py-2.5 text-right tabular ${k.n.fuld ? "text-danger font-semibold" : ""}`}>{procent(k.n.udnyttelse)}</td>
