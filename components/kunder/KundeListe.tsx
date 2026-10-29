@@ -16,6 +16,9 @@ export type { KundeProdukt };
 export type Raekke = {
   id: string;
   name: string;
+  /** Kundenummer som tekst, fx K-00012 */
+  nummer: string;
+  afdeling: string | null;
   country: string;
   industry: string | null;
   produkter: KundeProdukt[];
@@ -77,7 +80,7 @@ export function KundeListe({ raekker, initialHotKun = false }: { raekker: Raekke
         (branche === "alle" || r.industry === branche) &&
         (produkt === "alle" || (produkt === "ingen" ? r.produkter.length === 0 : r.produkter.some((p) => p.navn === produkt))) &&
         (!hotKun || r.isHot) &&
-        (!q || r.name.toLowerCase().includes(q))
+        (!q || `${r.name} ${r.afdeling ?? ""} ${r.nummer}`.toLowerCase().includes(q))
     );
     ud.sort((a, b) => {
       const x = a[noegle];
@@ -163,6 +166,9 @@ export function KundeListe({ raekker, initialHotKun = false }: { raekker: Raekke
                       {r.name}
                       {r.isHot && <Flame className="h-3.5 w-3.5 text-orange-500 shrink-0" aria-label="Hot" />}
                     </Link>
+                    <div className="text-[11px] text-muted-foreground tabular">
+                      {r.nummer}{r.afdeling ? ` · ${r.afdeling}` : ""}
+                    </div>
                   </td>
                   <td className="px-3 py-2.5 whitespace-nowrap">
                     <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">

@@ -8,6 +8,7 @@ import { licensmodel } from "@/lib/katalog";
 import { kanLaese } from "@/lib/roller";
 import { lavLicensbevis } from "@/lib/pdf";
 import { gemDokumentIFilboks } from "@/lib/filer";
+import { kundeNr } from "@/lib/kundenr";
 
 export const runtime = "nodejs";
 
@@ -60,6 +61,8 @@ export async function GET(req: Request) {
     afsender: await hentAfsender(await brugerensProfilId(session.id)),
     kunde: {
       navn: kunde.name,
+      afdeling: kunde.department,
+      nummer: kundeNr(kunde.customerNumber),
       adresse: kunde.address,
       postby: [kunde.zipCode, kunde.city].filter(Boolean).join(" ") || null,
       land: kunde.country,

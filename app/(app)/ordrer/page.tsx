@@ -139,6 +139,7 @@ export default async function OrdrelisteSide({
                     const erTilbud = o.kind === "tilbud";
                     const fornyelse = o.lines.some((l) => l.lineKind === "fornyelse");
                     const tilkoeb = o.lines.some((l) => l.lineKind === "tilkoeb");
+                    const opgradering = o.lines.some((l) => l.lineKind === "opgradering");
                     const udloebet = erTilbud && o.validUntil != null && o.validUntil < nu;
                     return (
                       <tr key={o.id} className="border-b border-border/60 last:border-0 even:bg-muted/45 hover:bg-primary/[0.05] transition-colors">
@@ -150,6 +151,7 @@ export default async function OrdrelisteSide({
                             {erTilbud ? <Badge variant="warning">Tilbud</Badge> : <Badge variant="default">Ordre</Badge>}
                             {fornyelse && <Badge variant="info">Fornyelse</Badge>}
                             {tilkoeb && <Badge variant="info">Tilkøb{o.contract ? ` ${subNr(o.contract.subNumber)}` : ""}</Badge>}
+                            {opgradering && <Badge variant="info">Opgradering</Badge>}
                             {o.internStatus && <Badge variant={findInternStatus(o.internStatus)?.variant ?? "info"}>{findInternStatus(o.internStatus)?.kort}</Badge>}
                             {o.salesforceUrl && (
                               <a href={o.salesforceUrl} target="_blank" rel="noopener noreferrer" title="Opportunity i Salesforce" aria-label="Opportunity i Salesforce" className="text-muted-foreground hover:text-primary">

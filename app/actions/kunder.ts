@@ -9,7 +9,9 @@ import { db } from "@/lib/db";
 import { kraevAdmin, kraevSkriv } from "@/lib/auth";
 import { formular } from "@/lib/formular";
 import { BESLUTNINGSROLLER, FAKTURERING, KONFIDENSER, KUNDESTATUS, PRIORITETER, findKundestatus } from "@/lib/labels";
-import { opretKontrakt, ryddTommeKontrakter } from "@/lib/kontrakter";
+import { medLoebenummer, erDublet } from "@/lib/nummerserie";
+import { naesteKundenummer } from "@/lib/kundenr";
+import { delBlandedeKontrakter, kontraktTilProdukt, opretKontrakt, ryddTommeKontrakter } from "@/lib/kontrakter";
 
 function opfrisk(kundeId?: string | null) {
   revalidatePath("/dashboard");
@@ -30,6 +32,50 @@ function webadresse(s: string | null) {
   }
 }
 
+/**
+ * Opretter en ny kunde med et unikt kundenummer. Samme firmanavn og adresse
+ * må gerne findes i forvejen — fx en anden afdeling med egen fakturering —
+ * så navnet tjekkes ikke for dubletter. Kun Idus konto-id er unikt.
+ */
+export async function opretKunde(formData: FormData) {
+  const mig = await kraevSkriv("kunder");
+  const f = formular(formData);
+  const name = f.tekst("name");
+  if (!name) redirect("/kunder/ny?fejl=navn");
+  let id: string;
+  try {
+    const k = await medLoebenummer(naesteKundenummer, (customerNumber) =>
+      db.company.create({
+        data: {
+          customerNumber,
+          name,
+          department: f.tekst("department"),
+          orgNumber: f.tekst("orgNumber"),
+          industry: f.tekst("industry"),
+          country: f.tekst("country") ?? "Danmark",
+          address: f.tekst("address"),
+          zipCode: f.tekst("zipCode"),
+          city: f.tekst("city"),
+          phone: f.tekst("phone"),
+          email: f.tekst("email"),
+          website: webadresse(f.tekst("website")),
+          accountId: f.tekst("accountId"),
+          notes: f.tekst("notes"),
+          updatedBy: mig.initials,
+        },
+        select: { id: true },
+      })
+    );
+    id = k.id;
+  } catch (e) {
+    if (erDublet(e)) redirect("/kunder/ny?fejl=konto");
+    throw e;
+  }
+  await db.logEntry.create({ data: { companyId: id, kind: "note", content: "Kunden er oprettet", author: mig.initials } });
+  opfrisk(id);
+  redirect(`/kunder/${id}`);
+}
+
 export async function gemKunde(id: string, formData: FormData) {
   await kraevSkriv("kunder");
   const f = formular(formData);
@@ -37,6 +83,7 @@ export async function gemKunde(id: string, formData: FormData) {
     where: { id },
     data: {
       name: f.tekst("name") ?? "Uden navn",
+      department: f.tekst("department"),
       orgNumber: f.tekst("orgNumber"),
       industry: f.tekst("industry"),
       country: f.tekst("country") ?? "Danmark",
@@ -100,11 +147,13 @@ export async function gemLicenslinje(kundeId: string, formData: FormData) {
     if (eksisterende) {
       await tx.customerProduct.update({ where: { id: eksisterende.id }, data: { ...data, ...(contractId ? { contractId } : {}) } });
     } else if (productId) {
-      await tx.customerProduct.create({
-        data: { companyId: kundeId, ...data, productId, contractId: contractId ?? (await opretKontrakt(tx, kundeId, mig.initials)).id },
-      });
+      // En nøgle hører til ét produkt — har den valgte nøgle et andet produkt, bruges en der passer
+      const noegle = contractId ? await kontraktTilProdukt(tx, kundeId, productId, contractId, mig.initials) : (await opretKontrakt(tx, kundeId, mig.initials)).id;
+      await tx.customerProduct.create({ data: { companyId: kundeId, ...data, productId, contractId: noegle } });
     }
   });
+  // Er en linje flyttet ind under en nøgle med et andet produkt, eller har den skiftet produkt, deles nøglen
+  await delBlandedeKontrakter(kundeId);
   await ryddTommeKontrakter(kundeId);
   opfrisk(kundeId);
 }

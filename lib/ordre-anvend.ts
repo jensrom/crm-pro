@@ -12,6 +12,8 @@ import { kontraktTerm } from "@/lib/kontrakter";
  *     med ordrelinjens periode
  *   • tilkøb på en SUB-nøgle → antallet lægges på nøglens linje med licensen; har nøglen ikke
  *     licensen, oprettes linjen under nøglen med nøglens udløb
+ *   • opgradering → linjen skifter til den nye pakke (samme nøgle og udløb), prisen bliver
+ *     nuværende pris + merprisen, og antallet rettes, hvis det er ændret
  * Frie linjer rører ikke kunden. Kan kun ske én gang pr. ordre.
  */
 export async function anvendOrdrePaaKunde(orderId: string, initials: string | null) {
@@ -72,6 +74,38 @@ export async function anvendOrdrePaaKunde(orderId: string, initials: string | nu
             endDate: l.periodEnd,
             termMonths: kontrakt ? kontraktTerm(kontrakt.lines) : 12,
             unitPriceMonth: afvigerFraListe ? l.unitPrice : null,
+          },
+        });
+        antal++;
+      } else if (l.lineKind === "opgradering" && l.customerProductId && l.productId) {
+        // Linjen skifter pakke: samme nøgle og periode, ny licens og pris; antal rettes, hvis det er ændret
+        const cp = await tx.customerProduct.findUnique({ where: { id: l.customerProductId }, include: { product: true } });
+        const til = await tx.product.findUnique({ where: { id: l.productId } });
+        if (!cp || !til) continue;
+        const nuPris = cp.unitPriceMonth ?? cp.product.pricePerUserMonth ?? 0;
+        const nyPris = nuPris + (l.unitPrice ?? 0);
+        await tx.customerProduct.update({
+          where: { id: cp.id },
+          data: { productId: til.id, unitPriceMonth: til.pricePerUserMonth != null && nyPris === til.pricePerUserMonth ? null : nyPris },
+        });
+        if (l.quantity !== cp.seats) {
+          await registrerLicensaendring(tx, {
+            companyId,
+            productId: til.id,
+            delta: l.quantity - cp.seats,
+            unitPrice: nyPris,
+            date: l.periodStart ?? o.orderDate,
+            note: `Opgradering ${nr}`,
+            initials,
+            linjeId: cp.id,
+          });
+        }
+        await tx.logEntry.create({
+          data: {
+            companyId,
+            kind: "aftale",
+            content: `Opgraderet: ${cp.product.name} → ${til.name}, ${l.quantity} licenser til ${nyPris} kr. pr. bruger/md. (${nr})`,
+            author: initials,
           },
         });
         antal++;

@@ -524,10 +524,21 @@ export type BevisLinje = {
   til: Date | null;
 };
 
-const kundeLinjer = (k: { navn: string; adresse?: string | null; postby?: string | null; land?: string | null; cvr?: string | null }) =>
-  [k.navn, ...(k.adresse ?? "").split("\n"), [k.postby, k.land].filter(Boolean).join(", "), k.cvr ? `CVR ${k.cvr}` : ""].filter(Boolean);
+const kundeLinjer = (k: KundePdf) =>
+  [k.navn, k.afdeling ? `${k.afdeling}` : "", ...(k.adresse ?? "").split("\n"), [k.postby, k.land].filter(Boolean).join(", "), k.cvr ? `CVR ${k.cvr}` : ""].filter(Boolean);
 
-type KundePdf = { navn: string; adresse?: string | null; postby?: string | null; land?: string | null; cvr?: string | null; konto?: string | null };
+export type KundePdf = {
+  navn: string;
+  /** Afdeling — samme firma kan være flere kunder */
+  afdeling?: string | null;
+  /** Kundenummer, fx K-00012 */
+  nummer?: string | null;
+  adresse?: string | null;
+  postby?: string | null;
+  land?: string | null;
+  cvr?: string | null;
+  konto?: string | null;
+};
 
 export async function lavLicensbevis(d: {
   afsender: Afsender;
@@ -546,6 +557,7 @@ export async function lavLicensbevis(d: {
     meta: [
       ["Afdeling", d.afsender.afdeling ?? d.afsender.navn],
       ["Reference", d.reference],
+      ["Kundenr.", d.kunde.nummer ?? ""],
       ["Kundekonto", d.kunde.konto ?? ""],
       ["Udstedt af", d.udstedtAf ?? ""],
       ["Dato", langDato(d.udstedt)],
@@ -649,6 +661,7 @@ export async function lavOrdreLicensbevis(d: {
       ["Licensnr.", d.ordrenr],
       ["Subscription-nr.", d.subNr ?? ""],
       ["Ref. hos leverandør", d.leverandoerRef ?? ""],
+      ["Kundenr.", d.kunde.nummer ?? ""],
       ["Kundekonto", d.kunde.konto ?? ""],
       ["Udstedt af", d.udstedtAf ?? ""],
       ["Dato", langDato(d.udstedt)],
@@ -974,6 +987,7 @@ export async function lavKontrakt(d: {
     meta: [
       ["Afdeling", d.afsender.afdeling ?? d.afsender.navn],
       ["Aftalenr.", d.aftalenr],
+      ["Kundenr.", d.kunde.nummer ?? ""],
       ["Kundekonto", d.kunde.konto ?? ""],
       ["Ansvarlig", d.ansvarlig ?? ""],
       ["Dato", langDato(d.aftalestart)],
@@ -1063,6 +1077,7 @@ export async function lavImplementeringsplan(d: {
       ["Projekt", d.projekt],
       ["Projektleder", d.projektleder ?? ""],
       ["Kundens ansvarlige", d.kundensAnsvarlig ?? ""],
+      ["Kundenr.", d.kunde.nummer ?? ""],
       ["Kundekonto", d.kunde.konto ?? ""],
       ["Dato", langDato(d.dato)],
     ],
@@ -1146,6 +1161,7 @@ export async function lavMoedereferat(d: {
       ["Afdeling", d.afsender.afdeling ?? d.afsender.navn],
       ["Sted", d.sted],
       ["Referent", d.referent ?? ""],
+      ["Kundenr.", d.kunde.nummer ?? ""],
       ["Kundekonto", d.kunde.konto ?? ""],
       ["Dato", langDato(d.dato)],
     ],
@@ -1215,6 +1231,7 @@ export async function lavMailudskrift(d: {
     meta: [
       ["Afdeling", d.afsender.afdeling ?? d.afsender.navn],
       ["Reference", d.reference ?? ""],
+      ["Kundenr.", d.kunde.nummer ?? ""],
       ["Kundekonto", d.kunde.konto ?? ""],
       ["Modtaget", langDato(d.sendt)],
     ],

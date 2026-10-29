@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { opretKontrakt } from "@/lib/kontrakter";
+import { kontraktTilProdukt } from "@/lib/kontrakter";
 
 type Tx = Parameters<Parameters<typeof db.$transaction>[0]>[0];
 
@@ -48,7 +48,7 @@ export async function registrerLicensaendring(
     await tx.customerProduct.update({ where: { id: linje.id }, data: { seats: efter } });
     linjeId = linje.id;
   } else {
-    const contractId = a.contractId ?? (await opretKontrakt(tx, a.companyId, a.initials)).id;
+    const contractId = await kontraktTilProdukt(tx, a.companyId, a.productId, a.contractId, a.initials);
     const ny = await tx.customerProduct.create({
       data: {
         companyId: a.companyId,

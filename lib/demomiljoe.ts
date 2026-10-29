@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { naesteSubNummer } from "@/lib/kontrakter";
+import { delBlandedeKontrakter, naesteSubNummer } from "@/lib/kontrakter";
 import { aftaleUdloeb, maanederMellem, plusDage, slutFraMaaneder } from "@/lib/perioder";
 import { ordrePdf } from "@/lib/ordre-pdf";
 import { gemDokumentIFilboks } from "@/lib/filer";
@@ -423,6 +423,7 @@ export async function bygDemomiljoe(initials: string | null): Promise<DemoResult
 
     const kunde = await db.company.create({
       data: {
+        customerNumber: k + 1,
         name: navn,
         industry: pr.branche,
         country: pr.land,
@@ -523,6 +524,13 @@ export async function bygDemomiljoe(initials: string | null): Promise<DemoResult
         });
         linjer.push({ id: cp.id, contractId: noegle.id, licens, seats, pris: aftalt ?? liste, start, term });
       }
+    }
+
+    // En SUB-nøgle hører til ét produkt: del nøgler med flere produkter og opdatér linjernes nøgle
+    await delBlandedeKontrakter(kunde.id);
+    for (const l of linjer) {
+      const cp = await db.customerProduct.findUnique({ where: { id: l.id }, select: { contractId: true } });
+      if (cp?.contractId) l.contractId = cp.contractId;
     }
 
     // Licenshistorik (tilkøb og reduktioner) — antallet ender på linjens nuværende antal
@@ -660,7 +668,7 @@ export async function bygDemomiljoe(initials: string | null): Promise<DemoResult
 
     // Filbilag: kontrakt, mødereferat og evt. implementeringsplan — alle på den fælles dokumentskabelon
     const kundePdf = {
-      navn, adresse: kunde.address, postby: `${pr.postnr} ${pr.by}`, land: pr.land, cvr: kunde.orgNumber, konto: kunde.accountId,
+      navn, nummer: `K-${String(k + 1).padStart(5, "0")}`, adresse: kunde.address, postby: `${pr.postnr} ${pr.by}`, land: pr.land, cvr: kunde.orgNumber, konto: kunde.accountId,
     };
     const fuldtNavn = (c: { firstName: string; lastName: string }) => `${c.firstName} ${c.lastName}`;
     const noegleNumre = new Map<string, number>();

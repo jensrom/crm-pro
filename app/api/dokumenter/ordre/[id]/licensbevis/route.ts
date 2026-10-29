@@ -6,6 +6,7 @@ import { kanLaese } from "@/lib/roller";
 import { brugerensProfilId, dokNr, filnavn, hentAfsender, subNr } from "@/lib/dokumenter";
 import { kanLaveLicensbevis } from "@/lib/intern";
 import { lavOrdreLicensbevis } from "@/lib/pdf";
+import { kundeNr } from "@/lib/kundenr";
 import { gemDokumentIFilboks } from "@/lib/filer";
 
 export const runtime = "nodejs";
@@ -45,6 +46,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     afsender: await hentAfsender(o.senderProfileId ?? (await brugerensProfilId(session.id))),
     kunde: {
       navn: k?.name ?? o.recipientName,
+      afdeling: k?.department ?? null,
+      nummer: k ? kundeNr(k.customerNumber) : null,
       adresse: k?.address ?? o.recipientAddress,
       postby: k ? [k.zipCode, k.city].filter(Boolean).join(" ") : null,
       land: k?.country ?? null,
