@@ -164,52 +164,6 @@ class Dok {
     }
   }
 
-  /** Logo eller firmanavn til venstre, dokumenttitel og nøgletal til højre. */
-  hoved(meta: [string, string][]) {
-    const top = this.y;
-    if (this.logo) {
-      const maksH = 42;
-      const maksB = 180;
-      const s = Math.min(maksH / this.logo.height, maksB / this.logo.width);
-      const h = this.logo.height * s;
-      this.side.drawImage(this.logo, { x: MARGIN, y: top - h, width: this.logo.width * s, height: h });
-    } else {
-      this.skriv(this.afsender.navn, MARGIN, top - 16, { str: 15, fed: true });
-    }
-    const hx = A4.b - MARGIN;
-    this.skriv(this.titel.toUpperCase(), hx, top - 16, { str: 17, fed: true, farve: ORANGE, hoejre: true });
-    let my = top - 36;
-    for (const [k, v] of meta) {
-      if (!v) continue;
-      this.skriv(v, hx, my, { str: 9.5, fed: true, hoejre: true });
-      this.skriv(k, hx - 130, my, { str: 9, farve: GRAA });
-      my -= 14;
-    }
-    this.y = Math.min(top - 60, my - 6);
-  }
-
-  /** To kolonner: modtager til venstre, afsender til højre. */
-  parter(venstreTitel: string, venstre: string[], hoejreTitel: string, hoejre: string[]) {
-    this.y -= 8;
-    const top = this.y;
-    const kol2 = A4.b / 2 + 20;
-    this.skriv(venstreTitel.toUpperCase(), MARGIN, top - 9, { str: 7.5, fed: true, farve: GRAA });
-    this.skriv(hoejreTitel.toUpperCase(), kol2, top - 9, { str: 7.5, fed: true, farve: GRAA });
-    let yv = top - 24;
-    venstre.filter(Boolean).forEach((l, i) => {
-      for (const del of this.ombryd(l, kol2 - MARGIN - 20, i === 0 ? 10.5 : 9.5, i === 0)) {
-        this.skriv(del, MARGIN, yv, { str: i === 0 ? 10.5 : 9.5, fed: i === 0 });
-        yv -= i === 0 ? 15 : 13;
-      }
-    });
-    let yh = top - 24;
-    hoejre.filter(Boolean).forEach((l, i) => {
-      this.skriv(l, kol2, yh, { str: i === 0 ? 10.5 : 9.5, fed: i === 0 });
-      yh -= i === 0 ? 15 : 13;
-    });
-    this.y = Math.min(yv, yh) - 14;
-  }
-
   tabel(kol: Kol[], raekker: string[][], o: { fedSidsteKolonne?: boolean } = {}) {
     const total = kol.reduce((s, k) => s + k.bredde, 0);
     const skala = (A4.b - 2 * MARGIN) / total;
@@ -314,6 +268,215 @@ class Dok {
     this.y -= 16;
   }
 
+  // ============================================================
+  // FÆLLES SKABELON — byggeklodserne alle dokumenter bruges af.
+  // Rækkefølgen er altid: standardhoved → nøgletal → sektioner
+  // (tabeller, punkter, nummererede afsnit) → underskrifter.
+  // ============================================================
+
+  /**
+   * Dokumenthovedet: parten (kunde/modtager) til venstre under en lille
+   * label, dokumentdata til højre, derefter centreret titel med orange
+   * streg og en indledning. "Side" i meta udfyldes, når antal sider kendes.
+   */
+  standardhoved(o: {
+    partTitel: string;
+    part: string[];
+    att?: string | null;
+    meta: [string, string][];
+    titel: string;
+    undertitel?: string | null;
+    intro?: string | null;
+  }) {
+    const hTop = this.y;
+    let yv = hTop - 2;
+    this.skriv(o.partTitel.toUpperCase(), MARGIN, yv, { str: 7.5, fed: true, farve: GRAA });
+    yv -= 16;
+    o.part.filter(Boolean).forEach((l, i) => {
+      for (const del of this.ombryd(l, 225, i === 0 ? 10.5 : 9.5, i === 0)) {
+        this.skriv(del, MARGIN, yv, { str: i === 0 ? 10.5 : 9.5, fed: i === 0 });
+        yv -= i === 0 ? 14 : 12.5;
+      }
+    });
+    if (o.att) {
+      yv -= 6;
+      for (const del of this.ombryd(`Att.: ${o.att}`, 225, 9.5, true)) {
+        this.skriv(del, MARGIN, yv, { str: 9.5, fed: true });
+        yv -= 12.5;
+      }
+    }
+
+    const kx = MARGIN + 265;
+    const vx = kx + 92;
+    let yh = hTop - 2;
+    for (const [k, v] of [...o.meta, ["Side", ""] as [string, string]]) {
+      if (!v && k !== "Side") continue;
+      this.skriv(k, kx, yh, { str: 8.5, farve: GRAA });
+      if (k === "Side") this.sideFelt = { x: vx, y: yh };
+      else this.skriv(this.ombryd(v, A4.b - MARGIN - vx, 8.5)[0] ?? "", vx, yh, { str: 8.5 });
+      yh -= 11.5;
+    }
+    this.y = Math.min(yv, yh) - 22;
+
+    const tb = this.bredde(o.titel, 15, true);
+    this.skriv(o.titel, (A4.b - tb) / 2, this.y - 15, { str: 15, fed: true });
+    this.side.drawRectangle({ x: (A4.b - 36) / 2, y: this.y - 23, width: 36, height: 2, color: ORANGE });
+    this.y -= 23;
+    if (o.undertitel) {
+      const ub = this.bredde(o.undertitel, 9.5);
+      this.skriv(o.undertitel, (A4.b - ub) / 2, this.y - 16, { str: 9.5, farve: GRAA });
+      this.y -= 16;
+    }
+    this.y -= 17;
+    if (o.intro) {
+      this.afsnit(o.intro, { str: 10.5 });
+      this.y -= 10;
+    }
+  }
+
+  /** Nøgletal i én flade med orange kant: [label, værdi, undertekst]. Bredder er andele. */
+  noegletal(felter: [string, string, string?][], andele?: number[]) {
+    const FULD = A4.b - 2 * MARGIN;
+    const PAD = 8;
+    const a = andele ?? felter.map(() => 1 / felter.length);
+    const kortH = 54;
+    this.plads(kortH + 10);
+    const top = this.y;
+    this.side.drawRectangle({ x: MARGIN, y: top - kortH, width: FULD, height: kortH, color: FLADE });
+    this.side.drawRectangle({ x: MARGIN, y: top - kortH, width: 2.5, height: kortH, color: ORANGE });
+    let fx = MARGIN + 4;
+    felter.forEach(([k, v, u], i) => {
+      const b = a[i] * (FULD - 4);
+      if (i > 0) this.side.drawLine({ start: { x: fx, y: top - 10 }, end: { x: fx, y: top - kortH + 10 }, thickness: 0.6, color: LINJE });
+      const x = fx + PAD + 2;
+      const tb = b - 2 * PAD - 2;
+      this.skriv(k.toUpperCase(), x, top - 16, { str: 7, fed: true, farve: GRAA });
+      this.skriv(this.ombryd(v, tb, 10.5, true)[0] ?? "", x, top - 31, { str: 10.5, fed: true });
+      if (u) this.skriv(this.ombryd(u, tb, 8)[0] ?? "", x, top - 44, { str: 8, farve: GRAA });
+      fx += b;
+    });
+    this.y = top - kortH - 6;
+  }
+
+  /** To-kolonne tabel med hårlinjer: label (grå) | værdi. */
+  noegleTabel(raekker: [string, string][], o: { fedFoerste?: boolean; labelBredde?: number } = {}) {
+    const FULD = A4.b - 2 * MARGIN;
+    const PAD = 8;
+    const nb = o.labelBredde ?? 130;
+    this.side.drawLine({ start: { x: MARGIN, y: this.y }, end: { x: A4.b - MARGIN, y: this.y }, thickness: 0.6, color: LINJE });
+    raekker.forEach(([k, v], i) => {
+      const linjer = this.ombryd(v, FULD - nb - 2 * PAD, 9.5);
+      const h = linjer.length * 12.5 + 7;
+      this.plads(h);
+      this.skriv(k, MARGIN + PAD, this.y - 13, { str: 9, farve: GRAA });
+      linjer.forEach((l, j) => this.skriv(l, MARGIN + nb, this.y - 13 - j * 12.5, { str: 9.5, fed: !!o.fedFoerste && i === 0 && j === 0 }));
+      this.y -= h;
+      this.side.drawLine({ start: { x: MARGIN, y: this.y }, end: { x: A4.b - MARGIN, y: this.y }, thickness: 0.6, color: LINJE });
+    });
+    this.y -= 4;
+  }
+
+  /** Punktliste med små orange firkanter. */
+  punkter(linjer: string[], str = 9.5) {
+    const lh = str + 3.5;
+    for (const t of linjer) {
+      const dele = this.ombryd(t.replace(/^[-•]\s*/, ""), A4.b - 2 * MARGIN - 16, str);
+      this.plads(dele.length * lh);
+      this.side.drawRectangle({ x: MARGIN + 1, y: this.y - str + 0.5, width: 4, height: 4, color: ORANGE });
+      dele.forEach((l, j) => this.skriv(l, MARGIN + 14, this.y - str - j * lh, { str }));
+      this.y -= dele.length * lh + 1;
+    }
+  }
+
+  /**
+   * Nummererede afsnit (vilkår, dagsordenspunkter). Med titel står titlen
+   * fed på nummerets linje og teksten under; uden titel står teksten direkte.
+   */
+  nummererede(punkter: { titel?: string | null; tekst?: string | null }[], o: { str?: number; start?: number } = {}) {
+    const str = o.str ?? 8.8;
+    const lh = str + 2.8;
+    const ind = 22;
+    const bredde = A4.b - 2 * MARGIN - ind;
+    punkter.forEach((p, i) => {
+      const titel = p.titel ? this.ombryd(p.titel, bredde, str + 0.7, true) : [];
+      const tekst = p.tekst ? this.ombryd(p.tekst, bredde, str) : [];
+      this.plads(Math.min(titel.length * (lh + 1) + tekst.length * lh, 3 * lh) + 2);
+      this.skriv(`${(o.start ?? 1) + i}.`, MARGIN, this.y - str, { str: str + (titel.length ? 0.7 : 0), fed: true, farve: ORANGE });
+      titel.forEach((l) => {
+        this.skriv(l, MARGIN + ind, this.y - str, { str: str + 0.7, fed: true });
+        this.y -= lh + 1;
+      });
+      tekst.forEach((l, j) => {
+        if (j > 0) this.plads(lh);
+        this.skriv(l, MARGIN + ind, this.y - str, { str, farve: rgb(0.25, 0.24, 0.22) });
+        this.y -= lh;
+      });
+      this.y -= titel.length ? 5 : 3;
+    });
+  }
+
+  /**
+   * Tidslinje: én vandret bjælke pr. fase mellem første og sidste dato,
+   * med månedsmarkeringer øverst. Bruges i planer.
+   */
+  tidslinje(faser: { navn: string; fra: Date; til: Date }[]) {
+    if (!faser.length) return;
+    const labelB = 130;
+    const x0 = MARGIN + labelB;
+    const x1 = A4.b - MARGIN;
+    const start = Math.min(...faser.map((f) => f.fra.getTime()));
+    const slut = Math.max(...faser.map((f) => f.til.getTime()));
+    const span = Math.max(slut - start, 864e5);
+    const xAf = (t: number) => x0 + ((t - start) / span) * (x1 - x0);
+    const raekkeH = 20;
+    const h = 22 + faser.length * raekkeH + 6;
+    this.plads(h);
+    const top = this.y;
+    // Månedsmarkeringer
+    const m = new Date(start);
+    m.setDate(1);
+    m.setMonth(m.getMonth() + 1);
+    this.side.drawLine({ start: { x: x0, y: top - 16 }, end: { x: x1, y: top - 16 }, thickness: 0.6, color: LINJE });
+    for (; m.getTime() < slut; m.setMonth(m.getMonth() + 1)) {
+      const x = xAf(m.getTime());
+      this.side.drawLine({ start: { x, y: top - 16 }, end: { x, y: top - h + 4 }, thickness: 0.4, color: LINJE });
+      const t = new Intl.DateTimeFormat("da-DK", { month: "short" }).format(m).replace(".", "");
+      this.skriv(t, x + 3, top - 11, { str: 7, farve: GRAA });
+    }
+    faser.forEach((f, i) => {
+      const y = top - 22 - i * raekkeH;
+      this.skriv(this.ombryd(f.navn, labelB - 10, 8.5)[0] ?? "", MARGIN, y - 10, { str: 8.5 });
+      const a = xAf(f.fra.getTime());
+      const b = Math.max(xAf(f.til.getTime()), a + 4);
+      this.side.drawRectangle({ x: a, y: y - 13, width: b - a, height: 10, color: i % 2 ? rgb(0.86, 0.6, 0.4) : ORANGE });
+    });
+    this.y = top - h;
+    this.side.drawLine({ start: { x: MARGIN, y: this.y }, end: { x: x1, y: this.y }, thickness: 0.6, color: LINJE });
+    this.y -= 6;
+  }
+
+  /** Underskriftsfelter til begge parter, holdt samlet. */
+  underskrifter(venstre: [string, string, string], hoejre: [string, string, string]) {
+    const FULD = A4.b - 2 * MARGIN;
+    this.plads(80);
+    this.y -= 38;
+    const sb = (FULD - 40) / 2;
+    const felt = (x: number, [part, navn, linje2]: [string, string, string]) => {
+      this.side.drawLine({ start: { x, y: this.y }, end: { x: x + sb, y: this.y }, thickness: 0.6, color: SORT });
+      this.skriv(part.toUpperCase(), x, this.y - 12, { str: 7, fed: true, farve: GRAA });
+      this.skriv(this.ombryd(navn, sb, 9.5, true)[0] ?? "", x, this.y - 24, { str: 9.5, fed: true });
+      this.skriv(linje2, x, this.y - 36, { str: 8.5, farve: GRAA });
+    };
+    felt(MARGIN, venstre);
+    felt(MARGIN + sb + 40, hoejre);
+    this.y -= 44;
+  }
+
+  /** Reserverer plads til et samlet blok (fx overskrift + kort tabel), hvis den er under en halv side. */
+  holdSammen(h: number) {
+    if (h < 360) this.plads(h);
+  }
+
   /** Afsenderoplysninger og sidetal nederst på hver side. */
   /** Hvor "Side 1 af N" skal stå i dokumenthovedet (udfyldes, når antal sider kendes). */
   sideFelt: { x: number; y: number } | null = null;
@@ -347,10 +510,6 @@ class Dok {
   }
 }
 
-function afsenderLinjer(a: Afsender) {
-  return [a.navn, a.adresse ?? "", a.postby ?? "", a.cvr ? `CVR ${a.cvr}` : "", a.mail ?? "", a.telefon ?? ""];
-}
-
 // ============================================================
 // LICENSBEVIS
 // ============================================================
@@ -365,9 +524,14 @@ export type BevisLinje = {
   til: Date | null;
 };
 
+const kundeLinjer = (k: { navn: string; adresse?: string | null; postby?: string | null; land?: string | null; cvr?: string | null }) =>
+  [k.navn, ...(k.adresse ?? "").split("\n"), [k.postby, k.land].filter(Boolean).join(", "), k.cvr ? `CVR ${k.cvr}` : ""].filter(Boolean);
+
+type KundePdf = { navn: string; adresse?: string | null; postby?: string | null; land?: string | null; cvr?: string | null; konto?: string | null };
+
 export async function lavLicensbevis(d: {
   afsender: Afsender;
-  kunde: { navn: string; adresse?: string | null; postby?: string | null; land?: string | null; cvr?: string | null; konto?: string | null };
+  kunde: KundePdf;
   reference: string;
   udstedt: Date;
   udstedtAf: string | null;
@@ -375,56 +539,60 @@ export async function lavLicensbevis(d: {
 }) {
   const dok = new Dok(d.afsender, "Licensbevis");
   await dok.start();
-  dok.hoved([
-    ["Reference", d.reference],
-    ["Udstedt", datoTekst(d.udstedt)],
-    ["Kundekonto", d.kunde.konto ?? ""],
-  ]);
-  dok.parter(
-    "Licenstager",
-    [d.kunde.navn, d.kunde.adresse ?? "", [d.kunde.postby, d.kunde.land].filter(Boolean).join(", "), d.kunde.cvr ? `CVR ${d.kunde.cvr}` : ""],
-    "Licensgiver",
-    afsenderLinjer(d.afsender)
-  );
+  dok.logoPaaAlleSider();
+  dok.standardhoved({
+    partTitel: "Licenstager",
+    part: kundeLinjer(d.kunde),
+    meta: [
+      ["Afdeling", d.afsender.afdeling ?? d.afsender.navn],
+      ["Reference", d.reference],
+      ["Kundekonto", d.kunde.konto ?? ""],
+      ["Udstedt af", d.udstedtAf ?? ""],
+      ["Dato", langDato(d.udstedt)],
+    ],
+    titel: "Licensbevis",
+    intro: `Hermed bekræftes, at ${d.kunde.navn} har ret til at anvende nedenstående licenser i den angivne periode.`,
+  });
 
-  dok.afsnit(
-    `Hermed bekræftes, at ${d.kunde.navn} har ret til at anvende nedenstående licenser i den angivne periode.`,
-    { str: 10 }
-  );
-  dok.y -= 8;
+  const ialt = d.linjer.reduce((s, l) => s + l.antal, 0);
+  const noegler = new Set(d.linjer.map((l) => l.sub)).size;
+  dok.noegletal([
+    ["Licenstager", d.kunde.navn, d.kunde.konto ? `Kundekonto ${d.kunde.konto}` : ""],
+    ["Licenser i alt", String(ialt), `${d.linjer.length} ${d.linjer.length === 1 ? "licenslinje" : "licenslinjer"}`],
+    ["Aftaler", String(noegler), noegler === 1 ? "SUB-nøgle" : "SUB-nøgler"],
+    ["Udstedt", datoTekst(d.udstedt), "Gælder på udstedelsesdagen"],
+  ], [0.34, 0.2, 0.18, 0.28]);
 
+  dok.overskrift("Licenser");
   dok.tabel(
     [
       { titel: "Licensnr.", bredde: 78 },
       { titel: "Produkt / licens", bredde: 190 },
       { titel: "Model", bredde: 70 },
-      { titel: "Licenser", bredde: 55, hoejre: true },
-      { titel: "Periode", bredde: 120, hoejre: true },
+      { titel: "Antal", bredde: 50, hoejre: true },
+      { titel: "Periode", bredde: 125, hoejre: true },
     ],
     d.linjer.map((l) => [
       l.sub,
       `${l.produkt}\n${l.licens}`,
       l.model,
       String(l.antal),
-      l.til ? `${datoTekst(l.fra)} - ${datoTekst(l.til)}` : `Fra ${datoTekst(l.fra)}\nTidsubegrænset`,
+      l.til ? `${datoTekst(l.fra)} – ${datoTekst(l.til)}` : `Fra ${datoTekst(l.fra)}\nTidsubegrænset`,
     ])
   );
-
-  const ialt = d.linjer.reduce((s, l) => s + l.antal, 0);
   dok.summer([["Licenser i alt", String(ialt), true]]);
 
-  if (d.afsender.bevisTekst) {
+  if (d.afsender.bevisTekst?.trim()) {
+    const v = d.afsender.bevisTekst.split("\n").map((l) => l.trim().replace(/^[-•]\s*/, "").replace(/^\d+[.)]\s*/, "")).filter(Boolean);
+    dok.holdSammen(v.length * 24 + 30);
     dok.overskrift("Vilkår");
-    dok.afsnit(d.afsender.bevisTekst, { farve: GRAA, str: 9 });
+    dok.nummererede(v.map((tekst) => ({ tekst })));
   }
 
-  // Underskriftsfelt
-  dok.plads(70);
-  dok.y -= 40;
-  dok.side.drawLine({ start: { x: MARGIN, y: dok.y }, end: { x: MARGIN + 200, y: dok.y }, thickness: 0.6, color: SORT });
-  dok.skriv(d.udstedtAf ? `${d.udstedtAf}, ${d.afsender.navn}` : d.afsender.navn, MARGIN, dok.y - 12, { str: 9, farve: GRAA });
-  dok.skriv(`Udstedt ${datoTekst(d.udstedt)}`, MARGIN, dok.y - 24, { str: 9, farve: GRAA });
-
+  dok.underskrifter(
+    ["For licensgiver", d.afsender.navn, d.udstedtAf ? `${d.udstedtAf} · ${datoTekst(d.udstedt)}` : datoTekst(d.udstedt)],
+    ["For licenstager", d.kunde.navn, "Navn og dato"]
+  );
   return dok.gem();
 }
 
@@ -450,7 +618,7 @@ const STANDARDVILKAAR_PERPETUAL = [
 
 export async function lavOrdreLicensbevis(d: {
   afsender: Afsender;
-  kunde: { navn: string; adresse?: string | null; postby?: string | null; land?: string | null; cvr?: string | null; konto?: string | null };
+  kunde: KundePdf;
   ordrenr: string;
   leverandoerRef: string | null;
   leverandoerOrdrenr: string | null;
@@ -469,167 +637,68 @@ export async function lavOrdreLicensbevis(d: {
   udstedt: Date;
   udstedtAf: string | null;
 }) {
-  // Samme opstilling som tilbud og ordrebekræftelse: logo på hver side,
-  // licenstager til venstre, dokumentdata til højre, centreret titel.
   const titel = d.perpetual ? "Licensbevis" : "Subscription licensbevis";
   const dok = new Dok(d.afsender, titel);
   await dok.start();
   dok.logoPaaAlleSider();
-
-  const FULD = A4.b - 2 * MARGIN;
-  const PAD = 8;
-
-  // ---------- Hoved ----------
-  const hTop = dok.y;
-  let yv = hTop - 2;
-  dok.skriv("LICENSTAGER", MARGIN, yv, { str: 7.5, fed: true, farve: GRAA });
-  yv -= 16;
-  const kundeLinjer = [
-    d.kunde.navn,
-    d.kunde.adresse ?? "",
-    [d.kunde.postby, d.kunde.land].filter(Boolean).join(", "),
-    d.kunde.cvr ? `CVR ${d.kunde.cvr}` : "",
-  ].filter(Boolean);
-  kundeLinjer.forEach((l, i) => {
-    for (const del of dok.ombryd(l, 220, i === 0 ? 10.5 : 9.5, i === 0)) {
-      dok.skriv(del, MARGIN, yv, { str: i === 0 ? 10.5 : 9.5, fed: i === 0 });
-      yv -= i === 0 ? 14 : 12.5;
-    }
-  });
-
-  const kx = MARGIN + 265;
-  const vx = kx + 92;
-  const meta: [string, string][] = [
-    ["Afdeling", d.afsender.afdeling ?? d.afsender.navn],
-    ["Licensnr.", d.ordrenr],
-    ...(d.subNr ? ([["Subscription-nr.", d.subNr]] as [string, string][]) : []),
-    ...(d.leverandoerRef ? ([["Ref. hos leverandør", d.leverandoerRef]] as [string, string][]) : []),
-    ["Kundekonto", d.kunde.konto ?? ""],
-    ["Udstedt af", d.udstedtAf ?? ""],
-    ["Dato", langDato(d.udstedt)],
-    ["Side", ""],
-  ];
-  let yh = hTop - 2;
-  for (const [k, v] of meta) {
-    if (!v && k !== "Side") continue;
-    dok.skriv(k, kx, yh, { str: 8.5, farve: GRAA });
-    if (k === "Side") dok.sideFelt = { x: vx, y: yh };
-    else dok.skriv(v, vx, yh, { str: 8.5 });
-    yh -= 11.5;
-  }
-  dok.y = Math.min(yv, yh) - 22;
-
-  // ---------- Titel og indledning ----------
-  const tb = dok.bredde(titel, 15, true);
-  dok.skriv(titel, (A4.b - tb) / 2, dok.y - 15, { str: 15, fed: true });
-  dok.side.drawRectangle({ x: (A4.b - 36) / 2, y: dok.y - 23, width: 36, height: 2, color: ORANGE });
-  dok.y -= 40;
-  dok.afsnit(
-    d.perpetual
+  dok.standardhoved({
+    partTitel: "Licenstager",
+    part: kundeLinjer(d.kunde),
+    meta: [
+      ["Afdeling", d.afsender.afdeling ?? d.afsender.navn],
+      ["Licensnr.", d.ordrenr],
+      ["Subscription-nr.", d.subNr ?? ""],
+      ["Ref. hos leverandør", d.leverandoerRef ?? ""],
+      ["Kundekonto", d.kunde.konto ?? ""],
+      ["Udstedt af", d.udstedtAf ?? ""],
+      ["Dato", langDato(d.udstedt)],
+    ],
+    titel,
+    intro: d.perpetual
       ? `Hermed bekræftes, at ${d.kunde.navn} har erhvervet en tidsubegrænset licens til nedenstående produkt på de anførte vilkår.`
       : `Hermed bekræftes, at ${d.kunde.navn} har ret til at anvende nedenstående produkt i aftaleperioden på de anførte vilkår.`,
-    { str: 10.5 }
-  );
-  dok.y -= 10;
-
-  // ---------- Nøgletal: fire felter i én flade ----------
-  const periode = d.perpetual
-    ? `Fra ${datoTekst(d.fra ?? d.udstedt)}`
-    : `${datoTekst(d.fra)} – ${datoTekst(d.til)}`;
-  const felter: [string, string, string][] = [
-    ["Licens", d.licens, d.produkt],
-    ["Antal", String(d.antal), d.antal === 1 ? "licens" : "licenser"],
-    [d.perpetual ? "Købt" : "Aftaleperiode", periode, d.perpetual ? "Tidsubegrænset" : "Subscription"],
-    [d.perpetual ? "Pris" : "Pris for perioden", d.pris != null ? kr(d.pris) : "–", d.pris != null ? "ekskl. moms" : ""],
-  ];
-  const kortB = [0.34, 0.14, 0.28, 0.24].map((f) => f * FULD);
-  const kortH = 54;
-  dok.plads(kortH + 10);
-  const kTop = dok.y;
-  dok.side.drawRectangle({ x: MARGIN, y: kTop - kortH, width: FULD, height: kortH, color: FLADE });
-  dok.side.drawRectangle({ x: MARGIN, y: kTop - kortH, width: 2.5, height: kortH, color: ORANGE });
-  let fx = MARGIN + 4;
-  felter.forEach(([k, v, u], i) => {
-    const b = kortB[i];
-    if (i > 0) dok.side.drawLine({ start: { x: fx, y: kTop - 10 }, end: { x: fx, y: kTop - kortH + 10 }, thickness: 0.6, color: LINJE });
-    const x = fx + PAD + 2;
-    const tekstB = b - 2 * PAD - 2;
-    dok.skriv(k.toUpperCase(), x, kTop - 16, { str: 7, fed: true, farve: GRAA });
-    const vStr = 10.5;
-    const vl = dok.ombryd(v, tekstB, vStr, true)[0] ?? "";
-    dok.skriv(vl, x, kTop - 31, { str: vStr, fed: true });
-    if (u) dok.skriv(dok.ombryd(u, tekstB, 8)[0] ?? "", x, kTop - 44, { str: 8, farve: GRAA });
-    fx += b;
   });
-  dok.y = kTop - kortH - 6;
 
-  // ---------- Licensoplysninger som tabel ----------
-  dok.overskrift("Licensoplysninger");
+  dok.noegletal(
+    [
+      ["Licens", d.licens, d.produkt],
+      ["Antal", String(d.antal), d.antal === 1 ? "licens" : "licenser"],
+      [d.perpetual ? "Købt" : "Aftaleperiode", d.perpetual ? `Fra ${datoTekst(d.fra ?? d.udstedt)}` : `${datoTekst(d.fra)} – ${datoTekst(d.til)}`, d.perpetual ? "Tidsubegrænset" : "Subscription"],
+      [d.perpetual ? "Pris" : "Pris for perioden", d.pris != null ? kr(d.pris) : "–", d.pris != null ? "ekskl. moms" : ""],
+    ],
+    [0.34, 0.14, 0.28, 0.24]
+  );
+
   // Antal, periode og pris står i nøgletallene; her kun det, der identificerer licensen
-  const raekker: [string, string][] = [
-    ["Produkt", d.produkt ? `${d.produkt} · ${d.licens}` : d.licens],
-    ...(d.placering ? ([["Placering / info", d.placering]] as [string, string][]) : []),
-    ...(d.partNr ? ([["Part-nr.", d.partNr]] as [string, string][]) : []),
-    ...(d.version ? ([["Version", d.version]] as [string, string][]) : []),
-    ...(d.leverandoerOrdrenr ? ([["Leverandørens ordrenr.", d.leverandoerOrdrenr]] as [string, string][]) : []),
-  ];
-  const nb = 130;
-  dok.side.drawLine({ start: { x: MARGIN, y: dok.y }, end: { x: A4.b - MARGIN, y: dok.y }, thickness: 0.6, color: LINJE });
-  for (const [k, v] of raekker) {
-    const linjer = dok.ombryd(v, FULD - nb - 2 * PAD, 9.5);
-    const h = linjer.length * 12.5 + 7;
-    dok.plads(h);
-    dok.skriv(k, MARGIN + PAD, dok.y - 13, { str: 9, farve: GRAA });
-    linjer.forEach((l, j) => dok.skriv(l, MARGIN + nb, dok.y - 13 - j * 12.5, { str: 9.5, fed: j === 0 && k === "Produkt" }));
-    dok.y -= h;
-    dok.side.drawLine({ start: { x: MARGIN, y: dok.y }, end: { x: A4.b - MARGIN, y: dok.y }, thickness: 0.6, color: LINJE });
-  }
-  dok.y -= 4;
+  dok.overskrift("Licensoplysninger");
+  dok.noegleTabel(
+    [
+      ["Produkt", d.produkt ? `${d.produkt} · ${d.licens}` : d.licens],
+      ...(d.placering ? ([["Placering / info", d.placering]] as [string, string][]) : []),
+      ...(d.partNr ? ([["Part-nr.", d.partNr]] as [string, string][]) : []),
+      ...(d.version ? ([["Version", d.version]] as [string, string][]) : []),
+      ...(d.leverandoerOrdrenr ? ([["Leverandørens ordrenr.", d.leverandoerOrdrenr]] as [string, string][]) : []),
+    ],
+    { fedFoerste: true }
+  );
 
-  // ---------- Detaljer (kun hvis der er nogen) ----------
-  const detaljer = (d.detaljer ?? "").split("\n").map((l) => l.trim().replace(/^[-•]\s*/, "")).filter(Boolean);
+  const detaljer = (d.detaljer ?? "").split("\n").map((l) => l.trim()).filter(Boolean);
   if (detaljer.length) {
     dok.overskrift("Leverancen omfatter");
-    for (const t of detaljer) {
-      const dele = dok.ombryd(t, FULD - 16, 9.5);
-      dok.plads(dele.length * 13);
-      dok.side.drawRectangle({ x: MARGIN + 1, y: dok.y - 9, width: 4, height: 4, color: ORANGE });
-      dele.forEach((l, j) => dok.skriv(l, MARGIN + 14, dok.y - 9.5 - j * 13, { str: 9.5 }));
-      dok.y -= dele.length * 13 + 1;
-    }
+    dok.punkter(detaljer);
   }
 
-  // ---------- Vilkår som nummererede punkter ----------
   const vilkaar = d.afsender.bevisTekst?.trim()
     ? d.afsender.bevisTekst.split("\n").map((l) => l.trim().replace(/^[-•]\s*/, "").replace(/^\d+[.)]\s*/, "")).filter(Boolean)
     : d.perpetual ? STANDARDVILKAAR_PERPETUAL : STANDARDVILKAAR_SUB;
-  const vStr = 8.8;
-  const vLh = 11.6;
-  const vilkaarH = vilkaar.reduce((s, v) => s + dok.ombryd(v, FULD - 22, vStr).length * vLh + 3, 0) + 30;
-  if (vilkaarH < 300) dok.plads(vilkaarH);
+  dok.holdSammen(vilkaar.length * 24 + 30);
   dok.overskrift(d.perpetual ? "Vilkår" : "Subscription-aftale");
-  vilkaar.forEach((v, i) => {
-    const dele = dok.ombryd(v, FULD - 22, vStr);
-    dok.plads(dele.length * vLh);
-    dok.skriv(`${i + 1}.`, MARGIN, dok.y - vStr, { str: vStr, fed: true, farve: ORANGE });
-    dele.forEach((l, j) => dok.skriv(l, MARGIN + 22, dok.y - vStr - j * vLh, { str: vStr, farve: rgb(0.25, 0.24, 0.22) }));
-    dok.y -= dele.length * vLh + 3;
-  });
+  dok.nummererede(vilkaar.map((tekst) => ({ tekst })));
 
-  // ---------- Underskrifter: begge parter, holdes samlet ----------
-  dok.plads(80);
-  dok.y -= 38;
-  const sb = (FULD - 40) / 2;
-  const underskrift = (x: number, part: string, navn: string, linje2: string) => {
-    dok.side.drawLine({ start: { x, y: dok.y }, end: { x: x + sb, y: dok.y }, thickness: 0.6, color: SORT });
-    dok.skriv(part.toUpperCase(), x, dok.y - 12, { str: 7, fed: true, farve: GRAA });
-    dok.skriv(navn, x, dok.y - 24, { str: 9.5, fed: true });
-    dok.skriv(linje2, x, dok.y - 36, { str: 8.5, farve: GRAA });
-  };
-  underskrift(MARGIN, "For licensgiver", d.afsender.navn, d.udstedtAf ? `${d.udstedtAf} · ${datoTekst(d.udstedt)}` : datoTekst(d.udstedt));
-  underskrift(MARGIN + sb + 40, "For licenstager", d.kunde.navn, "Navn og dato");
-  dok.y -= 44;
-
+  dok.underskrifter(
+    ["For licensgiver", d.afsender.navn, d.udstedtAf ? `${d.udstedtAf} · ${datoTekst(d.udstedt)}` : datoTekst(d.udstedt)],
+    ["For licenstager", d.kunde.navn, "Navn og dato"]
+  );
   return dok.gem();
 }
 
@@ -705,58 +774,26 @@ export async function lavSalgsdokument(d: {
       .replace(/%BRUGERENS NAVN%/gi, d.saelger.navn ?? "");
 
 
-  // ---------- Hoved: modtager til venstre, sælger og dokumentdata til højre ----------
-  const hTop = dok.y;
-  let yv = hTop - 12;
-  const venstreB = 220;
-  const modtagerLinjer = [d.modtager.navn, ...(d.modtager.adresse ?? "").split("\n").filter(Boolean)];
-  for (const l of modtagerLinjer) {
-    for (const del of dok.ombryd(l, venstreB, 10.5, true)) {
-      dok.skriv(del, MARGIN, yv, { str: 10.5, fed: true });
-      yv -= 14;
-    }
-  }
-  if (d.modtager.att) {
-    yv -= 12;
-    for (const del of dok.ombryd(`Att.: ${d.modtager.att}`, venstreB, 10.5, true)) {
-      dok.skriv(del, MARGIN, yv, { str: 10.5, fed: true });
-      yv -= 14;
-    }
-  }
-  const kx = MARGIN + 265;
-  const vx = kx + 78;
-  const meta: [string, string][] = [
-    ["Afdeling", d.afsender.afdeling ?? d.afsender.navn],
-    ["Navn", d.saelger.navn ?? ""],
-    ["E-mail", d.saelger.mail ?? d.afsender.mail ?? ""],
-    ["Tlf. direkte", d.saelger.telefon ?? d.afsender.telefon ?? ""],
-    ["Tlf. mobil", d.saelger.mobil ?? ""],
-    ["Deres ref.", d.modtager.att ?? ""],
-    ["Deres rekv. nr.", d.reference ?? ""],
-    ["Vor ordre nr.", tilbud ? "--" : d.nummer],
-    ["Vor tilbuds nr.", tilbud ? d.nummer : d.tilbudsnummer ?? "--"],
-    ...(tilbud && d.gyldigTil ? ([["Gyldigt til", datoTekst(d.gyldigTil)]] as [string, string][]) : []),
-    ["Dato", langDato(d.dato)],
-    ["Side", ""],
-  ];
-  let yh = hTop - 10;
-  for (const [k, v] of meta) {
-    dok.skriv(k, kx, yh, { str: 8.5, farve: GRAA });
-    if (k === "Side") dok.sideFelt = { x: vx, y: yh };
-    else dok.skriv(v, vx, yh, { str: 8.5 });
-    yh -= 11.5;
-  }
-  dok.y = Math.min(yv, yh) - 22;
-
-  // ---------- Overskrift og indledning ----------
-  const tb = dok.bredde(titel, 15, true);
-  dok.skriv(titel, (A4.b - tb) / 2, dok.y - 15, { str: 15, fed: true });
-  dok.side.drawRectangle({ x: (A4.b - 36) / 2, y: dok.y - 23, width: 36, height: 2, color: ORANGE });
-  dok.y -= 38;
-  if (d.intro) {
-    dok.afsnit(flet(d.intro), { str: 10.5 });
-    dok.y -= 6;
-  }
+  // ---------- Fælles standardhoved ----------
+  dok.standardhoved({
+    partTitel: "Modtager",
+    part: [d.modtager.navn, ...(d.modtager.adresse ?? "").split("\n").filter(Boolean)],
+    att: d.modtager.att,
+    meta: [
+      ["Afdeling", d.afsender.afdeling ?? d.afsender.navn],
+      ["Navn", d.saelger.navn ?? ""],
+      ["E-mail", d.saelger.mail ?? d.afsender.mail ?? ""],
+      ["Tlf. direkte", d.saelger.telefon ?? d.afsender.telefon ?? ""],
+      ["Tlf. mobil", d.saelger.mobil ?? ""],
+      ["Deres rekv. nr.", d.reference ?? ""],
+      ["Vor ordre nr.", tilbud ? "" : d.nummer],
+      ["Vor tilbuds nr.", tilbud ? d.nummer : d.tilbudsnummer ?? ""],
+      ["Gyldigt til", tilbud && d.gyldigTil ? datoTekst(d.gyldigTil) : ""],
+      ["Dato", langDato(d.dato)],
+    ],
+    titel,
+    intro: d.intro ? flet(d.intro) : null,
+  });
 
   // ---------- Positioner: tabel med Pos. · Beskrivelse · Antal · Pris · Beløb ----------
   const FULD = A4.b - 2 * MARGIN;
@@ -861,7 +898,7 @@ export async function lavSalgsdokument(d: {
       const hoejde = par.length * 15 + 40 + (i === kommercielle.length - 1 ? 70 : 0);
       if (hoejde < 400) dok.plads(hoejde);
       dok.overskrift(kommercielle.length > 1 ? `Kommercielle betingelser — ${b.name}` : "Kommercielle betingelser");
-      dok.noegleVaerdi(par);
+      dok.noegleTabel(par);
     }
   } else {
     if (d.afsender.betaling) {
@@ -883,5 +920,316 @@ export async function lavSalgsdokument(d: {
     dok.betingelsestekst(b.generalTerms!);
   }
 
+  return dok.gem();
+}
+
+// ============================================================
+// KONTRAKT — aftale om licenser og service
+// Kundens samlede aftale: nøglerne (SUB-numre) med licenslinjer,
+// aftaleperiode, vilkår og underskrift fra begge parter.
+// ============================================================
+
+export type KontraktLinje = {
+  sub: string;
+  produkt: string;
+  licens: string;
+  /** "sub" | "perpetual" | "fee" */
+  model: string;
+  antal: number;
+  /** sub: pr. bruger pr. md. — ellers engangspris pr. stk. */
+  pris: number | null;
+};
+
+const STANDARDVILKAAR_KONTRAKT: { titel: string; tekst: string }[] = [
+  { titel: "Aftalens omfang", tekst: "Aftalen omfatter de licenser og ydelser, der er anført ovenfor. Tilkøb lægges på den relevante aftale (SUB-nummer) og følger dennes udløb." },
+  { titel: "Aftaleperiode og forlængelse", tekst: "Aftalen løber i den anførte periode fra aftalestart og forlænges herefter automatisk med 12 måneder ad gangen, medmindre den opsiges." },
+  { titel: "Opsigelse", tekst: "Opsigelse skal ske skriftligt senest 3 måneder før udløb af den løbende periode. Ved ophør bortfalder retten til at bruge abonnementslicenserne." },
+  { titel: "Priser og fakturering", tekst: "Abonnementer faktureres forud efter den aftalte faktureringsfrekvens. Engangsydelser og evige licenser faktureres ved levering. Alle priser er ekskl. moms. Priser kan reguleres én gang årligt med varsel på 3 måneder." },
+  { titel: "Vedligehold og support", tekst: "Abonnementer indeholder opdateringer og support i åbningstiden. Evige licenser kræver en gældende serviceaftale for opdateringer og support." },
+  { titel: "Data og fortrolighed", tekst: "Kunden ejer sine data. Leverandøren behandler data efter gældende databehandleraftale og videregiver dem ikke til tredjepart." },
+  { titel: "Tredjepartssoftware", tekst: "Tredjepartssoftware, fx Microsoft Windows og databaselicenser, er ikke indeholdt, medmindre det fremgår af aftalen." },
+];
+
+export async function lavKontrakt(d: {
+  afsender: Afsender;
+  kunde: KundePdf;
+  kontaktperson: string | null;
+  aftalenr: string;
+  aftalestart: Date;
+  termMaaneder: number;
+  ansvarlig: string | null;
+  linjer: KontraktLinje[];
+  vilkaar?: { titel: string; tekst: string }[];
+}) {
+  const dok = new Dok(d.afsender, "Aftale om licenser og service");
+  await dok.start();
+  dok.logoPaaAlleSider();
+  const udloeb = new Date(d.aftalestart);
+  udloeb.setMonth(udloeb.getMonth() + d.termMaaneder);
+  udloeb.setDate(udloeb.getDate() - 1);
+  dok.standardhoved({
+    partTitel: "Kunde",
+    part: kundeLinjer(d.kunde),
+    att: d.kontaktperson,
+    meta: [
+      ["Afdeling", d.afsender.afdeling ?? d.afsender.navn],
+      ["Aftalenr.", d.aftalenr],
+      ["Kundekonto", d.kunde.konto ?? ""],
+      ["Ansvarlig", d.ansvarlig ?? ""],
+      ["Dato", langDato(d.aftalestart)],
+    ],
+    titel: "Aftale om licenser og service",
+    intro: `Denne aftale er indgået mellem ${d.afsender.navn} (leverandør) og ${d.kunde.navn} (kunde) og omfatter de licenser og ydelser, der er anført nedenfor.`,
+  });
+
+  const beloeb = (l: KontraktLinje) => (l.pris == null ? 0 : l.model === "sub" ? l.antal * l.pris * 12 : l.antal * l.pris);
+  const aarlig = d.linjer.filter((l) => l.model === "sub").reduce((s, l) => s + beloeb(l), 0);
+  const engang = d.linjer.filter((l) => l.model !== "sub").reduce((s, l) => s + beloeb(l), 0);
+  dok.noegletal(
+    [
+      ["Aftalestart", datoTekst(d.aftalestart), `Udløb ${datoTekst(udloeb)}`],
+      ["Aftaleperiode", `${d.termMaaneder} mdr.`, "Forlænges med 12 mdr."],
+      ["Abonnement pr. år", kr(aarlig), "ekskl. moms"],
+      ["Engangsbeløb", kr(engang), "Evige licenser og ydelser"],
+    ],
+    [0.25, 0.22, 0.27, 0.26]
+  );
+
+  dok.overskrift("Licenser og ydelser");
+  const modelTekst = (m: string) => (m === "sub" ? "Abonnement" : m === "perpetual" ? "Evig licens" : "Ydelse");
+  dok.tabel(
+    [
+      { titel: "Aftale", bredde: 70 },
+      { titel: "Produkt / licens", bredde: 175 },
+      { titel: "Model", bredde: 72 },
+      { titel: "Antal", bredde: 42, hoejre: true },
+      { titel: "Pris", bredde: 78, hoejre: true },
+      { titel: "Beløb", bredde: 88, hoejre: true },
+    ],
+    d.linjer.map((l) => [
+      l.sub,
+      l.produkt ? `${l.produkt}\n${l.licens}` : l.licens,
+      modelTekst(l.model),
+      String(l.antal),
+      l.pris == null ? "–" : l.model === "sub" ? `${kr(l.pris)}\npr. md.` : kr(l.pris),
+      l.pris == null ? "–" : l.model === "sub" ? `${kr(beloeb(l))}\npr. år` : kr(beloeb(l)),
+    ])
+  );
+  dok.summer([
+    ["Abonnement pr. år", kr(aarlig)],
+    ["Engangsbeløb", kr(engang)],
+    ["I alt første år", kr(aarlig + engang), true],
+  ]);
+
+  const v = d.vilkaar?.length ? d.vilkaar : STANDARDVILKAAR_KONTRAKT;
+  dok.holdSammen(140);
+  dok.overskrift("Vilkår");
+  dok.nummererede(v);
+
+  dok.underskrifter(
+    ["For leverandør", d.afsender.navn, d.ansvarlig ? `${d.ansvarlig} · ${datoTekst(d.aftalestart)}` : "Navn og dato"],
+    ["For kunde", d.kunde.navn, d.kontaktperson ? `${d.kontaktperson} · navn og dato` : "Navn og dato"]
+  );
+  return dok.gem();
+}
+
+// ============================================================
+// IMPLEMENTERINGSPLAN
+// ============================================================
+
+export type PlanFase = { navn: string; fra: Date; til: Date; aktiviteter: string[]; ansvarlig: string };
+export type PlanMilepael = { navn: string; dato: Date; kriterie: string };
+
+export async function lavImplementeringsplan(d: {
+  afsender: Afsender;
+  kunde: KundePdf;
+  projekt: string;
+  projektleder: string | null;
+  kundensAnsvarlig: string | null;
+  dato: Date;
+  formaal: string;
+  faser: PlanFase[];
+  milepaele: PlanMilepael[];
+  forudsaetninger: string[];
+}) {
+  const dok = new Dok(d.afsender, "Implementeringsplan");
+  await dok.start();
+  dok.logoPaaAlleSider();
+  dok.standardhoved({
+    partTitel: "Kunde",
+    part: kundeLinjer(d.kunde),
+    meta: [
+      ["Afdeling", d.afsender.afdeling ?? d.afsender.navn],
+      ["Projekt", d.projekt],
+      ["Projektleder", d.projektleder ?? ""],
+      ["Kundens ansvarlige", d.kundensAnsvarlig ?? ""],
+      ["Kundekonto", d.kunde.konto ?? ""],
+      ["Dato", langDato(d.dato)],
+    ],
+    titel: "Implementeringsplan",
+    undertitel: d.projekt,
+    intro: d.formaal,
+  });
+
+  const start = new Date(Math.min(...d.faser.map((f) => f.fra.getTime())));
+  const slut = new Date(Math.max(...d.faser.map((f) => f.til.getTime())));
+  const uger = Math.max(1, Math.round((slut.getTime() - start.getTime()) / (7 * 864e5)));
+  const golive = d.milepaele.find((m) => /go-live/i.test(m.navn))?.dato ?? slut;
+  dok.noegletal([
+    ["Opstart", datoTekst(start), "Kick-off"],
+    ["Go-live", datoTekst(golive), "Systemet i drift"],
+    ["Varighed", `${uger} uger`, `Afsluttes ${datoTekst(slut)}`],
+    ["Faser", String(d.faser.length), `${d.milepaele.length} milepæle`],
+  ]);
+
+  dok.overskrift("Tidslinje");
+  dok.tidslinje(d.faser);
+
+  dok.overskrift("Faser og aktiviteter");
+  dok.tabel(
+    [
+      { titel: "Fase", bredde: 120 },
+      { titel: "Aktiviteter", bredde: 220 },
+      { titel: "Periode", bredde: 95 },
+      { titel: "Ansvarlig", bredde: 75 },
+    ],
+    d.faser.map((f, i) => [`${i + 1}. ${f.navn}`, f.aktiviteter.map((a) => `· ${a}`).join("\n"), `${datoTekst(f.fra)}\n${datoTekst(f.til)}`, f.ansvarlig])
+  );
+
+  dok.holdSammen(40 + d.milepaele.length * 28);
+  dok.overskrift("Milepæle");
+  dok.tabel(
+    [
+      { titel: "Milepæl", bredde: 130 },
+      { titel: "Dato", bredde: 70 },
+      { titel: "Godkendelseskriterie", bredde: 310 },
+    ],
+    d.milepaele.map((m) => [m.navn, datoTekst(m.dato), m.kriterie])
+  );
+
+  if (d.forudsaetninger.length) {
+    dok.holdSammen(40 + d.forudsaetninger.length * 14);
+    dok.overskrift("Forudsætninger");
+    dok.punkter(d.forudsaetninger);
+  }
+
+  dok.underskrifter(
+    ["Godkendt af leverandør", d.afsender.navn, d.projektleder ? `${d.projektleder} · navn og dato` : "Navn og dato"],
+    ["Godkendt af kunde", d.kunde.navn, d.kundensAnsvarlig ? `${d.kundensAnsvarlig} · navn og dato` : "Navn og dato"]
+  );
+  return dok.gem();
+}
+
+// ============================================================
+// MØDEREFERAT
+// ============================================================
+
+export async function lavMoedereferat(d: {
+  afsender: Afsender;
+  kunde: KundePdf;
+  moede: string;
+  dato: Date;
+  sted: string;
+  referent: string | null;
+  naesteMoede: Date | null;
+  deltagere: { navn: string; titel: string | null; virksomhed: string }[];
+  punkter: { titel: string; tekst: string }[];
+  aktioner: { aktion: string; ansvarlig: string; frist: Date | null }[];
+}) {
+  const dok = new Dok(d.afsender, "Mødereferat");
+  await dok.start();
+  dok.logoPaaAlleSider();
+  dok.standardhoved({
+    partTitel: "Kunde",
+    part: kundeLinjer(d.kunde),
+    meta: [
+      ["Afdeling", d.afsender.afdeling ?? d.afsender.navn],
+      ["Sted", d.sted],
+      ["Referent", d.referent ?? ""],
+      ["Kundekonto", d.kunde.konto ?? ""],
+      ["Dato", langDato(d.dato)],
+    ],
+    titel: "Mødereferat",
+    undertitel: d.moede,
+    intro: null,
+  });
+
+  dok.noegletal([
+    ["Mødedato", datoTekst(d.dato), d.sted],
+    ["Deltagere", String(d.deltagere.length), `${new Set(d.deltagere.map((x) => x.virksomhed)).size} virksomheder`],
+    ["Aktionspunkter", String(d.aktioner.length), "Se nederst"],
+    ["Næste møde", d.naesteMoede ? datoTekst(d.naesteMoede) : "Aftales", ""],
+  ]);
+
+  dok.overskrift("Deltagere");
+  dok.tabel(
+    [
+      { titel: "Navn", bredde: 170 },
+      { titel: "Titel", bredde: 170 },
+      { titel: "Virksomhed", bredde: 170 },
+    ],
+    d.deltagere.map((x) => [x.navn, x.titel ?? "", x.virksomhed])
+  );
+
+  dok.holdSammen(120);
+  dok.overskrift("Dagsorden og referat");
+  dok.nummererede(d.punkter, { str: 9.2 });
+
+  if (d.aktioner.length) {
+    dok.holdSammen(40 + d.aktioner.length * 26);
+    dok.overskrift("Aktionspunkter");
+    dok.tabel(
+      [
+        { titel: "Nr.", bredde: 30 },
+        { titel: "Aktion", bredde: 300 },
+        { titel: "Ansvarlig", bredde: 110 },
+        { titel: "Frist", bredde: 70, hoejre: true },
+      ],
+      d.aktioner.map((a, i) => [String(i + 1), a.aktion, a.ansvarlig, a.frist ? datoTekst(a.frist) : "–"])
+    );
+  }
+  return dok.gem();
+}
+
+// ============================================================
+// E-MAIL SOM PDF (fx kundens accept af et tilbud)
+// ============================================================
+
+export async function lavMailudskrift(d: {
+  afsender: Afsender;
+  kunde: KundePdf;
+  titel: string;
+  reference: string | null;
+  fra: string;
+  til: string;
+  emne: string;
+  sendt: Date;
+  tekst: string;
+}) {
+  const dok = new Dok(d.afsender, d.titel);
+  await dok.start();
+  dok.logoPaaAlleSider();
+  dok.standardhoved({
+    partTitel: "Kunde",
+    part: kundeLinjer(d.kunde),
+    meta: [
+      ["Afdeling", d.afsender.afdeling ?? d.afsender.navn],
+      ["Reference", d.reference ?? ""],
+      ["Kundekonto", d.kunde.konto ?? ""],
+      ["Modtaget", langDato(d.sendt)],
+    ],
+    titel: d.titel,
+    undertitel: "Udskrift af e-mail gemt i kundens filboks",
+  });
+
+  dok.overskrift("E-mail");
+  dok.noegleTabel([
+    ["Fra", d.fra],
+    ["Til", d.til],
+    ["Sendt", `${langDato(d.sendt)} kl. ${new Intl.DateTimeFormat("da-DK", { hour: "2-digit", minute: "2-digit" }).format(d.sendt)}`],
+    ["Emne", d.emne],
+  ], { labelBredde: 70 });
+  dok.y -= 10;
+  dok.afsnit(d.tekst, { str: 10 });
   return dok.gem();
 }

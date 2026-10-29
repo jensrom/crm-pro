@@ -1,11 +1,11 @@
 import "server-only";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { db } from "@/lib/db";
 import { naesteSubNummer } from "@/lib/kontrakter";
 import { aftaleUdloeb, maanederMellem, plusDage, slutFraMaaneder } from "@/lib/perioder";
 import { ordrePdf } from "@/lib/ordre-pdf";
 import { gemDokumentIFilboks } from "@/lib/filer";
-import { dokNr, subNr } from "@/lib/dokumenter";
+import { dokNr, hentAfsender, subNr } from "@/lib/dokumenter";
+import { lavImplementeringsplan, lavKontrakt, lavMailudskrift, lavMoedereferat, type KontraktLinje } from "@/lib/pdf";
 
 /**
  * Demomiljø: sletter alle kunder og alt der hænger på dem og bygger 6 nye,
@@ -296,22 +296,6 @@ const LOGTEKSTER: { kind: string; content: string }[] = [
 
 // ---------- PDF-bilag ----------
 
-async function enkelPdf(titel: string, linjer: string[]) {
-  const doc = await PDFDocument.create();
-  const side = doc.addPage([595, 842]);
-  const fed = await doc.embedFont(StandardFonts.HelveticaBold);
-  const alm = await doc.embedFont(StandardFonts.Helvetica);
-  const ren = (s: string) => s.replace(/[^\x20-\x7E -ÿ]/g, "-");
-  side.drawText(ren(titel), { x: 56, y: 770, size: 18, font: fed, color: rgb(0.1, 0.2, 0.35) });
-  side.drawText("DEMO - fiktivt dokument", { x: 56, y: 750, size: 9, font: alm, color: rgb(0.5, 0.5, 0.5) });
-  let y = 715;
-  for (const l of linjer) {
-    side.drawText(ren(l), { x: 56, y, size: 11, font: alm, color: rgb(0.15, 0.15, 0.15) });
-    y -= 18;
-  }
-  return doc.save();
-}
-
 async function gemBilag(companyId: string, filename: string, category: string, bytes: Uint8Array, af: string | null, dato: Date) {
   await db.attachment.create({
     data: { companyId, filename, category, mimeType: "application/pdf", sizeBytes: bytes.byteLength, data: Buffer.from(bytes), uploadedBy: af, createdAt: dato },
@@ -415,8 +399,11 @@ export async function bygDemomiljoe(initials: string | null): Promise<DemoResult
   const subPulje = new Pulje(t, [...t.bland(subs.filter((s) => s.id.startsWith(PRAEFIKS))), ...t.bland(subs.filter((s) => s.id.startsWith(PRAEFIKS)))]);
   const perpPulje = new Pulje(t, [...perps, ...perps, ...perps]);
 
-  const brugere = (await db.user.findMany({ where: { isActive: true }, select: { initials: true } })).map((u) => u.initials);
+  const brugerListe = await db.user.findMany({ where: { isActive: true }, select: { initials: true, name: true } });
+  const brugere = brugerListe.map((u) => u.initials);
   const af = () => (brugere.length ? t.en(brugere) : initials);
+  const brugernavn = (ini: string | null) => brugerListe.find((u) => u.initials === ini)?.name ?? ini;
+  const afsender = await hentAfsender();
 
   let sagNr = 1;
   let kortNr = 1;
@@ -671,20 +658,78 @@ export async function bygDemomiljoe(initials: string | null): Promise<DemoResult
       poster++;
     }
 
-    // Filbilag (2–3)
-    const kontrakt = await enkelPdf(`Kontrakt - ${navn}`, [
-      `Aftale om licenser og service`, `Kunde: ${navn}, ${pr.by}`, `Startdato: ${linjer[0].start.toLocaleDateString("da-DK")}`,
-      `Aftaleperiode: ${linjer[0].term} maaneder`, ...linjer.map((l) => `${l.seats} x ${l.licens.name}`),
-    ]);
-    await gemBilag(kunde.id, `Kontrakt_${slug}.pdf`, "kontrakt", kontrakt, af(), linjer[0].start);
-    const referat = await enkelPdf(`Moedereferat - ${navn}`, [
-      `Deltagere: ${kontakter.map((c) => `${c.firstName} ${c.lastName}`).join(", ")}`,
-      "1. Status paa drift og support", "2. Oensker til naeste aar", "3. Fornyelse og priser", "Naeste moede: om tre maaneder",
-    ]);
-    await gemBilag(kunde.id, `Moedereferat_${slug}.pdf`, "moedereferat", referat, af(), dageSiden(t.tal(5, 60)));
+    // Filbilag: kontrakt, mødereferat og evt. implementeringsplan — alle på den fælles dokumentskabelon
+    const kundePdf = {
+      navn, adresse: kunde.address, postby: `${pr.postnr} ${pr.by}`, land: pr.land, cvr: kunde.orgNumber, konto: kunde.accountId,
+    };
+    const fuldtNavn = (c: { firstName: string; lastName: string }) => `${c.firstName} ${c.lastName}`;
+    const noegleNumre = new Map<string, number>();
+    for (const c of await db.contract.findMany({ where: { companyId: kunde.id }, select: { id: true, subNumber: true } })) noegleNumre.set(c.id, c.subNumber);
+    const hovedNr = subNr(noegleNumre.get(linjer[0].contractId));
+    const kontraktAf = af();
+    const kontrakt = await lavKontrakt({
+      afsender, kunde: kundePdf, kontaktperson: fuldtNavn(kontakter[0]), aftalenr: hovedNr,
+      aftalestart: linjer[0].start, termMaaneder: linjer[0].term, ansvarlig: brugernavn(kontraktAf),
+      linjer: linjer.map((l): KontraktLinje => ({
+        sub: subNr(noegleNumre.get(l.contractId)), produkt: l.licens.familyNavn, licens: l.licens.name,
+        model: l.licens.licenseModel, antal: l.seats, pris: l.pris,
+      })),
+    });
+    await gemBilag(kunde.id, `Kontrakt_${slug}.pdf`, "kontrakt", kontrakt, kontraktAf, linjer[0].start);
+
+    const referent = af();
+    const moedeDato = middag(dageSiden(t.tal(5, 60)));
+    const os = brugerListe.length ? t.nogle(brugerListe, Math.min(2, brugerListe.length)) : [{ initials: initials ?? "", name: initials ?? "" }];
+    const referat = await lavMoedereferat({
+      afsender, kunde: kundePdf, moede: "Statusmøde om drift, support og fornyelse", dato: moedeDato,
+      sted: t.en([`Hos ${navn}, ${pr.by}`, "Teams", `Hos ${navn}, ${pr.by}`]), referent: brugernavn(referent),
+      naesteMoede: plusDage(moedeDato, t.en([84, 91, 98])),
+      deltagere: [
+        ...kontakter.slice(0, 3).map((c) => ({ navn: fuldtNavn(c), titel: c.title, virksomhed: navn })),
+        ...os.map((u) => ({ navn: u.name, titel: "Konsulent", virksomhed: afsender.navn })),
+      ],
+      punkter: [
+        { titel: "Status på drift og support", tekst: `Systemet kører stabilt. Siden sidste møde er der løst ${t.tal(2, 6)} supportsager; ingen er åbne med høj prioritet. ${fuldtNavn(kontakter[0])} oplever, at svartiden er god.` },
+        { titel: "Brug af licenserne", tekst: `Aftalen omfatter ${linjer.reduce((s2, l) => s2 + l.seats, 0)} licenser. Kunden gennemgår, om alle navngivne brugere stadig er aktive, før fornyelsen.` },
+        { titel: "Ønsker til næste år", tekst: t.en(["Kunden ønsker at udbrede systemet til lageret og få en mobilapp til teknikerne.", "Kunden ønsker bedre rapporter til ledelsen og et kursus for nye superbrugere.", "Kunden ønsker at koble systemet på ERP, så indkøb af reservedele kan ske direkte."]) },
+        { titel: "Fornyelse og priser", tekst: `Aftale ${hovedNr} fornyes på de nuværende vilkår. Leverandøren sender tilbud på evt. tilkøb inden næste møde.` },
+      ],
+      aktioner: [
+        { aktion: "Gennemgå listen over aktive brugere", ansvarlig: fuldtNavn(kontakter[0]), frist: plusDage(moedeDato, 14) },
+        { aktion: "Send tilbud på tilkøb og kursus", ansvarlig: brugernavn(referent) ?? "", frist: plusDage(moedeDato, 10) },
+        { aktion: "Planlæg næste statusmøde", ansvarlig: brugernavn(referent) ?? "", frist: plusDage(moedeDato, 30) },
+      ],
+    });
+    await gemBilag(kunde.id, `Moedereferat_${slug}.pdf`, "moedereferat", referat, referent, moedeDato);
+
     if (t.chance(0.6)) {
-      const plan = await enkelPdf(`Implementeringsplan - ${navn}`, ["Fase 1: Stamdata", "Fase 2: Uddannelse", "Fase 3: Go-live", "Fase 4: Opfoelgning"]);
-      await gemBilag(kunde.id, `Plan_${slug}.pdf`, "plan", plan, af(), dageSiden(t.tal(100, 300)));
+      const pl = af();
+      const ps = middag(dageSiden(t.tal(100, 300)));
+      const uge = (n: number) => plusDage(ps, n * 7);
+      const faser = [
+        { navn: "Opstart og analyse", fra: ps, til: uge(2), aktiviteter: ["Kick-off-møde", "Gennemgang af processer", "Aftale om roller"], ansvarlig: "Leverandør" },
+        { navn: "Stamdata og opsætning", fra: uge(2), til: uge(5), aktiviteter: ["Aktivregister og hierarki", "Import af stamdata", "Opsætning af flows"], ansvarlig: "Begge" },
+        { navn: "Uddannelse og test", fra: uge(5), til: uge(8), aktiviteter: ["Superbrugerkursus", "Test af arbejdsgange", "Rettelser"], ansvarlig: "Begge" },
+        { navn: "Go-live", fra: uge(8), til: uge(9), aktiviteter: ["Idriftsættelse", "Support på stedet"], ansvarlig: "Leverandør" },
+        { navn: "Opfølgning", fra: uge(9), til: uge(13), aktiviteter: ["Evaluering efter 30 dage", "Overdragelse til support"], ansvarlig: "Kunde" },
+      ];
+      const plan = await lavImplementeringsplan({
+        afsender, kunde: kundePdf, projekt: `Implementering af ${linjer[0].licens.familyNavn || linjer[0].licens.name}`,
+        projektleder: brugernavn(pl), kundensAnsvarlig: fuldtNavn(kontakter[0]), dato: ps,
+        formaal: `Planen beskriver, hvordan ${linjer[0].licens.name} sættes i drift hos ${navn}: faser, ansvar, milepæle og hvad der skal være på plads, før systemet går i drift.`,
+        faser,
+        milepaele: [
+          { navn: "Stamdata godkendt", dato: uge(5), kriterie: "Aktivregister og hierarki er importeret og godkendt af kundens ansvarlige." },
+          { navn: "Go-live", dato: uge(8), kriterie: "Superbrugere er uddannet, og testene af arbejdsgangene er bestået." },
+          { navn: "Overdragelse til drift", dato: uge(13), kriterie: "Evalueringen efter 30 dage er gennemført, og åbne punkter er lukket eller planlagt." },
+        ],
+        forudsaetninger: [
+          "Kunden udpeger en projektansvarlig og 2–4 superbrugere.",
+          "Stamdata leveres i den aftalte skabelon senest ved opstart af fase 2.",
+          "Superbrugerne kan afsætte tid til kursus og test i fase 3.",
+        ],
+      });
+      await gemBilag(kunde.id, `Plan_${slug}.pdf`, "plan", plan, pl, ps);
     }
 
     // Dokumenter: ordrebekræftelse på hovedaftalen + tilkøbstilbud på en nøgle
@@ -809,10 +854,13 @@ export async function bygDemomiljoe(initials: string | null): Promise<DemoResult
 
     // Godkendt tilbud: kundens accept + ordrebekræftelse lagt på nøglen
     if (tilbudStatus === "godkendt") {
-      const accept = await enkelPdf(`Accept af tilbud ${dokNr(til)}`, [
-        `Fra: ${kontakt.firstName} ${kontakt.lastName} <${kontakt.email}>`, `Emne: SV: Tilbud ${dokNr(til)}`, "",
-        "Hej", "Vi accepterer hermed tilbuddet som fremsendt.", "", "Venlig hilsen", `${kontakt.firstName} ${kontakt.lastName}`, navn,
-      ]);
+      const accept = await lavMailudskrift({
+        afsender, kunde: kundePdf, titel: `Accept af tilbud ${dokNr(til)}`, reference: dokNr(til),
+        fra: `${kontakt.firstName} ${kontakt.lastName} <${kontakt.email}>`,
+        til: brugernavn(til.createdBy) ?? afsender.mail ?? afsender.navn,
+        emne: `SV: Tilbud ${dokNr(til)}`, sendt: new Date(Math.min(plusDage(tStart, 1).getTime(), Date.now())),
+        tekst: `Hej\n\nTak for tilbuddet. Vi accepterer hermed tilbud ${dokNr(til)} som fremsendt.\n\nVenlig hilsen\n${kontakt.firstName} ${kontakt.lastName}\n${kontakt.title ?? ""}\n${navn}`,
+      });
       const att = await db.attachment.create({
         data: { companyId: kunde.id, filename: `Accept ${dokNr(til)} - mail.pdf`, category: "accept", mimeType: "application/pdf", sizeBytes: accept.byteLength, data: Buffer.from(accept), uploadedBy: af() },
         select: { id: true },
