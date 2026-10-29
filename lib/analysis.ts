@@ -83,7 +83,7 @@ export async function hentKunderMedNoegletal() {
     hentIndstillinger(),
     db.company.findMany({
       include: {
-        customerProducts: { where: { isActive: true }, include: { product: true } },
+        customerProducts: { where: { isActive: true }, include: { product: { include: { family: true } } } },
         contacts: { where: { isActive: true } },
         deals: true,
       },
