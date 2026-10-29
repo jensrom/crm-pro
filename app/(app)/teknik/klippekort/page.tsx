@@ -132,7 +132,7 @@ export default async function KlippekortSide({
           <CardHeader title={under ? `Rediger ${kortnummer(under.number)}` : "Nyt klippekort"} />
           <CardBody>
             {under ? (
-              <form action={gemKlippekort.bind(null, under.id)} className="flex flex-col gap-3.5">
+              <form key={under.id} action={gemKlippekort.bind(null, under.id)} className="flex flex-col gap-3.5">
                 <div><Label htmlFor="rname">Navn</Label><Input id="rname" name="name" defaultValue={under.name ?? ""} placeholder="fx 20-timers pakke 2026" /></div>
                 <div><Label htmlFor="rtotal">Timer solgt</Label><Input id="rtotal" name="totalHours" inputMode="decimal" defaultValue={under.totalHours} required /></div>
                 <div><Label htmlFor="rprice">Pris (kr.)</Label><Input id="rprice" name="price" inputMode="decimal" defaultValue={under.price ?? ""} /></div>

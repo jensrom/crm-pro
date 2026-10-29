@@ -98,6 +98,7 @@ export default async function NotatSide({
         />
         <CardBody>
           <form
+            key={under?.id ?? "ny"}
             action={under ? gemNotat.bind(null, under.id) : opretNotat}
             className="grid sm:grid-cols-2 lg:grid-cols-6 gap-4 items-end"
           >

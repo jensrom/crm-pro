@@ -13,8 +13,10 @@ import { LICENSMODELLER, licensmodel, listepris } from "@/lib/katalog";
 import { ProduktMaerke } from "@/lib/produktstil";
 import { cn } from "@/lib/utils";
 import {
-  aendrPris, annullerPrisaendring, gemLicens, gemProduktFamilie, opretLicens, opretProduktFamilie, sletProduktFamilie,
+  aendrPris, annullerPrisaendring, gemLicens, gemProduktFamilie, opretLicens, opretProduktFamilie, sikrVarenumre, sletProduktFamilie,
 } from "@/app/actions/katalog";
+import { NavnOgVarenummer } from "@/components/produkter/NavnOgVarenummer";
+import { erAutomatisk } from "@/lib/varenummer";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +59,7 @@ export default async function KatalogSide({
   searchParams: Promise<{ produkt?: string; licens?: string; ny?: string; besked?: string; fejl?: string; model?: string }>;
 }) {
   const { produkt, licens, ny, besked, fejl, model } = await searchParams;
+  await sikrVarenumre();
 
   const [familier, uplacerede] = await Promise.all([
     db.productFamily.findMany({
@@ -190,14 +193,14 @@ export default async function KatalogSide({
           {ny === "produkt" ? (
             <NytProdukt />
           ) : ny === "licens" ? (
-            <NyLicens familier={familier} valgtFamilieId={produkt ?? familier[0]?.id} />
+            <NyLicens key={`ny-${produkt ?? ""}`} familier={familier} valgtFamilieId={produkt ?? familier[0]?.id} />
           ) : valgtLicens ? (
             <>
-              <LicensRediger licens={valgtLicens} familier={familier} />
-              <Prisaendring licens={valgtLicens} historik={prishistorik} />
+              <LicensRediger key={`l-${valgtLicens.id}`} licens={valgtLicens} familier={familier} />
+              <Prisaendring key={`p-${valgtLicens.id}`} licens={valgtLicens} historik={prishistorik} />
             </>
           ) : valgtFamilie ? (
-            <ProduktRediger familie={valgtFamilie} />
+            <ProduktRediger key={`f-${valgtFamilie.id}`} familie={valgtFamilie} />
           ) : (
             <Oversigt familier={familier} />
           )}
@@ -315,7 +318,7 @@ function ProduktRediger({ familie }: { familie: Familie }) {
         />
         <CardBody>
           <form action={gemProduktFamilie.bind(null, familie.id)} className="grid sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2"><Label htmlFor="en">Navn</Label><Input id="en" name="name" defaultValue={familie.name} required /></div>
+            <div className="sm:col-span-2"><Label htmlFor="pn" hint="vises i menuen, på kunderne og på tilbud">Produktnavn</Label><Input id="pn" name="name" defaultValue={familie.name} required /></div>
             <div><Label htmlFor="es">Sortering</Label><Input id="es" name="sortOrder" type="number" defaultValue={familie.sortOrder} /></div>
             <div className="sm:col-span-2"><Label htmlFor="ed">Beskrivelse</Label><Textarea id="ed" name="description" defaultValue={familie.description ?? ""} className="min-h-[70px]" /></div>
             <div className="sm:col-span-2">
@@ -422,7 +425,11 @@ function NyLicens({ familier, valgtFamilieId }: { familier: Familie[]; valgtFami
       <CardHeader title="Ny licens eller ydelse" description="Navn, produkt og pris er nok. Prisen bliver første post i prishistorikken. Vælg Engangsydelse til gebyrer og ydelser som extension fee." />
       <CardBody>
         <form action={opretLicens} className="grid sm:grid-cols-2 gap-4">
-          <div className="sm:col-span-2"><Label htmlFor="ln">Navn</Label><Input id="ln" name="name" required placeholder="fx Idus Online Professional eller Extension fee" /></div>
+          <NavnOgVarenummer
+            idPrefix="ny"
+            familie={familier.find((f) => f.id === valgtFamilieId)?.name ?? null}
+            placeholder="fx Idus Online Professional eller Extension fee"
+          />
           <div>
             <Label htmlFor="lf">Produkt</Label>
             <Select id="lf" name="familyId" defaultValue={valgtFamilieId} required>
@@ -431,7 +438,6 @@ function NyLicens({ familier, valgtFamilieId }: { familier: Familie[]; valgtFami
           </div>
           <div><Label htmlFor="lp">Pris (kr.)</Label><Input id="lp" name="price" inputMode="decimal" placeholder="sub: pr. bruger/md. · perpetual: pr. licens · ydelse: pr. stk." /></div>
           <ModelValg />
-          <div><Label htmlFor="lk">Varenummer</Label><Input id="lk" name="sku" placeholder="valgfrit" /></div>
           <div><Label htmlFor="lo">Sortering</Label><Input id="lo" name="sortOrder" type="number" placeholder="rækkefølge under produktet" /></div>
           <div className="sm:col-span-2"><Label htmlFor="ld">Intern beskrivelse</Label><Textarea id="ld" name="description" className="min-h-[60px]" /></div>
           <div className="sm:col-span-2"><Label htmlFor="ldt">Tekst på tilbud og ordrebekræftelser</Label><Textarea id="ldt" name="documentText" className="min-h-[80px]" /></div>
@@ -457,7 +463,13 @@ function LicensRediger({ licens, familier }: { licens: Licens; familier: Familie
       />
       <CardBody>
         <form action={gemLicens.bind(null, licens.id)} className="grid sm:grid-cols-2 gap-4">
-          <div className="sm:col-span-2"><Label htmlFor="en">Navn</Label><Input id="en" name="name" defaultValue={licens.name} required /></div>
+          <NavnOgVarenummer
+            idPrefix={`l-${licens.id}`}
+            familie={familier.find((f) => f.id === licens.familyId)?.name ?? null}
+            navn={licens.name}
+            sku={licens.sku ?? ""}
+            automatisk={erAutomatisk(licens.sku, familier.find((f) => f.id === licens.familyId)?.name, licens.name)}
+          />
           <div>
             <Label htmlFor="ef">Produkt</Label>
             <Select id="ef" name="familyId" defaultValue={licens.familyId ?? ""}>
@@ -465,7 +477,6 @@ function LicensRediger({ licens, familier }: { licens: Licens; familier: Familie
               {familier.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
             </Select>
           </div>
-          <div><Label htmlFor="ek">Varenummer</Label><Input id="ek" name="sku" defaultValue={licens.sku ?? ""} /></div>
           <ModelValg valgt={licens.licenseModel} />
           <div><Label htmlFor="eo">Sortering</Label><Input id="eo" name="sortOrder" type="number" defaultValue={licens.sortOrder} /></div>
           <div className="sm:col-span-2"><Label htmlFor="ed">Intern beskrivelse</Label><Textarea id="ed" name="description" defaultValue={licens.description ?? ""} className="min-h-[60px]" /></div>

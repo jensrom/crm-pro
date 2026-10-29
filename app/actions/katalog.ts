@@ -9,6 +9,7 @@ import { kraevSuperAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { erEngang } from "@/lib/katalog";
+import { erAutomatisk, lavVarenummer, normaliserVarenummer, unikVarenummer } from "@/lib/varenummer";
 
 const txt = (v: FormDataEntryValue | null) => {
   const s = typeof v === "string" ? v.trim() : "";
@@ -47,6 +48,19 @@ function opfrisk() {
 
 const KAT = "/indstillinger/katalog";
 
+/**
+ * Varenummeret der gemmes: genereret af produkt + navn, eller det indtastede
+ * (rettet til store bogstaver og bindestreger). Altid unikt på tværs af kataloget.
+ */
+async function varenummer(id: string | null, familyId: string | null, navn: string, formData: FormData) {
+  const fam = familyId ? await db.productFamily.findUnique({ where: { id: familyId }, select: { name: true } }) : null;
+  const indtastet = normaliserVarenummer(txt(formData.get("sku")) ?? "");
+  const auto = formData.get("skuAuto") !== "0" || !indtastet;
+  const base = auto ? lavVarenummer(fam?.name, navn) : indtastet;
+  const andre = await db.product.findMany({ where: { sku: { not: null }, ...(id ? { id: { not: id } } : {}) }, select: { sku: true } });
+  return unikVarenummer(base, new Set(andre.map((a) => a.sku!)));
+}
+
 // ---------- Produkter (familier) ----------
 
 export async function opretProduktFamilie(formData: FormData) {
@@ -68,6 +82,8 @@ export async function opretProduktFamilie(formData: FormData) {
 export async function gemProduktFamilie(id: string, formData: FormData) {
   await kraevSuperAdmin();
   const name = txt(formData.get("name"));
+  const foer = await db.productFamily.findUnique({ where: { id }, include: { products: { select: { id: true, name: true, sku: true } } } });
+  if (!foer) redirect(`${KAT}?fejl=findes-ikke`);
   await db.productFamily.update({
     where: { id },
     data: {
@@ -79,6 +95,21 @@ export async function gemProduktFamilie(id: string, formData: FormData) {
       isActive: formData.get("isActive") === "on",
     },
   });
+  // Licenser med automatisk varenummer får det nye produktnavn med i nummeret
+  if (name && name !== foer.name) {
+    const andre = new Set(
+      (await db.product.findMany({ where: { sku: { not: null }, familyId: { not: id } }, select: { sku: true } })).map((a) => a.sku!)
+    );
+    for (const l of foer.products) {
+      if (!erAutomatisk(l.sku, foer.name, l.name)) {
+        if (l.sku) andre.add(l.sku);
+        continue;
+      }
+      const nyt = unikVarenummer(lavVarenummer(name, l.name), andre);
+      andre.add(nyt);
+      await db.product.update({ where: { id: l.id }, data: { sku: nyt } });
+    }
+  }
   opfrisk();
   redirect(`${KAT}?produkt=${id}&besked=gemt`);
 }
@@ -113,7 +144,7 @@ export async function opretLicens(formData: FormData) {
       licenseModel,
       pricePerUserMonth: erEngang(licenseModel) ? null : pris,
       oneTimePrice: erEngang(licenseModel) ? pris : null,
-      sku: txt(formData.get("sku")),
+      sku: await varenummer(null, familyId, name, formData),
       description: txt(formData.get("description")),
       documentText: txt(formData.get("documentText")),
       tier: "egen",
@@ -160,7 +191,7 @@ export async function gemLicens(id: string, formData: FormData) {
           ? { oneTimePrice: foer.pricePerUserMonth, pricePerUserMonth: null }
           : { pricePerUserMonth: foer.oneTimePrice, oneTimePrice: null }
         : {}),
-      sku: txt(formData.get("sku")),
+      sku: await varenummer(id, familyId ?? foer.familyId, name ?? foer.name, formData),
       description: txt(formData.get("description")),
       documentText: txt(formData.get("documentText")),
       icon: txt(formData.get("icon")) ?? "package",
@@ -218,4 +249,23 @@ export async function annullerPrisaendring(prisId: string) {
   if (pp.appliedAt == null) await db.productPrice.delete({ where: { id: prisId } });
   opfrisk();
   redirect(`${KAT}?licens=${pp.productId}&besked=pris-annulleret`);
+}
+
+/**
+ * Giver licenser uden varenummer et, og retter dubletter (den ældste beholder
+ * nummeret). Kaldes når kataloget vises, så gamle data bliver ryddet op.
+ */
+export async function sikrVarenumre() {
+  await kraevSuperAdmin();
+  const alle = await db.product.findMany({ include: { family: { select: { name: true } } }, orderBy: { createdAt: "asc" } });
+  const brugt = new Set<string>();
+  for (const p of alle) {
+    if (p.sku && !brugt.has(p.sku)) {
+      brugt.add(p.sku);
+      continue;
+    }
+    const nyt = unikVarenummer(lavVarenummer(p.family?.name, p.name), brugt);
+    brugt.add(nyt);
+    await db.product.update({ where: { id: p.id }, data: { sku: nyt } });
+  }
 }

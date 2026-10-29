@@ -168,7 +168,7 @@ export default async function BrugerSide({
           <Card>
             <CardHeader title={`Rediger ${under.initials}`} description="Initialerne kan ikke ændres — de er brugerens identitet i systemet." />
             <CardBody>
-              <form action={gemBruger.bind(null, under.id)} className="grid sm:grid-cols-2 gap-4">
+              <form key={under.id} action={gemBruger.bind(null, under.id)} className="grid sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2"><Label htmlFor="name">Navn</Label><Input id="name" name="name" defaultValue={under.name} required /></div>
                 <div><Label htmlFor="email">Mail</Label><Input id="email" name="email" type="email" defaultValue={under.email ?? ""} /></div>
                 <div><Label htmlFor="phone">Tlf. direkte</Label><Input id="phone" name="phone" defaultValue={under.phone ?? ""} /></div>
