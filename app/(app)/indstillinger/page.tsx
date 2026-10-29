@@ -2,8 +2,7 @@ import Link from "next/link";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { hentIndstillinger } from "@/lib/analysis";
 import { db } from "@/lib/db";
-import { kroner, tal } from "@/lib/format";
-import { licensmodel, listepris } from "@/lib/katalog";
+import { tal } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { BekraeftSlet } from "@/components/ui/bekraeft-slet";
@@ -28,11 +27,10 @@ export default async function IndstillingerSide({
   searchParams: Promise<{ demo?: string; antal?: string; produkter?: string; licenser?: string }>;
 }) {
   const { demo, antal, produkter: nyeProdukter, licenser: nyeLicenser } = await searchParams;
-  const [i, antalKunder, antalSager, produkter, pipe, demoAntal] = await Promise.all([
+  const [i, antalKunder, antalSager, pipe, demoAntal] = await Promise.all([
     hentIndstillinger(),
     db.company.count(),
     db.deal.count(),
-    db.product.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } }),
     db.settings.findUnique({ where: { id: "singleton" }, select: { pipelineDoneDays: true } }),
     taelDemodata(),
   ]);
@@ -58,24 +56,6 @@ export default async function IndstillingerSide({
             <b className="text-foreground">Scope bestemmer du.</b> Salgsmuligheder oprettes kun af dig. Vælger du pakke
             og antal licenser på en sag, regner den økonomien ud fra pakkens pris — men antallet er dit.
           </p>
-        </CardBody>
-      </Card>
-
-      <Card>
-        <CardHeader
-          title="Listepriser"
-          description="Aktive licenser. Priser ændres med en prisændring i Katalog."
-          action={<Link href="/indstillinger/katalog" className="text-xs font-medium text-primary hover:underline">Til katalog</Link>}
-        />
-        <CardBody className="flex flex-col gap-2.5">
-          {produkter.map((p) => (
-            <div key={p.id} className="flex items-center justify-between gap-4 text-sm">
-              <span>{p.name}</span>
-              <span className="tabular">
-                {listepris(p) != null ? `${kroner(listepris(p))} ${licensmodel(p.licenseModel).enhed}` : "ingen pris"}
-              </span>
-            </div>
-          ))}
         </CardBody>
       </Card>
 
