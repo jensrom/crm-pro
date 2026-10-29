@@ -69,6 +69,7 @@ export async function registrerLicensaendring(
       data: {
         companyId: a.companyId,
         productId: a.productId,
+        customerProductId: linjeId,
         quantity: efter - foer,
         seatsBefore: foer,
         seatsAfter: efter,

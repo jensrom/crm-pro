@@ -5,11 +5,8 @@ import { hashPin, kraevSuperAdmin, ryddSession, saetSession, tjekPin } from "@/l
 import { tolkRolle } from "@/lib/roller";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { tekst } from "@/lib/formular";
 
-const txt = (v: FormDataEntryValue | null) => {
-  const s = typeof v === "string" ? v.trim() : "";
-  return s === "" ? null : s;
-};
 
 const PIN_MOENSTER = /^\d{4,8}$/;
 
@@ -29,8 +26,8 @@ function opsaetningskodeOk(kode: string | null) {
 }
 
 export async function logInd(formData: FormData) {
-  const initialer = txt(formData.get("initials"))?.toUpperCase();
-  const pin = txt(formData.get("pin"));
+  const initialer = tekst(formData.get("initials"))?.toUpperCase();
+  const pin = tekst(formData.get("pin"));
   if (!initialer || !pin) redirect("/login?fejl=mangler");
 
   const bruger = await db.user.findUnique({ where: { initials: initialer } });
@@ -64,11 +61,11 @@ export async function logUd() {
 /** Første bruger oprettes uden login — men kun så længe der slet ingen brugere er. */
 export async function opretFoersteAdmin(formData: FormData) {
   if ((await db.user.count()) > 0) redirect("/login");
-  if (!opsaetningskodeOk(txt(formData.get("kode")))) redirect("/opsaetning?fejl=kode");
+  if (!opsaetningskodeOk(tekst(formData.get("kode")))) redirect("/opsaetning?fejl=kode");
 
-  const initialer = txt(formData.get("initials"))?.toUpperCase();
-  const navn = txt(formData.get("name"));
-  const pin = txt(formData.get("pin"));
+  const initialer = tekst(formData.get("initials"))?.toUpperCase();
+  const navn = tekst(formData.get("name"));
+  const pin = tekst(formData.get("pin"));
   if (!initialer || !navn || !pin) redirect("/opsaetning?fejl=mangler");
   if (!PIN_MOENSTER.test(pin)) redirect("/opsaetning?fejl=pin");
 
@@ -76,7 +73,7 @@ export async function opretFoersteAdmin(formData: FormData) {
     data: {
       initials: initialer,
       name: navn,
-      email: txt(formData.get("email")),
+      email: tekst(formData.get("email")),
       // Den første bruger skal kunne komme ind i Indstillinger.
       role: "superadmin",
       pinHash: hashPin(pin),
@@ -90,9 +87,9 @@ export async function opretFoersteAdmin(formData: FormData) {
 
 export async function opretBruger(formData: FormData) {
   await kraevSuperAdmin();
-  const initialer = txt(formData.get("initials"))?.toUpperCase();
-  const navn = txt(formData.get("name"));
-  const pin = txt(formData.get("pin"));
+  const initialer = tekst(formData.get("initials"))?.toUpperCase();
+  const navn = tekst(formData.get("name"));
+  const pin = tekst(formData.get("pin"));
   if (!initialer || !navn || !pin) redirect("/indstillinger/brugere?fejl=mangler");
   if (!PIN_MOENSTER.test(pin)) redirect("/indstillinger/brugere?fejl=pin");
 
@@ -103,11 +100,11 @@ export async function opretBruger(formData: FormData) {
     data: {
       initials: initialer,
       name: navn,
-      email: txt(formData.get("email")),
-      phone: txt(formData.get("phone")),
-      mobile: txt(formData.get("mobile")),
-      title: txt(formData.get("title")),
-      senderProfileId: txt(formData.get("senderProfileId")),
+      email: tekst(formData.get("email")),
+      phone: tekst(formData.get("phone")),
+      mobile: tekst(formData.get("mobile")),
+      title: tekst(formData.get("title")),
+      senderProfileId: tekst(formData.get("senderProfileId")),
       role: tolkRolle(formData.get("role")),
       pinHash: hashPin(pin),
     },
@@ -118,7 +115,7 @@ export async function opretBruger(formData: FormData) {
 
 export async function gemBruger(id: string, formData: FormData) {
   await kraevSuperAdmin();
-  const navn = txt(formData.get("name"));
+  const navn = tekst(formData.get("name"));
   const nyRolle = tolkRolle(formData.get("role"));
   const aktiv = formData.get("isActive") === "on";
 
@@ -133,11 +130,11 @@ export async function gemBruger(id: string, formData: FormData) {
     where: { id },
     data: {
       name: navn ?? "Uden navn",
-      email: txt(formData.get("email")),
-      phone: txt(formData.get("phone")),
-      mobile: txt(formData.get("mobile")),
-      title: txt(formData.get("title")),
-      senderProfileId: txt(formData.get("senderProfileId")),
+      email: tekst(formData.get("email")),
+      phone: tekst(formData.get("phone")),
+      mobile: tekst(formData.get("mobile")),
+      title: tekst(formData.get("title")),
+      senderProfileId: tekst(formData.get("senderProfileId")),
       role: nyRolle,
       isActive: aktiv,
     },
@@ -148,7 +145,7 @@ export async function gemBruger(id: string, formData: FormData) {
 
 export async function nulstilPin(id: string, formData: FormData) {
   await kraevSuperAdmin();
-  const pin = txt(formData.get("pin"));
+  const pin = tekst(formData.get("pin"));
   if (!pin || !PIN_MOENSTER.test(pin)) redirect("/indstillinger/brugere?fejl=pin");
   await db.user.update({ where: { id }, data: { pinHash: hashPin(pin) } });
   redirect("/indstillinger/brugere?besked=pin");

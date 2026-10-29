@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { datoKort, tal } from "@/lib/format";
-import { AABNE_SAGSSTATUS, SAGSPRIORITET, SAGSSTATUS, findSagsprioritet, findSagsstatus } from "@/lib/labels";
+import { AABNE_SAGSSTATUS, erAabenSag, SAGSPRIORITET, SAGSSTATUS, findSagsprioritet, findSagsstatus } from "@/lib/labels";
 import { alderIDage, alderTekst, sagsnummer, varighed } from "@/lib/teknik";
 import { skiftSagsstatus } from "@/app/actions/teknik";
 import { cn } from "@/lib/utils";
@@ -42,8 +42,8 @@ export default async function SagerSide({
     db.company.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
 
-  const aabne = alle.filter((s) => AABNE_SAGSSTATUS.includes(s.status as any)).length;
-  const kritiske = alle.filter((s) => s.priority === "kritisk" && AABNE_SAGSSTATUS.includes(s.status as any)).length;
+  const aabne = alle.filter((s) => erAabenSag(s.status)).length;
+  const kritiske = alle.filter((s) => s.priority === "kritisk" && erAabenSag(s.status)).length;
   const nu = new Date();
 
   const rang = (p: string) => findSagsprioritet(p).rang;
@@ -133,7 +133,7 @@ export default async function SagerSide({
                     const p = findSagsprioritet(s.priority);
                     const dage = alderIDage(s.createdAt, nu);
                     const brugt = s.timeLogs.reduce((sum, t) => sum + t.durationMin, 0);
-                    const forfalden = s.dueAt != null && s.dueAt < nu && AABNE_SAGSSTATUS.includes(s.status as any);
+                    const forfalden = s.dueAt != null && s.dueAt < nu && erAabenSag(s.status);
                     return (
                       <tr key={s.id} className="hover:bg-secondary/60">
                         <td className="px-5 py-2.5 tabular text-xs text-muted-foreground whitespace-nowrap">{sagsnummer(s.number)}</td>

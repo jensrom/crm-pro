@@ -5,6 +5,7 @@ import { sikrKontrakter } from "@/lib/kontrakter";
 import { hentSession } from "@/lib/auth";
 import { brugerensProfilId, filnavn, fraIsoDato, hentAfsender, subNr, noegleNr } from "@/lib/dokumenter";
 import { licensmodel } from "@/lib/katalog";
+import { kanLaese } from "@/lib/roller";
 import { lavLicensbevis } from "@/lib/pdf";
 import { gemDokumentIFilboks } from "@/lib/filer";
 
@@ -18,6 +19,7 @@ export const runtime = "nodejs";
 export async function GET(req: Request) {
   const session = await hentSession();
   if (!session) return new NextResponse("Ikke logget ind", { status: 401 });
+  if (!kanLaese(session.ret.salg)) return new NextResponse("Ingen adgang", { status: 403 });
 
   const q = new URL(req.url).searchParams;
   const kundeId = q.get("kunde");

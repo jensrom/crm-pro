@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { db } from "@/lib/db";
 import { datoKort, kroner, tal } from "@/lib/format";
 import { dokNr, subNr } from "@/lib/dokumenter";
+import { findInternStatus } from "@/lib/intern";
 import { ordreTotal } from "@/lib/ordre-pdf";
 import { cn } from "@/lib/utils";
 
@@ -149,6 +150,7 @@ export default async function OrdrelisteSide({
                             {erTilbud ? <Badge variant="warning">Tilbud</Badge> : <Badge variant="default">Ordre</Badge>}
                             {fornyelse && <Badge variant="info">Fornyelse</Badge>}
                             {tilkoeb && <Badge variant="info">Tilkøb{o.contract ? ` ${subNr(o.contract.subNumber)}` : ""}</Badge>}
+                            {o.internStatus && <Badge variant={findInternStatus(o.internStatus)?.variant ?? "info"}>{findInternStatus(o.internStatus)?.kort}</Badge>}
                             {o.salesforceUrl && (
                               <a href={o.salesforceUrl} target="_blank" rel="noopener noreferrer" title="Opportunity i Salesforce" aria-label="Opportunity i Salesforce" className="text-muted-foreground hover:text-primary">
                                 <ExternalLink className="h-3.5 w-3.5" />

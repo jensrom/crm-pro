@@ -429,6 +429,105 @@ export async function lavLicensbevis(d: {
 }
 
 // ============================================================
+// LICENSBEVIS PÅ EN LEVERET ORDRE
+// Ét produkt fra én ordre — laves af intern salg, når varen er klar til
+// kunden. Licensnummeret er ordrenummeret; leverandørens reference,
+// placering, part-nr. og version kommer fra ordrelinjen.
+// ============================================================
+
+const STANDARDVILKAAR_SUB = [
+  "Aftalen tegnes for den i kontrakten aftalte periode og forlænges herefter med 12 måneder ad gangen, medmindre andet er aftalt. Faktureres årligt forud.",
+  "Opsigelse skal ske skriftligt senest 3 måneder før udløb. Ved ophør bortfalder retten til at bruge de licenserede produkter, og de skal afinstalleres.",
+  "Aftalen indeholder vedligehold og support i perioden.",
+  "Udvidelser kan tilkøbes løbende og følger aftalens udløb.",
+  "Tredjepartssoftware, fx Microsoft Windows, er ikke indeholdt.",
+];
+const STANDARDVILKAAR_PERPETUAL = [
+  "Licensen er evig og gælder for det angivne antal og den angivne placering.",
+  "Opdateringer og support kræver en gældende serviceaftale.",
+  "Tredjepartssoftware, fx Microsoft Windows, er ikke indeholdt.",
+];
+
+export async function lavOrdreLicensbevis(d: {
+  afsender: Afsender;
+  kunde: { navn: string; adresse?: string | null; postby?: string | null; land?: string | null; cvr?: string | null; konto?: string | null };
+  ordrenr: string;
+  leverandoerRef: string | null;
+  leverandoerOrdrenr: string | null;
+  produkt: string;
+  licens: string;
+  perpetual: boolean;
+  antal: number;
+  placering: string | null;
+  partNr: string | null;
+  version: string | null;
+  detaljer: string | null;
+  subNr: string | null;
+  fra: Date | null;
+  til: Date | null;
+  pris: number | null;
+  udstedt: Date;
+  udstedtAf: string | null;
+}) {
+  const dok = new Dok(d.afsender, d.perpetual ? "Licensbevis" : "Subscription licensbevis");
+  await dok.start();
+  dok.hoved([
+    ["Licensnr.", d.ordrenr],
+    ...(d.leverandoerRef ? ([["Ref. hos leverandør", d.leverandoerRef]] as [string, string][]) : []),
+    ["Udstedt", datoTekst(d.udstedt)],
+    ["Kundekonto", d.kunde.konto ?? ""],
+  ]);
+  dok.parter(
+    "Licenstager",
+    [d.kunde.navn, d.kunde.adresse ?? "", [d.kunde.postby, d.kunde.land].filter(Boolean).join(", "), d.kunde.cvr ? `CVR ${d.kunde.cvr}` : ""],
+    "Licensgiver",
+    afsenderLinjer(d.afsender)
+  );
+
+  dok.afsnit("Dette dokument bekræfter licensen til nedenstående produkt.", { str: 10 });
+
+  dok.overskrift("Licens");
+  dok.noegleVaerdi([
+    ["Licensnr.", d.leverandoerRef ? `${d.ordrenr}  /  Ref. ${d.leverandoerRef}` : d.ordrenr],
+    ...(d.placering ? ([["Placering / info", d.placering]] as [string, string][]) : []),
+    ["Licens", `${d.produkt} · ${d.licens}`],
+    ["Antal", String(d.antal)],
+    ...(d.version ? ([["Version", d.version]] as [string, string][]) : []),
+  ]);
+
+  const detaljer = [
+    `${d.licens}${d.leverandoerRef ? ` - Ref. ${d.leverandoerRef}` : ""}`,
+    d.partNr ? `Part #: ${d.partNr}` : null,
+    d.leverandoerOrdrenr ? `Leverandørens ordrenr.: ${d.leverandoerOrdrenr}` : null,
+    ...(d.detaljer ? d.detaljer.split("\n").map((l) => l.trim()).filter(Boolean) : []),
+  ].filter(Boolean) as string[];
+  dok.overskrift("Detaljer");
+  for (const l of detaljer) dok.afsnit(`-  ${l}`, { str: 9.5 });
+
+  dok.overskrift(d.perpetual ? "Licensoplysninger" : "Abonnementsoplysninger");
+  dok.afsnit("Gældende på det tidspunkt licensbeviset er udstedt.", { str: 8.5, farve: GRAA });
+  dok.noegleVaerdi([
+    ...(d.subNr ? ([["Subscription-nr.", d.subNr]] as [string, string][]) : []),
+    [d.perpetual ? "Købt" : "Periode", d.perpetual ? datoTekst(d.fra ?? d.udstedt) : `${datoTekst(d.fra)} til ${datoTekst(d.til)}`],
+    ...(d.pris != null ? ([[d.perpetual ? "Pris" : "Pris for perioden", `kr. ${new Intl.NumberFormat("da-DK", { maximumFractionDigits: 0 }).format(d.pris)} ekskl. moms`]] as [string, string][]) : []),
+  ]);
+
+  dok.overskrift(d.perpetual ? "Vilkår" : "Subscription-aftale");
+  const vilkaar = d.afsender.bevisTekst?.trim()
+    ? d.afsender.bevisTekst.split("\n").map((l) => l.trim()).filter(Boolean)
+    : d.perpetual ? STANDARDVILKAAR_PERPETUAL : STANDARDVILKAAR_SUB;
+  for (const v of vilkaar) dok.afsnit(`-  ${v.replace(/^[-•]\s*/, "")}`, { str: 8.5, farve: GRAA });
+
+  dok.plads(70);
+  dok.y -= 40;
+  dok.side.drawLine({ start: { x: MARGIN, y: dok.y }, end: { x: MARGIN + 200, y: dok.y }, thickness: 0.6, color: SORT });
+  dok.skriv(d.udstedtAf ? `${d.udstedtAf}, ${d.afsender.navn}` : d.afsender.navn, MARGIN, dok.y - 12, { str: 9, farve: GRAA });
+  dok.skriv(`Udstedt ${datoTekst(d.udstedt)}`, MARGIN, dok.y - 24, { str: 9, farve: GRAA });
+
+  return dok.gem();
+}
+
+// ============================================================
 // TILBUD OG ORDREBEKRÆFTELSE
 // Opbygget som en klassisk dansk forretningsdokument-skabelon: modtager til venstre, sælgerens
 // oplysninger til højre, en indledning og derefter positionerne én for én

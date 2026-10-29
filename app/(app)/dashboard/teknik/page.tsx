@@ -31,7 +31,7 @@ export default async function TeknikDashboard() {
       where: { isActive: true, isHot: true },
       orderBy: { hotSince: "desc" },
       select: { id: true, name: true, hotSince: true, hotSetBy: true },
-    } as any),
+    }),
   ]);
 
   const rang = (p: string) => findSagsprioritet(p).rang;
@@ -91,7 +91,7 @@ export default async function TeknikDashboard() {
         <StatCard label="Tid registreret" value={varighed(tidSum._sum.durationMin ?? 0)} sub="i alt" />
       </div>
 
-      <HotWidget rows={hotte as any} />
+      <HotWidget rows={hotte} />
 
       {forfaldne.length > 0 && (
         <Card className="border-danger/40 bg-danger/[0.05]">

@@ -20,7 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const [bruger, i, hotAntal] = await Promise.all([
     kraevBruger(),
     hentIndstillinger(),
-    db.company.count({ where: { isActive: true, isHot: true } as any }),
+    db.company.count({ where: { isActive: true, isHot: true } }),
   ]);
 
   return (

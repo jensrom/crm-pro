@@ -3,6 +3,64 @@
 Alt herunder er bygget oven på CRM-Pro 1.0.2. Den nyeste udgave kører på Vercel med Postgres (Neon).
 Opsætning og flytning af data står i `README.md`.
 
+## Tilstandslog, intern salg og licensbevis pr. ordre (29. oktober 2026)
+
+- **Tilstandslog** under *Kundens tilstand*.
+  - Tryk **+**, så står `29/10/26 JPR: ` klar, og du skriver bare videre.
+  - Hurtigtekster sættes ind med ét klik.
+  - Hver gemt linje er sin egen post, nyeste øverst, én linje pr. post. De samme linjer står i Logbogen.
+  - Skift af tilstand logges automatisk ("Tilstand: Stabil → Risiko").
+  - Den nyeste linje vises under kundens navn.
+- **Indstillinger → Salg → Log skrivning:** hurtigteksterne kan tilføjes, rettes, skjules, sorteres og slettes.
+- **Klar til intern salg** (nyt menupunkt) og **ny rolle "Intern salg"**.
+  - En ordrebekræftelse sendes videre med *Send til intern salg*.
+  - Forløb: Pending → Bestilt → Afventer leverandør → Klar til kunde → Leveret & afsluttet. Hvert trin har sit tidspunkt og logges på kunden.
+  - Leverede ordrer ligger i deres egen pulje med datofilter.
+  - Intern salg udfylder leverandørens ordrenr. samt leverandør-ref., placering, part # og version pr. licens.
+- **Licensbevis pr. produkt** fra *Klar til kunde*:
+  - Licensnr. er ordrenummeret, med leverandør-ref., placering, detaljer, SUB-nr., periode og pris for perioden samt subscription-aftalen.
+  - Beviset gemmes i filboksen og noteres i logbogen.
+- **Dashboard → Leveringer:** antal, værdi og kunder for leverede ordrer.
+  - Faste perioder: denne måned, sidste måned, dette kvartal, i år og seneste 12 mdr.
+  - Du kan også vælge egne datoer.
+- **Database (lægges på automatisk):**
+  - Nye felter til intern salg på `orders` og licensdata på `order_lines`.
+  - Ny tabel `log_skabeloner`.
+
+## Backend-gennemgang (29. oktober 2026)
+
+Se `BACKEND.md` for opbygning, mapper og regler.
+
+- **Fil-download virkede ikke i produktionen.** `.gitignore` udelukkede alle mapper med navnet `filer/`, så `/api/filer/[id]` aldrig blev committet.
+  - Ruten er genskabt med adgangskontrol og `nosniff`. Kun PDF og billeder vises direkte; andre filer (fx uploadet HTML) hentes som download.
+  - `.gitignore` er rettet, så mønstrene kun gælder roden.
+- **Formularer:** al læsning sker via `lib/formular.ts`.
+  - Dansk talformat (`1.250,50`) tolkes nu ens overalt. Før blev `1.250` til 1,25 i kunder, salg og teknik.
+  - Datoer gemmes som lokal middag, så de ikke forskydes af tidszoner.
+  - Status, prioritet, stadie, logtype, faktureringsinterval, beslutningsrolle og kundestatus valideres mod de faste lister.
+  - Web-adresser accepteres kun som http(s).
+- **Nummerserier:** TIL-, ORD-, SAG- og KK-numre er sikre ved samtidige oprettelser (`lib/nummerserie.ts`). Før kunne to oprettelser i samme sekund give en fejl.
+- **Transaktioner:**
+  - Tid og klippekortets forbrug.
+  - Sletning af klippekort.
+  - Sletning af produkt med linjer.
+  - Licenslinje og SUB-nøgle.
+  - Flytning af notater.
+- **Dataintegritet:**
+  - En licensændring husker den præcise linje, den ramte (`customerProductId`), så *Fortryd* rammer rigtigt, selv om kunden har licensen på flere SUB-nøgler.
+  - Tid, kontakt, klippekort og sag kontrolleres for at tilhøre samme kunde.
+  - En sags løst- og lukket-dato bevares, når sagen gemmes igen.
+  - Sletter man en sag, bliver tiden stående på kunden og klippekortet.
+- **Ydelse:**
+  - Indeks på alle fremmednøgler.
+  - Sessionen slås op én gang pr. forespørgsel.
+- **Adgang:** PDF-ruterne kræver læseadgang til salg. Optællingen af demodata kræver superadministrator.
+- **Oprydning:**
+  - Fem ubrugte server actions er fjernet. De var unødig angrebsflade.
+  - Den gamle demodata-indlæser er fjernet. Det nye demomiljø erstatter den.
+  - Alle `as any` er fjernet.
+  - Ubrugte hjælpefunktioner er fjernet.
+
 ## Demomiljø og produkter i kundelisten (29. oktober 2026)
 
 - **Indstillinger → Demomiljø:**

@@ -6,6 +6,10 @@ export const PRIORITET: Record<string, { label: string; variant: "danger" | "war
   lav:    { label: "Lav",    variant: "muted"   },
 };
 
+/** Gyldige nøgler til prioritet og konfidens — bruges når formularer valideres. */
+export const PRIORITETER = ["hoej", "middel", "lav"] as const;
+export const KONFIDENSER = ["hoej", "middel", "lav"] as const;
+
 export const KONFIDENS: Record<string, { label: string; variant: "success" | "warning" | "danger" }> = {
   hoej:   { label: "Høj konfidens",    variant: "success" },
   middel: { label: "Middel konfidens", variant: "warning" },
@@ -32,6 +36,8 @@ export const SAGSSTATUS = [
 ] as const;
 
 export const AABNE_SAGSSTATUS = SAGSSTATUS.filter((s) => s.aaben).map((s) => s.key);
+/** Er sagen stadig åben (åben, afventer kunde eller leverandør)? */
+export const erAabenSag = (status: string | null | undefined) => (AABNE_SAGSSTATUS as readonly string[]).includes(status ?? "");
 
 export const findSagsstatus = (key: string | null | undefined) =>
   SAGSSTATUS.find((s) => s.key === key) ?? SAGSSTATUS[0];
@@ -78,6 +84,7 @@ export const LOGTYPER = [
   { key: "aftale",   label: "Aftale" },
   { key: "advarsel", label: "Advarsel" },
   { key: "salg",     label: "Salg" },
+  { key: "tilstand", label: "Tilstand" },
 ] as const;
 
 export const STADIER = [

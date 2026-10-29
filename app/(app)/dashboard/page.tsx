@@ -14,10 +14,12 @@ import { PRIORITET } from "@/lib/labels";
 import { ProduktMaerke, findFarve } from "@/lib/produktstil";
 import { ProduktChips } from "@/components/kunder/ProduktChips";
 import { grupperProdukter } from "@/lib/kundeprodukter";
+import { Leveringer } from "@/components/dashboard/Leveringer";
 
 export const dynamic = "force-dynamic";
 
-export default async function Dashboard() {
+export default async function Dashboard({ searchParams }: { searchParams: Promise<{ lev?: string; fra?: string; til?: string }> }) {
+  const { lev, fra, til } = await searchParams;
   // Uden salg ryger man direkte til teknik-dashboardet (fx en Tekniker).
   const mig = await kraevBruger();
   if (!kanLaese(mig.ret.salg)) redirect(kanLaese(mig.ret.teknik) ? "/dashboard/teknik" : "/kunder");
@@ -33,7 +35,7 @@ export default async function Dashboard() {
       where: { isActive: true, isHot: true },
       orderBy: { hotSince: "desc" },
       select: { id: true, name: true, hotSince: true, hotSetBy: true },
-    } as any),
+    }),
   ]);
 
   const seats = kunder.reduce((s, k) => s + k.n.seats, 0);
@@ -89,7 +91,9 @@ export default async function Dashboard() {
         hver kunde som baggrundsviden om virksomhedens størrelse og indgår hverken i pris eller scope.
       </p>
 
-      <HotWidget rows={hotte as any} />
+      <HotWidget rows={hotte} />
+
+      <Leveringer periode={lev} fra={fra} til={til} />
 
       {udenPris > 0 && (
         <Card className="border-warning/40 bg-warning/[0.05]">

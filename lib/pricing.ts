@@ -25,10 +25,6 @@ export function gaeldendeMaanedspris(
   return produkt?.pricePerUserMonth ?? null;
 }
 
-export function maanedsvaerdi(seats: number, maanedspris: number | null) {
-  return maanedspris == null ? null : seats * maanedspris;
-}
-
 export function aarsvaerdi(seats: number, maanedspris: number | null) {
   return maanedspris == null ? null : seats * maanedspris * 12;
 }

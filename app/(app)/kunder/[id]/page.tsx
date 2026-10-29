@@ -13,7 +13,7 @@ import { gaeldendeMaanedspris } from "@/lib/pricing";
 import { ProduktMaerke } from "@/lib/produktstil";
 import { dato, datoKort, kroner, millioner, procent, tal } from "@/lib/format";
 import {
-  AABNE_SAGSSTATUS, BESLUTNINGSROLLER, FAKTURERING, KONFIDENS, NOTAT_KOLONNER,
+  AABNE_SAGSSTATUS, erAabenSag, BESLUTNINGSROLLER, FAKTURERING, KONFIDENS, NOTAT_KOLONNER,
   NOTAT_PRIORITET, NOTAT_SPOR, PRIORITET, STADIER,
   findKundestatus, findSagsprioritet, findSagsstatus, findSpor, label,
 } from "@/lib/labels";
@@ -117,8 +117,6 @@ export default async function KundeSide({
   const fane: Fane = FANER.includes(oensket) ? oensket : FANER[0];
   const tkBesked = tilkoeb ? TILKOEB_BESKED[tilkoeb] : null;
 
-  // Stale Prisma Client (sandbox kan ikke regenerere) kender endnu ikke isHot/hotSetBy.
-  const hot = kunde as any;
 
   const n = noegletal(kunde.customerProducts);
   const prio = kunde.priority ? PRIORITET[kunde.priority] : null;
@@ -126,7 +124,7 @@ export default async function KundeSide({
   const ks = findKundestatus(kunde.customerStatus);
   const nu = new Date();
 
-  const aabneSager = kunde.tickets.filter((t) => AABNE_SAGSSTATUS.includes(t.status as any));
+  const aabneSager = kunde.tickets.filter((t) => erAabenSag(t.status));
   const aktiveKort = kunde.hourBundles.map((k) => ({ k, s: kortstatus(k, nu) })).filter(({ k, s }) => k.isActive && !s.udloebet);
   const restMin = aktiveKort.reduce((sum, { s }) => sum + Math.max(0, s.restMin), 0);
 
@@ -137,7 +135,7 @@ export default async function KundeSide({
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     .slice(0, 6);
   const lukkedeSager = kunde.tickets
-    .filter((t) => !AABNE_SAGSSTATUS.includes(t.status as any))
+    .filter((t) => !erAabenSag(t.status))
     .sort((a, b) => (b.closedAt ?? b.resolvedAt ?? b.updatedAt).getTime() - (a.closedAt ?? a.resolvedAt ?? a.updatedAt).getTime());
   const nyligLukket = lukkedeSager.filter((t) => (dageSiden(t.closedAt ?? t.resolvedAt ?? t.updatedAt, nu) ?? 0) <= dage);
   const aabneNotater = kunde.notes_.filter((no) => !no.completedAt).length;
@@ -271,9 +269,9 @@ export default async function KundeSide({
           <h1 className="mt-1.5 text-xl font-semibold flex items-center gap-2.5">
             <span className="h-3 w-3 rounded-full shrink-0" style={{ background: ks.bg }} aria-hidden />
             {kunde.name}
-            {hot.isHot && (
+            {kunde.isHot && (
               <span
-                title={hot.hotSetBy ? `Markeret Hot af ${hot.hotSetBy}` : "Markeret Hot"}
+                title={kunde.hotSetBy ? `Markeret Hot af ${kunde.hotSetBy}` : "Markeret Hot"}
                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-medium bg-orange-500/10 text-orange-600"
               >
                 <Flame className="h-3 w-3" /> Hot
@@ -293,15 +291,15 @@ export default async function KundeSide({
         </div>
         <div className="flex items-center gap-2">
           {teknikS && (
-          <form action={skiftHot.bind(null, kunde.id, !hot.isHot)}>
+          <form action={skiftHot.bind(null, kunde.id, !kunde.isHot)}>
             <Button
               variant="secondary"
               size="sm"
               type="submit"
-              title={hot.isHot ? "Fjern Hot-markering" : "Marker Hot — mulighed for at hente flere timer"}
-              className={hot.isHot ? "knap-hot" : ""}
+              title={kunde.isHot ? "Fjern Hot-markering" : "Marker Hot — mulighed for at hente flere timer"}
+              className={kunde.isHot ? "knap-hot" : ""}
             >
-              <Flame className="h-3.5 w-3.5" /> {hot.isHot ? "Hot" : "Marker Hot"}
+              <Flame className="h-3.5 w-3.5" /> {kunde.isHot ? "Hot" : "Marker Hot"}
             </Button>
           </form>
           )}

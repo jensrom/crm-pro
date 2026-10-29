@@ -11,21 +11,9 @@ import { kontraktUdloeb, restperiode } from "@/lib/kontrakter";
 import { ordrePdf } from "@/lib/ordre-pdf";
 import { gemDokumentIFilboks, MAKS_FILSTOERRELSE, saniterFilnavn } from "@/lib/filer";
 import { anvendOrdrePaaKunde } from "@/lib/ordre-anvend";
+import { tekst, tal, heltal } from "@/lib/formular";
+import { medLoebenummer } from "@/lib/nummerserie";
 
-const txt = (v: FormDataEntryValue | null) => {
-  const s = typeof v === "string" ? v.trim() : "";
-  return s === "" ? null : s;
-};
-const num = (v: FormDataEntryValue | null) => {
-  const s = txt(v);
-  if (s == null) return null;
-  const n = Number(s.replace(/\s/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", "."));
-  return Number.isFinite(n) ? n : null;
-};
-const heltal = (v: FormDataEntryValue | null) => {
-  const n = num(v);
-  return n == null ? null : Math.round(n);
-};
 
 /**
  * Salesforce-link til en Opportunity. Kun fulde https-adresser — så linket
@@ -33,7 +21,7 @@ const heltal = (v: FormDataEntryValue | null) => {
  * undefined = ugyldigt, null = tomt.
  */
 function salesforceLink(v: FormDataEntryValue | null): string | null | undefined {
-  const s = txt(v);
+  const s = tekst(v);
   if (!s) return null;
   try {
     const u = new URL(s);
@@ -66,9 +54,9 @@ type Linje = {
 
 /** Læser start/måneder/slut fra periodeudregneren. Måneder vinder over slutdato, hvis kun én er sat. */
 function periode(fd: FormData, prefix: string, standardStart: Date | null) {
-  const start = fraIso(txt(fd.get(`${prefix}start`))) ?? standardStart;
+  const start = fraIso(tekst(fd.get(`${prefix}start`))) ?? standardStart;
   let mdr = heltal(fd.get(`${prefix}mdr`));
-  let slut = fraIso(txt(fd.get(`${prefix}slut`)));
+  let slut = fraIso(tekst(fd.get(`${prefix}slut`)));
   if (start && mdr && mdr > 0 && !slut) slut = slutFraMaaneder(start, mdr);
   if (start && slut && !(mdr && mdr > 0)) mdr = maanederMellem(start, slut);
   return { start: mdr ? start : null, slut: mdr ? slut : null, mdr: mdr && mdr > 0 ? mdr : null };
@@ -111,12 +99,12 @@ async function arkiver(orderId: string, initials: string | null) {
 export async function opretOrdre(formData: FormData) {
   const mig = await kraevSkriv("salg");
   const kind = formData.get("kind") === "tilbud" ? "tilbud" : "ordre";
-  const companyId = txt(formData.get("companyId"));
-  const contractId = txt(formData.get("contractId"));
+  const companyId = tekst(formData.get("companyId"));
+  const contractId = tekst(formData.get("contractId"));
   const tilbage = `/ordrer/ny?type=${kind}${companyId ? `&kunde=${companyId}` : ""}${contractId ? `&kontrakt=${contractId}` : ""}`;
 
   const kunde = companyId ? await db.company.findUnique({ where: { id: companyId } }) : null;
-  const recipientName = txt(formData.get("recipientName")) ?? kunde?.name ?? null;
+  const recipientName = tekst(formData.get("recipientName")) ?? kunde?.name ?? null;
   if (!recipientName) redirect(`${tilbage}&fejl=modtager`);
   const salesforceUrl = salesforceLink(formData.get("salesforceUrl"));
   if (salesforceUrl === undefined) redirect(`${tilbage}&fejl=salesforce`);
@@ -148,7 +136,7 @@ export async function opretOrdre(formData: FormData) {
         description: `Fornyelse: ${linjenavn(cp.product)}`,
         details: cp.product.documentText,
         quantity: Math.max(1, heltal(formData.get(`f_antal_${cp.id}`)) ?? cp.seats),
-        unitPrice: num(formData.get(`f_pris_${cp.id}`)),
+        unitPrice: tal(formData.get(`f_pris_${cp.id}`)),
         months: p.mdr ?? cp.termMonths,
         periodStart: p.start,
         periodEnd: p.slut,
@@ -172,7 +160,7 @@ export async function opretOrdre(formData: FormData) {
       description: linjenavn(pr),
       details: pr.documentText,
       quantity: Math.max(1, heltal(formData.get(`antal_${pr.id}`)) ?? 1),
-      unitPrice: num(formData.get(`pris_${pr.id}`)),
+      unitPrice: tal(formData.get(`pris_${pr.id}`)),
       months: perpetual ? null : p.mdr ?? 12,
       periodStart: p.start,
       periodEnd: p.slut,
@@ -193,7 +181,7 @@ export async function opretOrdre(formData: FormData) {
       let p: { start: Date | null; slut: Date | null; mdr: number | null } = { start: null, slut: null, mdr: null };
       if (!engang) {
         const udloeb = egen ? aftaleUdloeb(egen, idag) : noeglensUdloeb;
-        const start = fraIso(txt(formData.get(`t_${pr.id}_start`))) ?? idag;
+        const start = fraIso(tekst(formData.get(`t_${pr.id}_start`))) ?? idag;
         const rest = udloeb ? restperiode(start, udloeb) : null;
         if (!rest) redirect(`${tilbage}&fejl=udloebet`);
         p = { start: rest.fra, slut: rest.til, mdr: rest.maaneder };
@@ -205,7 +193,7 @@ export async function opretOrdre(formData: FormData) {
         description: `Tilkøb til ${subNr(kontrakt.subNumber)}: ${linjenavn(pr)}`,
         details: pr.documentText,
         quantity: Math.max(1, heltal(formData.get(`t_antal_${pr.id}`)) ?? 1),
-        unitPrice: num(formData.get(`t_pris_${pr.id}`)),
+        unitPrice: tal(formData.get(`t_pris_${pr.id}`)),
         months: p.mdr,
         periodStart: p.start,
         periodEnd: p.slut,
@@ -217,17 +205,17 @@ export async function opretOrdre(formData: FormData) {
 
   // 3. Frie linjer
   for (let i = 0; i < ANTAL_FRIE_LINJER; i++) {
-    const tekst = txt(formData.get(`fri_tekst_${i}`));
-    if (!tekst) continue;
+    const overskrift = tekst(formData.get(`fri_tekst_${i}`));
+    if (!overskrift) continue;
     const p = periode(formData, `fri_${i}_`, null);
     linjer.push({
       productId: null,
       customerProductId: null,
       lineKind: "fri",
-      description: tekst,
-      details: txt(formData.get(`fri_detaljer_${i}`)),
+      description: overskrift,
+      details: tekst(formData.get(`fri_detaljer_${i}`)),
       quantity: Math.max(1, heltal(formData.get(`fri_antal_${i}`)) ?? 1),
-      unitPrice: num(formData.get(`fri_pris_${i}`)),
+      unitPrice: tal(formData.get(`fri_pris_${i}`)),
       months: p.mdr,
       periodStart: p.start,
       periodEnd: p.slut,
@@ -237,29 +225,29 @@ export async function opretOrdre(formData: FormData) {
   }
   if (linjer.length === 0) redirect(`${tilbage}&fejl=linjer`);
 
-  const orderDate = fraIso(txt(formData.get("orderDate"))) ?? idag;
-  const ordre = await db.order.create({
+  const orderDate = fraIso(tekst(formData.get("orderDate"))) ?? idag;
+  const ordre = await medLoebenummer(() => naesteNummer(kind), (number) => db.order.create({
     data: {
       kind,
-      number: await naesteNummer(kind),
+      number,
       companyId: kunde?.id ?? null,
       recipientName,
-      recipientAttn: txt(formData.get("recipientAttn")),
-      recipientAddress: txt(formData.get("recipientAddress")),
-      recipientEmail: txt(formData.get("recipientEmail")),
-      reference: txt(formData.get("reference")),
-      intro: txt(formData.get("intro")),
+      recipientAttn: tekst(formData.get("recipientAttn")),
+      recipientAddress: tekst(formData.get("recipientAddress")),
+      recipientEmail: tekst(formData.get("recipientEmail")),
+      reference: tekst(formData.get("reference")),
+      intro: tekst(formData.get("intro")),
       orderDate,
-      validUntil: kind === "tilbud" ? fraIso(txt(formData.get("validUntil"))) ?? plusDage(orderDate, 30) : null,
-      note: txt(formData.get("note")),
-      vatRate: num(formData.get("vatRate")) ?? 25,
-      senderProfileId: txt(formData.get("senderProfileId")),
+      validUntil: kind === "tilbud" ? fraIso(tekst(formData.get("validUntil"))) ?? plusDage(orderDate, 30) : null,
+      note: tekst(formData.get("note")),
+      vatRate: tal(formData.get("vatRate")) ?? 25,
+      senderProfileId: tekst(formData.get("senderProfileId")),
       contractId: kontrakt?.id ?? null,
       salesforceUrl,
       createdBy: mig.initials,
       lines: { create: linjer },
     },
-  });
+  }));
 
   if (kunde) {
     if (kind === "ordre" && formData.get("opdater") === "1") await anvendOrdrePaaKunde(ordre.id, mig.initials);
@@ -275,10 +263,10 @@ export async function opretOrdre(formData: FormData) {
 async function ordreFraTilbud(tilbudId: string, initials: string | null, opdater: boolean) {
   const t = await db.order.findUnique({ where: { id: tilbudId }, include: { lines: { orderBy: { sortOrder: "asc" } } } });
   if (!t || t.kind !== "tilbud") return null;
-  const ordre = await db.order.create({
+  const ordre = await medLoebenummer(() => naesteNummer("ordre"), (number) => db.order.create({
     data: {
       kind: "ordre",
-      number: await naesteNummer("ordre"),
+      number,
       companyId: t.companyId,
       recipientName: t.recipientName,
       recipientAttn: t.recipientAttn,
@@ -299,7 +287,7 @@ async function ordreFraTilbud(tilbudId: string, initials: string | null, opdater
         create: t.lines.map(({ id: _id, orderId: _o, ...l }) => l),
       },
     },
-  });
+  }));
   if (t.companyId) {
     if (opdater) await anvendOrdrePaaKunde(ordre.id, initials);
     await arkiver(ordre.id, initials);
@@ -352,12 +340,12 @@ export async function godkendTilbud(tilbudId: string, formData: FormData) {
     acceptAttachmentId = att.id;
   }
 
-  const note = txt(formData.get("acceptNote"));
+  const note = tekst(formData.get("acceptNote"));
   await db.order.update({
     where: { id: t.id },
     data: {
       status: "godkendt",
-      acceptedAt: fraIso(txt(formData.get("acceptedAt"))) ?? new Date(),
+      acceptedAt: fraIso(tekst(formData.get("acceptedAt"))) ?? new Date(),
       acceptedBy: mig.initials,
       acceptAttachmentId,
       ...(sf !== null ? { salesforceUrl: sf } : {}),

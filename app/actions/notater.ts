@@ -1,19 +1,17 @@
 "use server";
 
+/**
+ * Notater — opgavetavlen med kolonnerne Nu, Næste, Venter og Færdig, delt i
+ * sporene salg og teknik. Et notat kan hænge på en kunde, men behøver ikke.
+ */
 import { db } from "@/lib/db";
-import { hentSession, kraevAdmin, kraevBruger, kraevLeads, kraevSkriv } from "@/lib/auth";
+import { kraevAdmin, kraevBruger, kraevLeads, kraevSkriv } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { formular, type Formular } from "@/lib/formular";
+import { NOTAT_KOLONNER, NOTAT_PRIORITET } from "@/lib/labels";
 
-const txt = (v: FormDataEntryValue | null) => {
-  const s = typeof v === "string" ? v.trim() : "";
-  return s === "" ? null : s;
-};
-const dato = (v: FormDataEntryValue | null) => {
-  const s = txt(v);
-  return s ? new Date(s) : null;
-};
-
-const KOLONNER = ["nu", "naeste", "venter", "faerdig"];
+const KOLONNER: string[] = NOTAT_KOLONNER.map((k) => k.key);
+const spor = (f: Formular) => (f.tekst("track") === "teknik" ? "teknik" : "salg");
 
 /**
  * Notater følger deres spor: salgsnotater kræver Sælger-adgang (leads) eller
@@ -45,46 +43,48 @@ async function oeversteHul(lane: string) {
 }
 
 export async function opretNotat(formData: FormData) {
-  await kraevSpor(String(formData.get("track")));
-  const title = txt(formData.get("title"));
+  const f = formular(formData);
+  const mig = await kraevSpor(spor(f));
+  const title = f.tekst("title");
   if (!title) return;
-  const lane = KOLONNER.includes(String(formData.get("lane"))) ? String(formData.get("lane")) : "nu";
-  const mig = await hentSession();
+  const lane = f.valg("lane", KOLONNER, "nu");
 
   await db.customerNote.create({
     data: {
       title,
-      details: txt(formData.get("details")),
-      companyId: txt(formData.get("companyId")),
+      details: f.tekst("details"),
+      companyId: f.tekst("companyId"),
       lane,
       position: await oeversteHul(lane),
-      track: formData.get("track") === "teknik" ? "teknik" : "salg",
-      priority: txt(formData.get("priority")) ?? "normal",
-      dueAt: dato(formData.get("dueAt")),
+      track: spor(f),
+      priority: f.valg("priority", NOTAT_PRIORITET, "normal"),
+      dueAt: f.dato("dueAt"),
       completedAt: lane === "faerdig" ? new Date() : null,
-      author: mig?.initials ?? null,
+      author: mig.initials,
     },
   });
-  opfrisk(txt(formData.get("companyId")));
+  opfrisk(f.tekst("companyId"));
 }
 
 export async function gemNotat(id: string, formData: FormData) {
+  const f = formular(formData);
   await kraevNotat(id);
-  await kraevSpor(String(formData.get("track")));
-  const lane = KOLONNER.includes(String(formData.get("lane"))) ? String(formData.get("lane")) : "nu";
+  await kraevSpor(spor(f));
+  const lane = f.valg("lane", KOLONNER, "nu");
   const nuvaerende = await db.customerNote.findUnique({ where: { id }, select: { completedAt: true } });
+  if (!nuvaerende) return;
 
   const n = await db.customerNote.update({
     where: { id },
     data: {
-      title: txt(formData.get("title")) ?? "Uden titel",
-      details: txt(formData.get("details")),
-      companyId: txt(formData.get("companyId")),
+      title: f.tekst("title") ?? "Uden titel",
+      details: f.tekst("details"),
+      companyId: f.tekst("companyId"),
       lane,
-      track: formData.get("track") === "teknik" ? "teknik" : "salg",
-      priority: txt(formData.get("priority")) ?? "normal",
-      dueAt: dato(formData.get("dueAt")),
-      completedAt: lane === "faerdig" ? nuvaerende?.completedAt ?? new Date() : null,
+      track: spor(f),
+      priority: f.valg("priority", NOTAT_PRIORITET, "normal"),
+      dueAt: f.dato("dueAt"),
+      completedAt: lane === "faerdig" ? nuvaerende.completedAt ?? new Date() : null,
     },
   });
   opfrisk(n.companyId);
@@ -113,28 +113,18 @@ export async function flytNotat(id: string, lane: string, indeks: number) {
   const kort = await db.customerNote.findUnique({ where: { id } });
   if (!kort) return;
 
-  await db.customerNote.update({
-    where: { id },
-    data: {
-      lane,
-      completedAt: lane === "faerdig" ? kort.completedAt ?? new Date() : null,
-    },
+  await db.$transaction(async (tx) => {
+    await tx.customerNote.update({
+      where: { id },
+      data: { lane, completedAt: lane === "faerdig" ? kort.completedAt ?? new Date() : null },
+    });
+    const iKolonnen = await tx.customerNote.findMany({ where: { lane, NOT: { id } }, orderBy: { position: "asc" }, select: { id: true } });
+    const raekkefoelge = iKolonnen.map((k) => k.id);
+    raekkefoelge.splice(Math.max(0, Math.min(Math.trunc(indeks) || 0, raekkefoelge.length)), 0, id);
+    for (const [i, kortId] of raekkefoelge.entries()) {
+      await tx.customerNote.update({ where: { id: kortId }, data: { position: i } });
+    }
   });
-
-  const iKolonnen = await db.customerNote.findMany({
-    where: { lane, NOT: { id } },
-    orderBy: { position: "asc" },
-    select: { id: true },
-  });
-
-  const raekkefoelge = [...iKolonnen.map((k) => k.id)];
-  raekkefoelge.splice(Math.max(0, Math.min(indeks, raekkefoelge.length)), 0, id);
-
-  await db.$transaction(
-    raekkefoelge.map((kortId, i) =>
-      db.customerNote.update({ where: { id: kortId }, data: { position: i } })
-    )
-  );
 
   opfrisk(kort.companyId);
 }

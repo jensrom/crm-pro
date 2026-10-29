@@ -59,7 +59,7 @@ export function MobilNav({
   const under = (...rod: string[]) => rod.some((r) => sti === r || sti.startsWith(r + "/"));
   const fastAktiv = (href: string) => {
     if (href === "/kunder") return (sti === "/kunder" && soeg.get("hot") !== "1") || sti.startsWith("/kunder/") || under("/kontakter", "/notater");
-    if (href === "/opportunities") return under("/opportunities", "/leads", "/ordrer", "/fornyelser", "/tilkoeb", "/produkter", "/pipeline", "/aktiviteter");
+    if (href === "/opportunities") return under("/opportunities", "/leads", "/ordrer", "/intern", "/fornyelser", "/tilkoeb", "/produkter", "/pipeline", "/aktiviteter");
     if (href === "/teknik/sager") return under("/teknik");
     return aktiv(href);
   };

@@ -545,7 +545,7 @@ export async function bygDemomiljoe(initials: string | null): Promise<DemoResult
       const foer = l.seats - delta;
       await db.licenseChange.create({
         data: {
-          companyId: kunde.id, productId: l.licens.id, quantity: delta, seatsBefore: foer, seatsAfter: l.seats,
+          companyId: kunde.id, productId: l.licens.id, customerProductId: l.id, quantity: delta, seatsBefore: foer, seatsAfter: l.seats,
           unitPrice: l.pris, licenseModel: l.licens.licenseModel, date: middag(dageSiden(t.tal(10, 200))),
           note: delta > 0 ? t.en(["Ny tekniker", "Udvidelse til hal 2", "Sæsonhold"]) : t.en(["Medarbejder stoppet", "Afdeling lukket"]),
           createdBy: af(),
@@ -832,7 +832,7 @@ export async function bygDemomiljoe(initials: string | null): Promise<DemoResult
       await db.customerProduct.update({ where: { id: maal.id }, data: { seats: { increment: antal } } });
       await db.licenseChange.create({
         data: {
-          companyId: kunde.id, productId: maal.licens.id, quantity: antal, seatsBefore: maal.seats, seatsAfter: maal.seats + antal,
+          companyId: kunde.id, productId: maal.licens.id, customerProductId: maal.id, quantity: antal, seatsBefore: maal.seats, seatsAfter: maal.seats + antal,
           unitPrice: maal.pris, licenseModel: maal.licens.licenseModel, date: tStart, note: `${dokNr(ord2)} · tilkøb på ${subNr(contract?.subNumber)}`, createdBy: af(),
         },
       });

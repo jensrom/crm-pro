@@ -11,7 +11,7 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { GemtAf } from "@/components/ui/gemt-af";
 import { db } from "@/lib/db";
 import { dato, datoKort, tal } from "@/lib/format";
-import { AABNE_SAGSSTATUS, SAGSPRIORITET, SAGSSTATUS, findSagsprioritet, findSagsstatus } from "@/lib/labels";
+import { AABNE_SAGSSTATUS, erAabenSag, SAGSPRIORITET, SAGSSTATUS, findSagsprioritet, findSagsstatus } from "@/lib/labels";
 import { alderIDage, alderTekst, kortnummer, kortstatus, sagsnummer, varighed } from "@/lib/teknik";
 import { gemSag, registrerTid, skrivKommentar, sletKommentar, sletSag, sletTid } from "@/app/actions/teknik";
 
@@ -43,7 +43,7 @@ export default async function SagsSide({ params }: { params: Promise<{ id: strin
   const pr = findSagsprioritet(sag.priority);
   const brugt = sag.timeLogs.reduce((s, t) => s + t.durationMin, 0);
   const nu = new Date();
-  const forfalden = sag.dueAt != null && sag.dueAt < nu && AABNE_SAGSSTATUS.includes(sag.status as any);
+  const forfalden = sag.dueAt != null && sag.dueAt < nu && erAabenSag(sag.status);
 
   return (
     <div className="max-w-[1200px] flex flex-col gap-5">
