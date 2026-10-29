@@ -1,5 +1,7 @@
 import { Card, CardBody } from "@/components/ui/card";
-import { KundeListe, type Raekke } from "@/components/kunder/KundeListe";
+import { KundeListe, type Raekke, type KundeProdukt } from "@/components/kunder/KundeListe";
+
+type Produkt = KundeProdukt & { sortering: number };
 import { hentKunderMedNoegletal } from "@/lib/analysis";
 import { gaeldendeMaanedspris } from "@/lib/pricing";
 
@@ -15,21 +17,38 @@ export default async function KunderSide({
 
   const raekker: Raekke[] = kunder.map((k) => {
     const linjer = k.customerProducts;
-    const pakkenavne = linjer.map((l) => l.product.name);
-    const foerste = linjer[0]?.product;
+    // Ét mærke pr. produkt (fx Idus, Fiix) — licenserne under produktet samles i mærket
+    const produkter = new Map<string, Produkt>();
+    for (const l of linjer) {
+      const fam = l.product.family;
+      const noegle = fam?.id ?? `licens-${l.productId}`;
+      const p = produkter.get(noegle) ?? {
+        navn: fam?.name ?? l.product.name,
+        ikon: l.product.icon,
+        farve: l.product.color,
+        licenser: 0,
+        linjer: [],
+        udenPris: false,
+        sortering: fam?.sortOrder ?? 999,
+      };
+      p.licenser += l.seats;
+      p.linjer.push(`${l.seats} × ${l.product.name}`);
+      if (gaeldendeMaanedspris(l.unitPriceMonth, l.product) == null) p.udenPris = true;
+      produkter.set(noegle, p);
+    }
+    const liste = [...produkter.values()].sort((a, b) => a.sortering - b.sortering || a.navn.localeCompare(b.navn, "da-DK"));
     return {
       id: k.id,
       name: k.name,
       country: k.country,
       industry: k.industry,
-      pakke: pakkenavne.join(", ") || "Ingen",
-      pakkeIkon: foerste?.icon ?? null,
-      pakkeFarve: foerste?.color ?? null,
+      produkter: liste.map(({ sortering: _s, ...p }) => p),
+      produktTekst: liste.map((p) => p.navn).join(", ") || "Ingen",
       seats: k.n.seats,
       aktive: k.n.aktive,
       udnyttelse: k.n.udnyttelse,
       aarsvaerdi: k.n.aarsvaerdi,
-      udenPris: linjer.some((l) => gaeldendeMaanedspris(l.unitPriceMonth, l.product) == null),
+      udenPris: liste.some((p) => p.udenPris),
       employees: k.employees,
       revenueMdkk: k.revenueMdkk,
       priority: k.priority,
