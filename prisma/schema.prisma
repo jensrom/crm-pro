@@ -17,7 +17,11 @@ datasource db {
 
 model Company {
   id       String  @id @default(cuid())
+  /// Unikt kundenummer, vises som K-00001. Tildeles automatisk.
+  customerNumber Int? @unique
   name     String
+  /// Afdeling — samme firma kan være flere kunder (fx hver sin faktureringsafdeling)
+  department String?
   isActive Boolean @default(true)
 
   // --- Stamdata ---

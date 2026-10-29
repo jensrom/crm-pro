@@ -3,11 +3,12 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { sikrKontrakter } from "@/lib/kontrakter";
 import { hentSession } from "@/lib/auth";
-import { brugerensProfilId, filnavn, fraIsoDato, hentAfsender, subNr, noegleNr } from "@/lib/dokumenter";
+import { brugerensProfilId, dokumentFilnavn, fraIsoDato, hentAfsender, subNr, noegleNr } from "@/lib/dokumenter";
 import { licensmodel } from "@/lib/katalog";
 import { kanLaese } from "@/lib/roller";
 import { lavLicensbevis } from "@/lib/pdf";
 import { gemDokumentIFilboks } from "@/lib/filer";
+import { kundeNr } from "@/lib/kundenr";
 
 export const runtime = "nodejs";
 
@@ -60,6 +61,8 @@ export async function GET(req: Request) {
     afsender: await hentAfsender(await brugerensProfilId(session.id)),
     kunde: {
       navn: kunde.name,
+      afdeling: kunde.department,
+      nummer: kundeNr(kunde.customerNumber),
       adresse: kunde.address,
       postby: [kunde.zipCode, kunde.city].filter(Boolean).join(" ") || null,
       land: kunde.country,
@@ -72,12 +75,14 @@ export async function GET(req: Request) {
     linjer,
   });
 
-  const navn = filnavn(
-    "Licensbevis",
-    kunde.name,
-    linjer.length === 1 ? linjer[0].sub : `${linjer.length}-licenser`,
-    udstedt.toISOString().slice(0, 10)
-  );
+  const navn = dokumentFilnavn({
+    id: reference,
+    kunde: kunde.department ? `${kunde.name} ${kunde.department}` : kunde.name,
+    dato: udstedt,
+    initialer: session.initials,
+    produkt: [...new Set(linjer.map((l) => l.produkt || l.licens))].join(" + "),
+    haendelse: "Licensbevis",
+  });
 
   if (q.get("gem") === "1") {
     await gemDokumentIFilboks(kunde.id, navn, bytes, "licensbevis", session.initials);

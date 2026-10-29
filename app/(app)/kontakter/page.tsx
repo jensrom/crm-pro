@@ -1,90 +1,38 @@
-import Link from "next/link";
-import { Mail, Phone, Users } from "lucide-react";
-import { Card, CardBody, CardHeader, EmptyState } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { db } from "@/lib/db";
 import { BESLUTNINGSROLLER, label } from "@/lib/labels";
+import { kundeNr } from "@/lib/kundenr";
+import { KontaktSoeg, type SoegKontakt } from "@/components/kontakter/KontaktSoeg";
 
 export const dynamic = "force-dynamic";
 
-export default async function KontakterSide() {
+/** Kontakter: tom til der søges. Søgningen matcher både personer og kunder og grupperer pr. kunde. */
+export default async function KontakterSide({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  const { q } = await searchParams;
   const kontakter = await db.contact.findMany({
     where: { isActive: true },
-    include: { company: { select: { id: true, name: true, country: true } } },
-    orderBy: [{ firstName: "asc" }],
+    include: { company: { select: { id: true, name: true, department: true, customerNumber: true, city: true } } },
+    orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
   });
 
-  const sorteret = [...kontakter].sort((a, b) =>
-    `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, "da-DK")
-  );
+  const data: SoegKontakt[] = kontakter.map((c) => ({
+    id: c.id,
+    navn: `${c.firstName} ${c.lastName}`.trim(),
+    titel: c.title,
+    rolle: c.decisionRole ? label(BESLUTNINGSROLLER, c.decisionRole) : null,
+    email: c.email,
+    telefon: c.phone,
+    primaer: c.isPrimary,
+    kunde: c.company
+      ? { id: c.company.id, navn: c.company.name, afdeling: c.company.department, nummer: kundeNr(c.company.customerNumber), by: c.company.city }
+      : null,
+  }));
 
   return (
     <div className="max-w-[1200px] flex flex-col gap-5">
       <p className="text-sm text-muted-foreground max-w-3xl">
-        Kontaktpersoner på tværs af kunderne. De primære er hentet fra portalens felt for primær kontakt — resten
-        tilføjer du selv på den enkelte kunde.
+        Søg på en person eller en kunde. Et kundenavn viser alle kundens kontakter; et personnavn viser personen under hver kunde, hvor navnet findes.
       </p>
-
-      <Card>
-        <CardHeader title={`${sorteret.length} kontakter`} />
-        <CardBody className="p-0">
-          {sorteret.length === 0 ? (
-            <EmptyState title="Ingen kontakter endnu" icon={Users} description="Tilføj dem fra den enkelte kundes side." />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="mobilkort w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground border-b border-border">
-                    <th className="px-5 py-2.5 font-medium">Navn</th>
-                    <th className="px-3 py-2.5 font-medium">Kunde</th>
-                    <th className="px-3 py-2.5 font-medium">Stilling</th>
-                    <th className="px-3 py-2.5 font-medium">Rolle</th>
-                    <th className="px-5 py-2.5 font-medium">Kontakt</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {sorteret.map((c) => (
-                    <tr key={c.id} className="hover:bg-secondary/60">
-                      <td className="px-5 py-2.5 font-medium whitespace-nowrap">
-                        {c.firstName} {c.lastName}
-                        {c.isPrimary && <Badge variant="info" className="ml-2">Primær</Badge>}
-                      </td>
-                      <td className="px-3 py-2.5">
-                        {c.company ? (
-                          <Link href={`/kunder/${c.company.id}`} className="hover:text-primary">
-                            {c.company.name}
-                          </Link>
-                        ) : (
-                          "–"
-                        )}
-                      </td>
-                      <td className="px-3 py-2.5 text-muted-foreground" data-mobil={c.title ? undefined : "skjul"}>{c.title ?? "–"}</td>
-                      <td className="px-3 py-2.5 text-muted-foreground" data-mobil={c.decisionRole ? undefined : "skjul"}>{label(BESLUTNINGSROLLER, c.decisionRole ?? "")}</td>
-                      <td className="px-5 py-2.5">
-                        <div className="flex flex-col gap-0.5">
-                          {c.email && (
-                            <a href={`mailto:${c.email}`} className="text-xs text-primary hover:underline inline-flex items-center gap-1 break-all">
-                              <Mail className="h-3 w-3 shrink-0" />
-                              {c.email}
-                            </a>
-                          )}
-                          {c.phone && (
-                            <a href={`tel:${c.phone}`} className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
-                              <Phone className="h-3 w-3 shrink-0" />
-                              {c.phone}
-                            </a>
-                          )}
-                          {!c.email && !c.phone && <span className="text-xs text-muted-foreground">–</span>}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardBody>
-      </Card>
+      <KontaktSoeg kontakter={data} start={q ?? ""} />
     </div>
   );
 }

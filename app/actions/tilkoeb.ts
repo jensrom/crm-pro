@@ -13,6 +13,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { registrerLicensaendring as registrer } from "@/lib/licenser";
 import { formular } from "@/lib/formular";
+import { ejedePakker, maaVaelges } from "@/lib/pakker";
 
 function opfrisk(kundeId: string) {
   revalidatePath(`/kunder/${kundeId}`);
@@ -34,6 +35,14 @@ export async function registrerLicensaendring(kundeId: string, formData: FormDat
 
   const produkt = await db.product.findUnique({ where: { id: productId } });
   if (!produkt) redirect(`${tilbage}&tilkoeb=mangler#tilkoeb`);
+
+  // Kun den pakke kunden ejer, kan købes til — et skift af pakke er en opgradering af aftalen
+  const ejede = await db.customerProduct.findMany({
+    where: { companyId: kundeId, isActive: true },
+    include: { product: { select: { familyId: true, licenseModel: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!maaVaelges(produkt, ejedePakker(ejede))) redirect(`${tilbage}&tilkoeb=pakke#tilkoeb`);
 
   const linje = await db.customerProduct.findFirst({
     where: { companyId: kundeId, productId, isActive: true },

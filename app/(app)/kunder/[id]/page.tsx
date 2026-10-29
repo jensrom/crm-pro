@@ -30,11 +30,14 @@ import { Filboks } from "@/components/kunder/Filboks";
 import { hentFiler } from "@/app/actions/filer";
 import { cn } from "@/lib/utils";
 import { licensGrupper, licensmodel, listepris } from "@/lib/katalog";
+import { kundeNr, sikrKundenumre } from "@/lib/kundenr";
+import { ejedePakker, hoejerePakker, produktNoegle, tilladteGrupper } from "@/lib/pakker";
+import { DageSiden } from "@/components/ui/dage-siden";
 import { LicensOptions } from "@/components/produkter/LicensOptions";
 import { fortrydLicensaendring, registrerLicensaendring } from "@/app/actions/tilkoeb";
 import { hentSession } from "@/lib/auth";
 import { kanLaese, kanSkrive, rettigheder } from "@/lib/roller";
-import { dokNr, isoDato, noegleNr, subNr } from "@/lib/dokumenter";
+import { dokNr, isoDato, noegleNr, ordreNr, subNr } from "@/lib/dokumenter";
 import { aftaleUdloeb, dagTekst } from "@/lib/perioder";
 import { ordreTotal } from "@/lib/ordre-pdf";
 
@@ -45,6 +48,7 @@ const TILKOEB_BESKED: Record<string, { tekst: string; fejl?: boolean }> = {
   fortrudt: { tekst: "Registreringen er fortrudt, og licensantallet er sat tilbage." },
   mangler: { tekst: "Vælg en licens og et antal større end 0.", fejl: true },
   "for-mange": { tekst: "Kunden har ikke så mange licenser at reducere.", fejl: true },
+  pakke: { tekst: "Kunden har en anden pakke af det produkt. Tilkøb sker på den ejede pakke — brug Opgradering af aftale for at skifte pakke.", fejl: true },
 };
 
 function iDag() {
@@ -62,7 +66,7 @@ export default async function KundeSide({
 }) {
   const { id } = await params;
   const { tilkoeb, fil, fane: faneParam, ryddede, spor, rediger, linje, noegle } = await searchParams;
-  await sikrKontrakter(id);
+  await Promise.all([sikrKontrakter(id), sikrKundenumre()]);
   const [kunde, grupper, filer, mig, indst] = await Promise.all([
     db.company.findUnique({
       where: { id },
@@ -140,6 +144,24 @@ export default async function KundeSide({
   const nyligLukket = lukkedeSager.filter((t) => (dageSiden(t.closedAt ?? t.resolvedAt ?? t.updatedAt, nu) ?? 0) <= dage);
   const aabneNotater = kunde.notes_.filter((no) => !no.completedAt).length;
 
+  // Pakker: kun den ejede pakke af et produkt kan vælges; et skift er en opgradering af aftalen
+  const aktiveLinjer = kunde.customerProducts.filter((l) => l.isActive);
+  const tilladte = tilladteGrupper(grupper, ejedePakker(aktiveLinjer));
+  const alleLicenser = grupper.flatMap((g) => g.licenser);
+  const kanOpgraderes = (l: { product: Parameters<typeof hoejerePakker>[0] }) => hoejerePakker(l.product, alleLicenser).length > 0;
+  /** Nøgler en linje må ligge under: dem med samme produkt (eller tomme). */
+  const passendeNoegler = (p: { id: string; familyId: string | null }) =>
+    kunde.contracts.filter((k) => kunde.customerProducts.filter((x) => x.contractId === k.id).every((x) => produktNoegle(x.product) === produktNoegle(p)));
+  // Ordredatoen bag hver licensændring (ORD-nummeret i noten) — til "x dage siden"
+  const ordreNumre = [...new Set(kunde.licenseChanges.flatMap((c) => [...(c.note ?? "").matchAll(/ORD-(\d+)/g)].map((m) => Number(m[1]))))];
+  const ordreDatoer = new Map(
+    (ordreNumre.length ? await db.order.findMany({ where: { kind: "ordre", number: { in: ordreNumre } }, select: { number: true, orderDate: true } }) : []).map((o) => [ordreNr(o.number), o.orderDate] as const)
+  );
+  const aendringsDato = (c: { note: string | null; createdAt: Date }) => {
+    const nr = c.note?.match(/ORD-\d+/)?.[0];
+    return (nr && ordreDatoer.get(nr)) || c.createdAt;
+  };
+
   type Linje = (typeof kunde.customerProducts)[number];
   /** Redigeringsformularen for én produktlinje — vises når man klikker linjen. */
   const linjeFormular = (l: Linje) => {
@@ -157,6 +179,11 @@ export default async function KundeSide({
                         <Link href={`/kunder/${kunde.id}/licensbevis?linje=${l.id}`} title="Licensbevis for denne licens" className="text-muted-foreground hover:text-primary">
                           <FileBadge className="h-3.5 w-3.5" />
                         </Link>
+                        {salgS && l.isActive && kanOpgraderes(l) && (
+                          <Link href={`/ordrer/ny?type=ordre&kunde=${kunde.id}&opgrader=${l.id}`} className="text-xs font-medium text-primary hover:underline">
+                            Opgradering af aftale
+                          </Link>
+                        )}
                       </div>
                       <div className="text-xs text-muted-foreground tabular">
                         {perpetual
@@ -169,7 +196,7 @@ export default async function KundeSide({
                       <div className="col-span-2 sm:col-span-4">
                         <Label htmlFor={`k-${l.id}`} hint="flyt linjen ind under en anden kontrakt">SUB-nøgle</Label>
                         <Select id={`k-${l.id}`} name="contractId" defaultValue={l.contractId ?? "ny"}>
-                          {kunde.contracts.map((k) => (
+                          {passendeNoegler(l.product).map((k) => (
                             <option key={k.id} value={k.id}>{subNr(k.subNumber)}{k.name ? ` · ${k.name}` : ""}</option>
                           ))}
                           <option value="ny">Ny SUB-nøgle</option>
@@ -178,7 +205,7 @@ export default async function KundeSide({
                       <div className="col-span-2">
                         <Label htmlFor={`p-${l.id}`}>Pakke</Label>
                         <Select id={`p-${l.id}`} name="productId" defaultValue={l.productId}>
-                          <LicensOptions grupper={grupper} medtag={l.product} />
+                          <LicensOptions grupper={tilladte} medtag={l.product} />
                         </Select>
                       </div>
                       <div><Label htmlFor={`s-${l.id}`}>Tildelte</Label><Input id={`s-${l.id}`} name="seats" type="number" min={0} defaultValue={l.seats} /></div>
@@ -252,7 +279,10 @@ export default async function KundeSide({
       ? [{ k: null, linjer: kunde.customerProducts.filter((l) => !l.contractId), udloeb: null, skaev: false }]
       : []),
   ].filter((g) => g.linjer.length > 0 || (g.k && g.k.orders.length > 0));
-  const linjeHistorik = valgtLinje ? kunde.licenseChanges.filter((c) => c.productId === valgtLinje.productId) : [];
+  // Linjens egne poster — også fra før en opgradering, hvor licensen hed noget andet
+  const linjeHistorik = valgtLinje
+    ? kunde.licenseChanges.filter((c) => (c.customerProductId ? c.customerProductId === valgtLinje.id : c.productId === valgtLinje.productId))
+    : [];
   const linjeAar = (l: Linje) => {
     const pris = gaeldendeMaanedspris(l.unitPriceMonth, l.product);
     return pris == null || l.product.licenseModel === "perpetual" ? null : l.seats * pris * 12;
@@ -269,6 +299,7 @@ export default async function KundeSide({
           <h1 className="mt-1.5 text-xl font-semibold flex items-center gap-2.5">
             <span className="h-3 w-3 rounded-full shrink-0" style={{ background: ks.bg }} aria-hidden />
             {kunde.name}
+            {kunde.department && <span className="font-normal text-muted-foreground">· {kunde.department}</span>}
             {kunde.isHot && (
               <span
                 title={kunde.hotSetBy ? `Markeret Hot af ${kunde.hotSetBy}` : "Markeret Hot"}
@@ -280,6 +311,8 @@ export default async function KundeSide({
           </h1>
           <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <Badge variant={ks.variant}>{ks.label}</Badge>
+            <span className="tabular">{kundeNr(kunde.customerNumber)}</span>
+            <span>·</span>
             <span>{kunde.country}</span>
             {kunde.industry && <><span>·</span><span>{kunde.industry}</span></>}
             {kunde.accountId && <><span>·</span><span className="tabular">Konto {kunde.accountId}</span></>}
@@ -303,6 +336,7 @@ export default async function KundeSide({
             </Button>
           </form>
           )}
+          {kunderS && <Link href={`/kunder/ny?som=${kunde.id}`} title="Opret en anden afdeling af samme firma som ny kunde"><Button variant="ghost" size="sm">Ny afdeling</Button></Link>}
           {kunderS && <Link href={`/kunder/${kunde.id}/rediger`}><Button variant="secondary" size="sm">Rediger</Button></Link>}
           {mig?.erAdmin && (
           <Link href={`/kunder/${kunde.id}/slet`}>
@@ -536,11 +570,11 @@ export default async function KundeSide({
                   <div className="col-span-2">
                     <Label htmlFor="np">Pakke</Label>
                     <Select id="np" name="productId" required>
-                      <LicensOptions grupper={grupper} />
+                      <LicensOptions grupper={tilladte} />
                     </Select>
                   </div>
                   <div className="col-span-2 sm:col-span-4">
-                    <Label htmlFor="nk">SUB-nøgle</Label>
+                    <Label htmlFor="nk" hint="en nøgle hører til ét produkt">SUB-nøgle</Label>
                     <Select id="nk" name="contractId" defaultValue="ny">
                       <option value="ny">Ny SUB-nøgle (ny kontrakt)</option>
                       {kunde.contracts.map((k) => (
@@ -611,12 +645,15 @@ export default async function KundeSide({
                           </div>
                           {c.note && <p className="text-xs text-muted-foreground mt-0.5">{c.note}</p>}
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {vaerdi != null && (
-                            <span className={cn("text-xs tabular", vaerdi < 0 ? "text-danger" : "text-foreground")}>
-                              {vaerdi > 0 ? "+" : ""}{kroner(vaerdi)}{perpetual ? " engang" : "/år"}
-                            </span>
-                          )}
+                        <div className="flex items-start gap-2 shrink-0">
+                          <div className="flex flex-col items-end">
+                            {vaerdi != null && (
+                              <span className={cn("text-xs tabular", vaerdi < 0 ? "text-danger" : "text-foreground")}>
+                                {vaerdi > 0 ? "+" : ""}{kroner(vaerdi)}{perpetual ? " engang" : "/år"}
+                              </span>
+                            )}
+                            <DageSiden dato={aendringsDato(c).toISOString()} className="text-[11px] text-muted-foreground mt-0.5" />
+                          </div>
                           {mig?.erAdmin && (
                             <form action={fortrydLicensaendring.bind(null, c.id)}>
                               <BekraeftSlet hvad="registreringen" detalje="Posten slettes, og licensantallet sættes tilbage." title="Fortryd — sletter posten og sætter licensantallet tilbage" className="p-1 rounded text-muted-foreground hover:text-danger">
@@ -652,7 +689,7 @@ export default async function KundeSide({
                 <div className="col-span-2 sm:col-span-3">
                   <Label htmlFor="tk-l">Licens</Label>
                   <Select id="tk-l" name="productId" required>
-                    <LicensOptions grupper={grupper} />
+                    <LicensOptions grupper={tilladte} />
                   </Select>
                 </div>
                 <div className="sm:col-span-2">
@@ -695,12 +732,15 @@ export default async function KundeSide({
                           </div>
                           {c.note && <p className="text-xs text-muted-foreground mt-0.5">{c.note}</p>}
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {vaerdi != null && (
-                            <span className={cn("text-xs tabular", vaerdi < 0 ? "text-danger" : "text-foreground")}>
-                              {vaerdi > 0 ? "+" : ""}{kroner(vaerdi)}{perpetual ? " engang" : "/år"}
-                            </span>
-                          )}
+                        <div className="flex items-start gap-2 shrink-0">
+                          <div className="flex flex-col items-end">
+                            {vaerdi != null && (
+                              <span className={cn("text-xs tabular", vaerdi < 0 ? "text-danger" : "text-foreground")}>
+                                {vaerdi > 0 ? "+" : ""}{kroner(vaerdi)}{perpetual ? " engang" : "/år"}
+                              </span>
+                            )}
+                            <DageSiden dato={aendringsDato(c).toISOString()} className="text-[11px] text-muted-foreground mt-0.5" />
+                          </div>
                           {mig?.erAdmin && (
                             <form action={fortrydLicensaendring.bind(null, c.id)}>
                               <BekraeftSlet hvad="registreringen" detalje="Posten slettes, og licensantallet sættes tilbage." title="Fortryd — sletter posten og sætter licensantallet tilbage" className="p-1 rounded text-muted-foreground hover:text-danger">

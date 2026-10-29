@@ -3,6 +3,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { BekraeftSlet } from "@/components/ui/bekraeft-slet";
+import { BekraeftHandling } from "@/components/ui/bekraeft-handling";
 import { cn } from "@/lib/utils";
 import { dato } from "@/lib/format";
 import { INTERN_STATUS, findInternStatus, kanLaveLicensbevis } from "@/lib/intern";
@@ -41,6 +42,9 @@ type Ordre = {
  * Intern salg på ordren: send videre, følg trinnene, udfyld licensdata og
  * lav licensbevis pr. produkt, når varen er klar til kunden.
  */
+/** "Fornyelse: Idus Online Professional" → "Idus Online Professional" */
+const licensnavn = (d: string) => d.replace(/^(Fornyelse|Tilkøb|Opgradering):\s*/i, "").replace(/^.*→\s*/, "");
+
 export function InternKort({ o, kanSende, kanStyre }: { o: Ordre; kanSende: boolean; kanStyre: boolean }) {
   if (o.kind !== "ordre") return null;
 
@@ -65,6 +69,12 @@ export function InternKort({ o, kanSende, kanStyre }: { o: Ordre; kanSende: bool
   const nu = INTERN_STATUS.findIndex((s) => s.key === o.internStatus);
   const tid = (felt: string) => (o as unknown as Record<string, Date | null>)[felt];
   const licensLinjer = o.lines.filter((l) => l.productId && l.licenseModel !== "fee");
+  // Linjerne pr. licens — fx en fornyelse og et tilkøb af samme licens
+  const licensGrupper = [...new Set(licensLinjer.map((l) => l.productId!))].map((productId) => {
+    const linjer = licensLinjer.filter((l) => l.productId === productId);
+    const antal = linjer.reduce((s, l) => s + l.quantity, 0);
+    return { productId, linjer, navn: licensnavn(linjer[0].description), antal: `${antal} ${antal === 1 ? "licens" : "licenser"}` };
+  });
 
   return (
     <Card>
@@ -104,7 +114,20 @@ export function InternKort({ o, kanSende, kanStyre }: { o: Ordre; kanSende: bool
               <li key={s.key}>
                 {kanStyre && !aktiv ? (
                   <form action={skiftInternStatus.bind(null, o.id, s.key)}>
-                    <button type="submit" title={`Sæt til ${s.label}`} className="w-full flex items-start gap-1.5 rounded-md border border-border p-1.5 hover:bg-secondary/60">{indhold}</button>
+                    <BekraeftHandling
+                      title={`Sæt til ${s.label}`}
+                      titel={`Skift status til ${s.label}?`}
+                      tekst={
+                        <>
+                          Ordren står i dag som <strong className="text-foreground">{INTERN_STATUS[nu]?.label ?? "–"}</strong>.{" "}
+                          {i < nu ? "Du går et trin tilbage i forløbet." : i > nu + 1 ? "Du springer trin over i forløbet." : "Ordren flyttes til næste trin."}
+                        </>
+                      }
+                      jaTekst="Ja, skift status"
+                      className="w-full flex items-start gap-1.5 rounded-md border border-border p-1.5 hover:bg-secondary/60"
+                    >
+                      {indhold}
+                    </BekraeftHandling>
                   </form>
                 ) : (
                   <div className={cn("flex items-start gap-1.5 rounded-md border p-1.5", aktiv ? "border-primary bg-primary/[0.06]" : "border-border")}>{indhold}</div>
@@ -156,6 +179,37 @@ export function InternKort({ o, kanSende, kanStyre }: { o: Ordre; kanSende: bool
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+            {kanLaveLicensbevis(o.internStatus) && licensGrupper.length > 0 && (licensGrupper.some((g) => g.linjer.length > 1) || licensGrupper.length > 1) && (
+              <div className="rounded-lg border border-border bg-secondary/30 px-4 py-3 flex flex-col gap-2">
+                <div className="text-xs text-muted-foreground">
+                  Samlet licensbevis: fornyelse, tilkøb og opgradering af samme licens står sammen på ét bevis med det samlede antal og den samlede periode.
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {licensGrupper.map((g) => (
+                    <a
+                      key={g.productId}
+                      href={`/api/dokumenter/ordre/${o.id}/licensbevis?produkt=${g.productId}&gem=1`}
+                      target="_blank"
+                      rel="noopener"
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-secondary"
+                    >
+                      <FileBadge className="h-3.5 w-3.5" /> Samlet bevis: {g.navn}
+                      <span className="text-muted-foreground font-normal">({g.antal} · {g.linjer.length} {g.linjer.length === 1 ? "linje" : "linjer"})</span>
+                    </a>
+                  ))}
+                  {licensGrupper.length > 1 && (
+                    <a
+                      href={`/api/dokumenter/ordre/${o.id}/licensbevis?alle=1&gem=1`}
+                      target="_blank"
+                      rel="noopener"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
+                    >
+                      <FileBadge className="h-3.5 w-3.5" /> Alle beviser samlet ({licensGrupper.length} licenser, én PDF)
+                    </a>
+                  )}
+                </div>
               </div>
             )}
             {kanStyre && (

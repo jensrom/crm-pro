@@ -13,6 +13,7 @@ import { gemDokumentIFilboks, MAKS_FILSTOERRELSE, saniterFilnavn } from "@/lib/f
 import { anvendOrdrePaaKunde } from "@/lib/ordre-anvend";
 import { tekst, tal, heltal } from "@/lib/formular";
 import { medLoebenummer } from "@/lib/nummerserie";
+import { ejedePakker, hoejerePakker, maaVaelges } from "@/lib/pakker";
 
 
 /**
@@ -118,6 +119,15 @@ export async function opretOrdre(formData: FormData) {
 
   const idag = new Date();
   const linjer: Linje[] = [];
+  // Kundens aktive licenser — afgør hvilke pakker der må vælges, og hvad der er et tilkøb
+  const ejede = kunde
+    ? await db.customerProduct.findMany({
+        where: { companyId: kunde.id, isActive: true },
+        include: { product: { include: { family: true } } },
+        orderBy: { createdAt: "asc" },
+      })
+    : [];
+  const pakker = ejedePakker(ejede);
 
   // 1. Fornyelser af kundens eksisterende licenser
   const fornyIds = formData.getAll("forny").filter((v): v is string => typeof v === "string" && v !== "");
@@ -150,14 +160,17 @@ export async function opretOrdre(formData: FormData) {
   const valgte = formData.getAll("vaelg").filter((v): v is string => typeof v === "string" && v !== "");
   const produkter = valgte.length ? await db.product.findMany({ where: { id: { in: valgte } }, include: { family: true } }) : [];
   produkter.sort((a, b) => (a.family?.sortOrder ?? 999) - (b.family?.sortOrder ?? 999) || a.sortOrder - b.sortOrder);
+  if (produkter.some((pr) => !maaVaelges(pr, pakker))) redirect(`${tilbage}&fejl=pakke`);
   for (const pr of produkter) {
     const perpetual = erEngang(pr.licenseModel);
     const p = perpetual ? { start: null, slut: null, mdr: null } : periode(formData, `n_${pr.id}_`, idag);
+    // Har kunden licensen i forvejen, er det et tilkøb på den — og står som "Tilkøb: …"
+    const egen = pr.licenseModel !== "fee" ? ejede.find((l) => l.productId === pr.id) ?? null : null;
     linjer.push({
       productId: pr.id,
-      customerProductId: null,
-      lineKind: "nyt",
-      description: linjenavn(pr),
+      customerProductId: egen?.id ?? null,
+      lineKind: egen ? "tilkoeb" : "nyt",
+      description: egen ? `Tilkøb: ${linjenavn(pr)}` : linjenavn(pr),
       details: pr.documentText,
       quantity: Math.max(1, heltal(formData.get(`antal_${pr.id}`)) ?? 1),
       unitPrice: tal(formData.get(`pris_${pr.id}`)),
@@ -173,6 +186,7 @@ export async function opretOrdre(formData: FormData) {
   const tilkoeb = kontrakt ? formData.getAll("tilkoeb").filter((v): v is string => typeof v === "string" && v !== "") : [];
   if (kontrakt && tilkoeb.length) {
     const prods = await db.product.findMany({ where: { id: { in: tilkoeb } }, include: { family: true } });
+    if (prods.some((pr) => !maaVaelges(pr, pakker))) redirect(`${tilbage}&fejl=pakke`);
     prods.sort((a, b) => (a.family?.sortOrder ?? 999) - (b.family?.sortOrder ?? 999) || a.sortOrder - b.sortOrder);
     const noeglensUdloeb = kontraktUdloeb(kontrakt.lines, idag);
     for (const pr of prods) {
@@ -190,8 +204,8 @@ export async function opretOrdre(formData: FormData) {
         productId: pr.id,
         customerProductId: egen?.id ?? null,
         lineKind: "tilkoeb",
-        description: `Tilkøb til ${subNr(kontrakt.subNumber)}: ${linjenavn(pr)}`,
-        details: pr.documentText,
+        description: `Tilkøb: ${linjenavn(pr)}`,
+        details: [`Tilkøb på aftale ${subNr(kontrakt.subNumber)}`, pr.documentText].filter(Boolean).join("\n"),
         quantity: Math.max(1, heltal(formData.get(`t_antal_${pr.id}`)) ?? 1),
         unitPrice: tal(formData.get(`t_pris_${pr.id}`)),
         months: p.mdr,
@@ -201,6 +215,42 @@ export async function opretOrdre(formData: FormData) {
         sortOrder: linjer.length,
       });
     }
+  }
+
+  // 2c. Opgradering af aftale: linjen flyttes til en højere pakke af samme produkt.
+  //     Merprisen (ny pakke − nuværende pris) afregnes for restperioden til aftalens udløb.
+  const opgrader = kunde ? formData.getAll("opgrader").filter((v): v is string => typeof v === "string" && v !== "") : [];
+  for (const id of opgrader) {
+    const cp = ejede.find((l) => l.id === id);
+    if (!cp) continue;
+    const tilId = tekst(formData.get(`o_til_${cp.id}`));
+    const katalog = await db.product.findMany({ where: { familyId: cp.product.familyId, isActive: true }, include: { family: true } });
+    const til = hoejerePakker(cp.product, katalog).find((p) => p.id === tilId);
+    if (!til) redirect(`${tilbage}&fejl=opgradering`);
+    const udloeb = aftaleUdloeb(cp, idag);
+    const start = fraIso(tekst(formData.get(`o_${cp.id}_start`))) ?? idag;
+    const rest = restperiode(start, udloeb);
+    if (!rest) redirect(`${tilbage}&fejl=udloebet`);
+    const nuPris = cp.unitPriceMonth ?? cp.product.pricePerUserMonth ?? 0;
+    const merpris = tal(formData.get(`o_pris_${cp.id}`)) ?? Math.max(0, (til.pricePerUserMonth ?? nuPris) - nuPris);
+    linjer.push({
+      productId: til.id,
+      customerProductId: cp.id,
+      lineKind: "opgradering",
+      description: `Opgradering: ${linjenavn(cp.product)} → ${til.name}`,
+      details: [
+        `Merpris pr. bruger pr. md. i forhold til ${cp.product.name} for restperioden til aftalens udløb.`,
+        `Licenser og aftale flyttes til ${til.name}.`,
+        til.documentText,
+      ].filter(Boolean).join("\n"),
+      quantity: Math.max(1, heltal(formData.get(`o_antal_${cp.id}`)) ?? cp.seats),
+      unitPrice: merpris,
+      months: rest.maaneder,
+      periodStart: rest.fra,
+      periodEnd: rest.til,
+      licenseModel: "sub",
+      sortOrder: linjer.length,
+    });
   }
 
   // 3. Frie linjer

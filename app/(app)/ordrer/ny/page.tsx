@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, Boxes, ExternalLink, FileText, KeyRound, PackagePlus, RefreshCw } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowUpCircle, Boxes, ExternalLink, FileText, KeyRound, PackagePlus, RefreshCw } from "lucide-react";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { aftaleUdloeb, dagTekst, fornyelsesPeriode, isoDag, plusDage } from "@/l
 import { opretOrdre } from "@/app/actions/ordrer";
 import { TilkoebRaekke } from "@/components/dokumenter/TilkoebRaekke";
 import { forskelligeUdloeb, kontraktTerm, kontraktUdloeb } from "@/lib/kontrakter";
+import { ejedePakker, hoejerePakker, produktNoegle, tilladteGrupper } from "@/lib/pakker";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,8 @@ const FEJL: Record<string, string> = {
   linjer: "Sæt flueben ved mindst én fornyelse eller licens, eller skriv en fri linje.",
   udloebet: "SUB-nøglen er udløbet før tilkøbets startdato. Forny nøglen først, eller ret startdatoen.",
   salesforce: "Salesforce-linket skal være en fuld adresse, der starter med https://",
+  pakke: "Kunden har en anden pakke af det produkt. Tilkøb sker på den pakke, kunden ejer — brug Opgradering af aftale for at skifte pakke.",
+  opgradering: "Vælg den pakke, aftalen skal opgraderes til.",
 };
 
 /**
@@ -31,20 +34,22 @@ const FEJL: Record<string, string> = {
  *   ?forny=<id>,<id>|alle  forvælger fornyelse af de licenslinjer
  *   ?fornyProdukt=<id>   forvælger fornyelse af alle kundens licenser under et produkt
  *   ?kontrakt=<id>       tilkøb på en SUB-nøgle: restpris frem til nøglens udløb
+ *   ?opgrader=<id>       forvælger opgradering af den licenslinje
  *   ?type=tilbud|ordre
  */
 export default async function NyOrdre({
   searchParams,
 }: {
-  searchParams: Promise<{ kunde?: string; fejl?: string; forny?: string; fornyProdukt?: string; type?: string; kontrakt?: string }>;
+  searchParams: Promise<{ kunde?: string; fejl?: string; forny?: string; fornyProdukt?: string; type?: string; kontrakt?: string; opgrader?: string }>;
 }) {
-  const { kunde: kundeId, fejl, forny, fornyProdukt, type, kontrakt: kontraktId } = await searchParams;
+  const { kunde: kundeId, fejl, forny, fornyProdukt, type, kontrakt: kontraktId, opgrader } = await searchParams;
   const nu = new Date();
   const fornyelse = !!(forny || fornyProdukt);
+  const opgradering = !!opgrader;
   const kind = type === "tilbud" ? "tilbud" : type === "ordre" ? "ordre" : fornyelse ? "ordre" : "tilbud";
 
   const [kunder, kunde, { familier, uplacerede }] = await Promise.all([
-    db.company.findMany({ where: { isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    db.company.findMany({ where: { isActive: true }, select: { id: true, name: true, department: true, customerNumber: true }, orderBy: [{ name: "asc" }, { department: "asc" }] }),
     kundeId
       ? db.company.findUnique({
           where: { id: kundeId },
@@ -77,10 +82,20 @@ export default async function NyOrdre({
   const kUdloeb = kontrakt ? kontraktUdloeb(kontrakt.lines, nu) : null;
   const kSkaev = kontrakt ? forskelligeUdloeb(kontrakt.lines, nu) : false;
 
-  const grupper = [
-    ...familier.map((f) => ({ id: f.id, navn: f.name, licenser: f.products })),
-    ...(uplacerede.length ? [{ id: "uden", navn: "Uden produkt", licenser: uplacerede }] : []),
-  ].filter((g) => g.licenser.length > 0);
+  // Kun den pakke kunden ejer af et produkt kan vælges — et skift af pakke er en opgradering
+  const pakker = ejedePakker(kunde?.customerProducts ?? []);
+  const grupper = tilladteGrupper(
+    [
+      ...familier.map((f) => ({ id: f.id, navn: f.name, licenser: f.products })),
+      ...(uplacerede.length ? [{ id: "uden", navn: "Uden produkt", licenser: uplacerede }] : []),
+    ].filter((g) => g.licenser.length > 0),
+    pakker
+  );
+  const alleLicenser = [...familier.flatMap((f) => f.products), ...uplacerede];
+  // Linjer der kan opgraderes til en højere pakke af samme produkt
+  const opgraderbare = (kunde?.customerProducts ?? [])
+    .map((l) => ({ l, til: hoejerePakker(l.product, alleLicenser) }))
+    .filter((x) => x.til.length > 0);
 
   // Kundens løbende abonnementer — dem der kan fornyes
   const aftaler = (kunde?.customerProducts ?? []).filter((l) => l.product.licenseModel !== "perpetual");
@@ -108,9 +123,13 @@ export default async function NyOrdre({
 
   const kontakt = kunde?.contacts[0];
   const adresse = kunde
-    ? [kunde.address, [kunde.zipCode, kunde.city].filter(Boolean).join(" "), kunde.country !== "Danmark" ? kunde.country : null].filter(Boolean).join("\n")
+    ? [kunde.department, kunde.address, [kunde.zipCode, kunde.city].filter(Boolean).join(" "), kunde.country !== "Danmark" ? kunde.country : null].filter(Boolean).join("\n")
     : "";
-  const standardIntro = kontrakt
+  const standardIntro = opgradering
+    ? kind === "tilbud"
+      ? "Hermed fremsendes tilbud på opgradering af jeres aftale for %KUNDENAVN%. Merprisen er beregnet for restperioden frem til aftalens udløb."
+      : "Hermed bekræftes opgradering af jeres aftale for %KUNDENAVN%. Merprisen er afregnet for restperioden frem til aftalens udløb."
+    : kontrakt
     ? kind === "tilbud"
       ? `Hermed fremsendes tilbud på tilkøb til jeres aftale ${subNr(kontrakt.subNumber)} for %KUNDENAVN%. De nye licenser følger den eksisterende aftale, så prisen er beregnet for restperioden frem til aftalens udløb.`
       : `Hermed bekræftes tilkøb til jeres aftale ${subNr(kontrakt.subNumber)} for %KUNDENAVN%. De nye licenser følger den eksisterende aftale og er afregnet for restperioden frem til aftalens udløb.`
@@ -121,7 +140,7 @@ export default async function NyOrdre({
     : "";
 
   const qs = (t: string) =>
-    `/ordrer/ny?type=${t}${kunde ? `&kunde=${kunde.id}` : ""}${forny ? `&forny=${forny}` : ""}${fornyProdukt ? `&fornyProdukt=${fornyProdukt}` : ""}${kontrakt ? `&kontrakt=${kontrakt.id}` : ""}`;
+    `/ordrer/ny?type=${t}${kunde ? `&kunde=${kunde.id}` : ""}${forny ? `&forny=${forny}` : ""}${fornyProdukt ? `&fornyProdukt=${fornyProdukt}` : ""}${kontrakt ? `&kontrakt=${kontrakt.id}` : ""}${opgrader ? `&opgrader=${opgrader}` : ""}`;
 
   return (
     <div className="flex flex-col gap-5 max-w-6xl">
@@ -133,6 +152,7 @@ export default async function NyOrdre({
           <FileText className="h-5 w-5" /> {kind === "tilbud" ? "Nyt tilbud" : "Ny ordrebekræftelse"}
           {fornyelse && <Badge variant="info"><RefreshCw className="h-3 w-3 mr-1 inline" />Fornyelse</Badge>}
           {kontrakt && <Badge variant="info"><KeyRound className="h-3 w-3 mr-1 inline" />Tilkøb på {subNr(kontrakt.subNumber)}</Badge>}
+          {opgradering && <Badge variant="info"><ArrowUpCircle className="h-3 w-3 mr-1 inline" />Opgradering</Badge>}
         </h1>
       </div>
 
@@ -239,6 +259,8 @@ export default async function NyOrdre({
                   {grupper.flatMap((g) =>
                     g.licenser
                       .filter((p) => !kontrakt.lines.some((l) => l.productId === p.id))
+                      // En nøgle hører til ét produkt
+                      .filter((p) => kontrakt.lines.length === 0 || kontrakt.lines.every((l) => produktNoegle(l.product) === produktNoegle(p)))
                       .map((p) => (
                         <TilkoebRaekke
                           key={p.id}
@@ -254,6 +276,49 @@ export default async function NyOrdre({
                   )}
                 </ul>
               </details>
+            </CardBody>
+          </Card>
+        )}
+
+        {!kontrakt && kunde && opgraderbare.length > 0 && (
+          <Card>
+            <CardHeader
+              title={<span className="flex items-center gap-2"><ArrowUpCircle className="h-4 w-4" />Opgradering af aftale</span>}
+              description="Flytter aftalen til en højere pakke af samme produkt. Merprisen pr. bruger pr. md. afregnes fra startdatoen til aftalens udløb — tom pris = forskellen mellem pakkernes priser. Når ordren lægges på kunden, skifter linjen pakke med samme SUB-nøgle og udløb, og fremover kan der kun tilkøbes på den nye pakke."
+            />
+            <CardBody className="p-0">
+              <div className="hidden lg:grid grid-cols-[auto_1fr_minmax(180px,0.8fr)_70px_100px_150px] gap-x-3 px-5 py-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                <span className="w-4" /><span /><span>Ny pakke</span><span>Antal</span><span>Merpris/md.</span><span>Start</span>
+              </div>
+              <ul className="divide-y divide-border border-t border-border">
+                {opgraderbare.map(({ l, til }) => {
+                  const nuPris = l.unitPriceMonth ?? l.product.pricePerUserMonth ?? 0;
+                  return (
+                    <li key={l.id} className="px-5 py-3 grid grid-cols-[auto_minmax(0,1fr)] lg:grid-cols-[auto_1fr_minmax(180px,0.8fr)_70px_100px_150px] gap-x-3 gap-y-2 items-start">
+                      <input type="checkbox" name="opgrader" value={l.id} defaultChecked={opgrader === l.id} aria-label={`Opgradér ${l.product.name}`} className="mt-2 h-4 w-4 rounded border-input accent-[hsl(var(--primary))]" />
+                      <div className="min-w-0 pt-1">
+                        <div className="text-sm font-medium flex flex-wrap items-center gap-2">
+                          {l.product.name}
+                          <Badge variant="muted">{noegleNr(l)}</Badge>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Udløber {dagTekst(aftaleUdloeb(l, nu))} · {l.seats} licenser · {nuPris} kr. pr. bruger/md. nu
+                        </div>
+                      </div>
+                      <Select name={`o_til_${l.id}`} defaultValue={til[0].id} aria-label="Ny pakke" className="h-8 text-xs col-start-2 lg:col-start-auto">
+                        {til.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}{p.pricePerUserMonth != null ? ` · ${p.pricePerUserMonth} kr. (+${Math.max(0, p.pricePerUserMonth - nuPris)})` : ""}
+                          </option>
+                        ))}
+                      </Select>
+                      <Input name={`o_antal_${l.id}`} type="number" min={1} defaultValue={l.seats} aria-label="Antal" className="h-8 text-xs col-start-2 lg:col-start-auto" />
+                      <Input name={`o_pris_${l.id}`} inputMode="decimal" placeholder="forskel" aria-label="Merpris pr. md." className="h-8 text-xs col-start-2 lg:col-start-auto" />
+                      <Input name={`o_${l.id}_start`} type="date" defaultValue={isoDag(nu)} aria-label="Start" className="h-8 text-xs col-start-2 lg:col-start-auto" />
+                    </li>
+                  );
+                })}
+              </ul>
             </CardBody>
           </Card>
         )}
@@ -379,7 +444,7 @@ export default async function NyOrdre({
                   <span className="block text-xs text-muted-foreground">
                     {kontrakt
                       ? `Tilkøbet lægges på ${subNr(kontrakt.subNumber)} med nøglens udløb. Engangsydelser og frie positioner rører ikke kunden.`
-                      : "Fornyelser flytter aftalens udløb til periodens slutdato. Nye licenser registreres som tilkøb. Engangsydelser og frie positioner rører ikke kunden."}
+                      : "Fornyelser flytter aftalens udløb til periodens slutdato. Tilkøb lægges på kundens licens. Opgraderinger flytter linjen til den nye pakke. Engangsydelser og frie positioner rører ikke kunden."}
                   </span>
                 </span>
               </label>

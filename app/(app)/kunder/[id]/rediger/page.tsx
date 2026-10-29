@@ -31,7 +31,8 @@ export default async function RedigerKunde({ params }: { params: Promise<{ id: s
         <Card>
           <CardHeader title="Stamdata" />
           <CardBody className="grid sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2"><Label htmlFor="name">Navn</Label><Input id="name" name="name" defaultValue={k.name} required /></div>
+            <div><Label htmlFor="name">Firmanavn</Label><Input id="name" name="name" defaultValue={k.name} required /></div>
+            <div><Label htmlFor="department" hint="fx Økonomi, Lager Esbjerg">Afdeling</Label><Input id="department" name="department" defaultValue={k.department ?? ""} /></div>
             <div><Label htmlFor="orgNumber">CVR-nummer</Label><Input id="orgNumber" name="orgNumber" defaultValue={k.orgNumber ?? ""} /></div>
             <div><Label htmlFor="industry">Branche</Label><Input id="industry" name="industry" defaultValue={k.industry ?? ""} /></div>
             <div>

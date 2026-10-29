@@ -111,3 +111,38 @@ export function filnavn(...dele: string[]) {
     .replace(/\s+/g, "-")
     .slice(0, 120) + ".pdf";
 }
+
+/** Hændelsen bag en ordrelinje, som den står i filnavne og på dokumenter. */
+export function haendelse(lineKind: string, licenseModel?: string | null) {
+  if (lineKind === "fornyelse") return "Fornyelse";
+  if (lineKind === "tilkoeb") return "Tilkøb";
+  if (lineKind === "opgradering") return "Opgradering";
+  if (lineKind === "fri") return "Øvrigt";
+  return licenseModel === "fee" ? "Ydelse" : "Ny licens";
+}
+
+/** "Fornyelse + Tilkøb" — hver hændelse én gang, i linjernes rækkefølge. */
+export const haendelser = (linjer: { lineKind: string; licenseModel?: string | null }[]) =>
+  [...new Set(linjer.map((l) => haendelse(l.lineKind, l.licenseModel)))].join(" + ");
+
+/** 30-10-26 i dansk tid, uanset serverens tidszone. */
+function kortDato(d: Date) {
+  const del = new Intl.DateTimeFormat("da-DK", { timeZone: "Europe/Copenhagen", day: "2-digit", month: "2-digit", year: "2-digit" }).formatToParts(d);
+  const v = (t: string) => del.find((x) => x.type === t)?.value ?? "";
+  return `${v("day")}-${v("month")}-${v("year")}`;
+}
+
+/**
+ * Filnavnet på alle dokumenter:
+ *   "ORD-00016 - Tórshavn Havn P∕F - 30-10-26 - JPR - Idus Online - Fornyelse + Tilkøb.pdf"
+ *   id (ordre, tilbud, SUB-nøgle …) · kundenavn · udstedelsesdato · initialer · produkt · hændelse(r)
+ * Tomme dele udelades. "/" (fx P/F, I/S) kan ikke stå i et filnavn og skrives
+ * som det ens udseende "∕"; øvrige tegn Windows ikke tillader fjernes.
+ */
+export function dokumentFilnavn(d: { id: string; kunde?: string | null; dato: Date; initialer?: string | null; produkt?: string | null; haendelse?: string | null }) {
+  const navn = [d.id, d.kunde, kortDato(d.dato), d.initialer, d.produkt, d.haendelse]
+    .map((x) => (x ?? "").replace(/\//g, "\u2215").replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join(" - ");
+  return `${navn.slice(0, 150).trim()}.pdf`;
+}

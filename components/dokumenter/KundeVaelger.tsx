@@ -13,7 +13,7 @@ export function KundeVaelger({
   valgt,
   kind,
 }: {
-  kunder: { id: string; name: string }[];
+  kunder: { id: string; name: string; department?: string | null; customerNumber?: number | null }[];
   valgt: string | null;
   kind: string;
 }) {
@@ -35,7 +35,7 @@ export function KundeVaelger({
       >
         <option value="">Ingen kunde — fri modtager</option>
         {kunder.map((k) => (
-          <option key={k.id} value={k.id}>{k.name}</option>
+          <option key={k.id} value={k.id}>{k.name}{k.department ? ` · ${k.department}` : ""}{k.customerNumber != null ? ` (K-${String(k.customerNumber).padStart(5, "0")})` : ""}</option>
         ))}
       </Select>
     </div>

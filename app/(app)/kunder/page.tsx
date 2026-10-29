@@ -2,6 +2,10 @@ import { Card, CardBody } from "@/components/ui/card";
 import { KundeListe, type Raekke } from "@/components/kunder/KundeListe";
 import { grupperProdukter } from "@/lib/kundeprodukter";
 import { hentKunderMedNoegletal } from "@/lib/analysis";
+import Link from "next/link";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { kundeNr, sikrKundenumre } from "@/lib/kundenr";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +15,7 @@ export default async function KunderSide({
   searchParams: Promise<{ besked?: string; navn?: string; hot?: string }>;
 }) {
   const { besked, navn, hot } = await searchParams;
+  await sikrKundenumre();
   const { kunder } = await hentKunderMedNoegletal();
 
   const raekker: Raekke[] = kunder.map((k) => {
@@ -19,6 +24,8 @@ export default async function KunderSide({
     return {
       id: k.id,
       name: k.name,
+      nummer: kundeNr(k.customerNumber),
+      afdeling: k.department,
       country: k.country,
       industry: k.industry,
       produkter: liste,
@@ -46,6 +53,9 @@ export default async function KunderSide({
           </CardBody>
         </Card>
       )}
+      <div className="flex justify-end -mb-2">
+        <Link href="/kunder/ny"><Button size="sm"><Plus className="h-3.5 w-3.5" /> Ny kunde</Button></Link>
+      </div>
       <p className="text-sm text-muted-foreground max-w-3xl">
         Alle kunder fra Idus Online-portalen. Årsværdien regnes på de licenser de har i dag.
         Ansatte og omsætning står med som baggrundsviden om virksomhedens størrelse — de indgår ikke i tallene.
