@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { hentSession } from "@/lib/auth";
 import { kanLaese } from "@/lib/roller";
-import { brugerensProfilId, dokNr, filnavn, hentAfsender, subNr } from "@/lib/dokumenter";
+import { brugerensProfilId, dokNr, dokumentFilnavn, haendelser, hentAfsender, subNr } from "@/lib/dokumenter";
 import { kanLaveLicensbevis } from "@/lib/intern";
 import { datoTekst, lavOrdreLicensbevis, samlPdf } from "@/lib/pdf";
 import { kundeNr } from "@/lib/kundenr";
@@ -113,9 +113,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const beviser = [];
   for (const g of valgte) beviser.push(await bevis(g));
   const bytes = beviser.length === 1 ? beviser[0].bytes : await samlPdf(beviser.map((b) => b.bytes));
-  const titel = beviser.length === 1 ? beviser[0].navn : `${beviser.length}-licenser`;
 
-  const navn = filnavn("Licensbevis", dokNr(o), titel, k?.name ?? o.recipientName);
+  const navn = dokumentFilnavn({
+    id: dokNr(o),
+    kunde: kunde.afdeling ? `${kunde.navn} ${kunde.afdeling}` : kunde.navn,
+    dato: udstedt,
+    initialer: session.initials,
+    produkt: beviser.map((b) => b.navn).join(" + "),
+    haendelse: `Licensbevis (${haendelser(valgte.flat())})`,
+  });
   if (q.get("gem") === "1" && o.companyId) {
     await gemDokumentIFilboks(o.companyId, navn, bytes, "licensbevis", session.initials);
     await db.logEntry.create({

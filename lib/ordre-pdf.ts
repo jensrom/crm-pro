@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { dokNavn, dokNr, filnavn, hentAfsender } from "@/lib/dokumenter";
+import { dokNr, dokumentFilnavn, haendelser, hentAfsender } from "@/lib/dokumenter";
 import { lavSalgsdokument } from "@/lib/pdf";
 
 /** Bygger tilbuddet/ordrebekræftelsen som PDF ud fra det der er gemt. */
@@ -55,7 +55,16 @@ export async function ordrePdf(orderId: string) {
     note: o.note,
     betingelser: familier,
   });
-  return { bytes, navn: filnavn(dokNavn(o.kind).replace("æ", "ae"), dokNr(o), o.recipientName), ordre: o };
+  // Produktet: produktnavnene på ordrens licenser, ellers den første linje
+  const produkter = pids.length
+    ? await db.product.findMany({ where: { id: { in: pids } }, select: { name: true, family: { select: { name: true, sortOrder: true } } } })
+    : [];
+  const produkt =
+    [...new Set(produkter.sort((a, b) => (a.family?.sortOrder ?? 999) - (b.family?.sortOrder ?? 999)).map((p) => p.family?.name ?? p.name))].join(" + ") ||
+    o.lines[0]?.description ||
+    null;
+  const navn = dokumentFilnavn({ id: dokNr(o), kunde: o.recipientName, dato: o.orderDate, initialer: o.createdBy, produkt, haendelse: haendelser(o.lines) });
+  return { bytes, navn, ordre: o };
 }
 
 export function ordreTotal(lines: { quantity: number; unitPrice: number | null; months: number | null }[]) {

@@ -4,7 +4,7 @@ import { delBlandedeKontrakter, naesteSubNummer } from "@/lib/kontrakter";
 import { aftaleUdloeb, maanederMellem, plusDage, slutFraMaaneder } from "@/lib/perioder";
 import { ordrePdf } from "@/lib/ordre-pdf";
 import { gemDokumentIFilboks } from "@/lib/filer";
-import { dokNr, hentAfsender, subNr } from "@/lib/dokumenter";
+import { dokNr, dokumentFilnavn, hentAfsender, subNr } from "@/lib/dokumenter";
 import { lavImplementeringsplan, lavKontrakt, lavMailudskrift, lavMoedereferat, type KontraktLinje } from "@/lib/pdf";
 
 /**
@@ -674,6 +674,7 @@ export async function bygDemomiljoe(initials: string | null): Promise<DemoResult
     const noegleNumre = new Map<string, number>();
     for (const c of await db.contract.findMany({ where: { companyId: kunde.id }, select: { id: true, subNumber: true } })) noegleNumre.set(c.id, c.subNumber);
     const hovedNr = subNr(noegleNumre.get(linjer[0].contractId));
+    const produktNavne = [...new Set(linjer.map((l) => l.licens.familyNavn || l.licens.name))].join(" + ");
     const kontraktAf = af();
     const kontrakt = await lavKontrakt({
       afsender, kunde: kundePdf, kontaktperson: fuldtNavn(kontakter[0]), aftalenr: hovedNr,
@@ -683,7 +684,7 @@ export async function bygDemomiljoe(initials: string | null): Promise<DemoResult
         model: l.licens.licenseModel, antal: l.seats, pris: l.pris,
       })),
     });
-    await gemBilag(kunde.id, `Kontrakt_${slug}.pdf`, "kontrakt", kontrakt, kontraktAf, linjer[0].start);
+    await gemBilag(kunde.id, dokumentFilnavn({ id: hovedNr, kunde: navn, dato: linjer[0].start, initialer: kontraktAf, produkt: produktNavne, haendelse: "Kontrakt" }), "kontrakt", kontrakt, kontraktAf, linjer[0].start);
 
     const referent = af();
     const moedeDato = middag(dageSiden(t.tal(5, 60)));
@@ -708,7 +709,7 @@ export async function bygDemomiljoe(initials: string | null): Promise<DemoResult
         { aktion: "Planlæg næste statusmøde", ansvarlig: brugernavn(referent) ?? "", frist: plusDage(moedeDato, 30) },
       ],
     });
-    await gemBilag(kunde.id, `Moedereferat_${slug}.pdf`, "moedereferat", referat, referent, moedeDato);
+    await gemBilag(kunde.id, dokumentFilnavn({ id: hovedNr, kunde: navn, dato: moedeDato, initialer: referent, produkt: produktNavne, haendelse: "Mødereferat" }), "moedereferat", referat, referent, moedeDato);
 
     if (t.chance(0.6)) {
       const pl = af();
@@ -737,7 +738,7 @@ export async function bygDemomiljoe(initials: string | null): Promise<DemoResult
           "Superbrugerne kan afsætte tid til kursus og test i fase 3.",
         ],
       });
-      await gemBilag(kunde.id, `Plan_${slug}.pdf`, "plan", plan, pl, ps);
+      await gemBilag(kunde.id, dokumentFilnavn({ id: hovedNr, kunde: navn, dato: ps, initialer: pl, produkt: linjer[0].licens.familyNavn || linjer[0].licens.name, haendelse: "Implementeringsplan" }), "plan", plan, pl, ps);
     }
 
     // Dokumenter: ordrebekræftelse på hovedaftalen + tilkøbstilbud på en nøgle
@@ -870,7 +871,7 @@ export async function bygDemomiljoe(initials: string | null): Promise<DemoResult
         tekst: `Hej\n\nTak for tilbuddet. Vi accepterer hermed tilbud ${dokNr(til)} som fremsendt.\n\nVenlig hilsen\n${kontakt.firstName} ${kontakt.lastName}\n${kontakt.title ?? ""}\n${navn}`,
       });
       const att = await db.attachment.create({
-        data: { companyId: kunde.id, filename: `Accept ${dokNr(til)} - mail.pdf`, category: "accept", mimeType: "application/pdf", sizeBytes: accept.byteLength, data: Buffer.from(accept), uploadedBy: af() },
+        data: { companyId: kunde.id, filename: dokumentFilnavn({ id: dokNr(til), kunde: navn, dato: new Date(Math.min(plusDage(tStart, 1).getTime(), Date.now())), initialer: til.createdBy, produkt: produktNavne, haendelse: "Accept (mail)" }), category: "accept", mimeType: "application/pdf", sizeBytes: accept.byteLength, data: Buffer.from(accept), uploadedBy: af() },
         select: { id: true },
       });
       await db.order.update({ where: { id: til.id }, data: { acceptAttachmentId: att.id } });
