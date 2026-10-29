@@ -5,10 +5,11 @@ import { db } from "@/lib/db";
 import { kraevAdmin, kraevSkriv } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ANTAL_FRIE_LINJER, dokNavn, dokNr } from "@/lib/dokumenter";
-import { fraIso, maanederMellem, plusDage, slutFraMaaneder } from "@/lib/perioder";
+import { ANTAL_FRIE_LINJER, dokNavn, dokNr, subNr } from "@/lib/dokumenter";
+import { aftaleUdloeb, fraIso, maanederMellem, plusDage, slutFraMaaneder } from "@/lib/perioder";
+import { kontraktUdloeb, restperiode } from "@/lib/kontrakter";
 import { ordrePdf } from "@/lib/ordre-pdf";
-import { gemDokumentIFilboks } from "@/lib/filer";
+import { gemDokumentIFilboks, MAKS_FILSTOERRELSE, saniterFilnavn } from "@/lib/filer";
 import { anvendOrdrePaaKunde } from "@/lib/ordre-anvend";
 
 const txt = (v: FormDataEntryValue | null) => {
@@ -25,6 +26,22 @@ const heltal = (v: FormDataEntryValue | null) => {
   const n = num(v);
   return n == null ? null : Math.round(n);
 };
+
+/**
+ * Salesforce-link til en Opportunity. Kun fulde https-adresser — så linket
+ * altid kan åbnes, og der ikke kan sættes javascript: eller lignende ind.
+ * undefined = ugyldigt, null = tomt.
+ */
+function salesforceLink(v: FormDataEntryValue | null): string | null | undefined {
+  const s = txt(v);
+  if (!s) return null;
+  try {
+    const u = new URL(s);
+    return u.protocol === "https:" ? u.toString().slice(0, 500) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /** "Idus · Idus Online Basic" bliver til "Idus Online Basic" — produktnavnet gentages ikke. */
 function linjenavn(p: { name: string; family: { name: string } | null }) {
@@ -95,11 +112,21 @@ export async function opretOrdre(formData: FormData) {
   const mig = await kraevSkriv("salg");
   const kind = formData.get("kind") === "tilbud" ? "tilbud" : "ordre";
   const companyId = txt(formData.get("companyId"));
-  const tilbage = `/ordrer/ny?type=${kind}${companyId ? `&kunde=${companyId}` : ""}`;
+  const contractId = txt(formData.get("contractId"));
+  const tilbage = `/ordrer/ny?type=${kind}${companyId ? `&kunde=${companyId}` : ""}${contractId ? `&kontrakt=${contractId}` : ""}`;
 
   const kunde = companyId ? await db.company.findUnique({ where: { id: companyId } }) : null;
   const recipientName = txt(formData.get("recipientName")) ?? kunde?.name ?? null;
   if (!recipientName) redirect(`${tilbage}&fejl=modtager`);
+  const salesforceUrl = salesforceLink(formData.get("salesforceUrl"));
+  if (salesforceUrl === undefined) redirect(`${tilbage}&fejl=salesforce`);
+  const kontrakt =
+    kunde && contractId
+      ? await db.contract.findFirst({
+          where: { id: contractId, companyId: kunde.id },
+          include: { lines: { where: { isActive: true }, include: { product: true } } },
+        })
+      : null;
 
   const idag = new Date();
   const linjer: Linje[] = [];
@@ -154,6 +181,40 @@ export async function opretOrdre(formData: FormData) {
     });
   }
 
+  // 2b. Tilkøb på SUB-nøglen — afregnes fra startdatoen til nøglens udløb (påbegyndte måneder)
+  const tilkoeb = kontrakt ? formData.getAll("tilkoeb").filter((v): v is string => typeof v === "string" && v !== "") : [];
+  if (kontrakt && tilkoeb.length) {
+    const prods = await db.product.findMany({ where: { id: { in: tilkoeb } }, include: { family: true } });
+    prods.sort((a, b) => (a.family?.sortOrder ?? 999) - (b.family?.sortOrder ?? 999) || a.sortOrder - b.sortOrder);
+    const noeglensUdloeb = kontraktUdloeb(kontrakt.lines, idag);
+    for (const pr of prods) {
+      const engang = erEngang(pr.licenseModel);
+      const egen = kontrakt.lines.find((l) => l.productId === pr.id) ?? null;
+      let p: { start: Date | null; slut: Date | null; mdr: number | null } = { start: null, slut: null, mdr: null };
+      if (!engang) {
+        const udloeb = egen ? aftaleUdloeb(egen, idag) : noeglensUdloeb;
+        const start = fraIso(txt(formData.get(`t_${pr.id}_start`))) ?? idag;
+        const rest = udloeb ? restperiode(start, udloeb) : null;
+        if (!rest) redirect(`${tilbage}&fejl=udloebet`);
+        p = { start: rest.fra, slut: rest.til, mdr: rest.maaneder };
+      }
+      linjer.push({
+        productId: pr.id,
+        customerProductId: egen?.id ?? null,
+        lineKind: "tilkoeb",
+        description: `Tilkøb til ${subNr(kontrakt.subNumber)}: ${linjenavn(pr)}`,
+        details: pr.documentText,
+        quantity: Math.max(1, heltal(formData.get(`t_antal_${pr.id}`)) ?? 1),
+        unitPrice: num(formData.get(`t_pris_${pr.id}`)),
+        months: p.mdr,
+        periodStart: p.start,
+        periodEnd: p.slut,
+        licenseModel: pr.licenseModel,
+        sortOrder: linjer.length,
+      });
+    }
+  }
+
   // 3. Frie linjer
   for (let i = 0; i < ANTAL_FRIE_LINJER; i++) {
     const tekst = txt(formData.get(`fri_tekst_${i}`));
@@ -193,6 +254,8 @@ export async function opretOrdre(formData: FormData) {
       note: txt(formData.get("note")),
       vatRate: num(formData.get("vatRate")) ?? 25,
       senderProfileId: txt(formData.get("senderProfileId")),
+      contractId: kontrakt?.id ?? null,
+      salesforceUrl,
       createdBy: mig.initials,
       lines: { create: linjer },
     },
@@ -208,11 +271,10 @@ export async function opretOrdre(formData: FormData) {
   redirect(`/ordrer/${ordre.id}?besked=oprettet`);
 }
 
-/** Laver en ordrebekræftelse ud fra et tilbud — samme linjer, nyt ORD-nummer. */
-export async function tilbudTilOrdre(tilbudId: string, formData: FormData) {
-  const mig = await kraevSkriv("salg");
+/** Laver ordrebekræftelsen ud fra et tilbud — samme linjer, SUB-nøgle og Salesforce-link, nyt ORD-nummer. */
+async function ordreFraTilbud(tilbudId: string, initials: string | null, opdater: boolean) {
   const t = await db.order.findUnique({ where: { id: tilbudId }, include: { lines: { orderBy: { sortOrder: "asc" } } } });
-  if (!t || t.kind !== "tilbud") redirect("/ordrer");
+  if (!t || t.kind !== "tilbud") return null;
   const ordre = await db.order.create({
     data: {
       kind: "ordre",
@@ -229,19 +291,123 @@ export async function tilbudTilOrdre(tilbudId: string, formData: FormData) {
       vatRate: t.vatRate,
       sourceOrderId: t.id,
       senderProfileId: t.senderProfileId,
-      createdBy: mig.initials,
+      contractId: t.contractId,
+      salesforceUrl: t.salesforceUrl,
+      status: "godkendt",
+      createdBy: initials,
       lines: {
         create: t.lines.map(({ id: _id, orderId: _o, ...l }) => l),
       },
     },
   });
   if (t.companyId) {
-    if (formData.get("opdater") === "1") await anvendOrdrePaaKunde(ordre.id, mig.initials);
-    await arkiver(ordre.id, mig.initials);
+    if (opdater) await anvendOrdrePaaKunde(ordre.id, initials);
+    await arkiver(ordre.id, initials);
     revalidatePath(`/kunder/${t.companyId}`);
   }
   revalidatePath("/ordrer");
+  revalidatePath("/fornyelser");
+  return ordre;
+}
+
+/** Laver en ordrebekræftelse ud fra et tilbud — samme linjer, nyt ORD-nummer. */
+export async function tilbudTilOrdre(tilbudId: string, formData: FormData) {
+  const mig = await kraevSkriv("salg");
+  const ordre = await ordreFraTilbud(tilbudId, mig.initials, formData.get("opdater") === "1");
+  if (!ordre) redirect("/ordrer");
   redirect(`/ordrer/${ordre.id}?besked=oprettet`);
+}
+
+/**
+ * Kunden har accepteret tilbuddet. Accepten (fx mailen gemt som PDF eller .msg)
+ * gemmes i kundens filboks og knyttes til tilbuddet. Er "lav ordre" valgt,
+ * oprettes ordrebekræftelsen med det samme, og licenserne lægges på SUB-nøglen.
+ */
+export async function godkendTilbud(tilbudId: string, formData: FormData) {
+  const mig = await kraevSkriv("salg");
+  const t = await db.order.findUnique({ where: { id: tilbudId }, select: { id: true, kind: true, number: true, status: true, companyId: true, salesforceUrl: true } });
+  if (!t || t.kind !== "tilbud") redirect("/ordrer");
+  if (t.status === "godkendt") redirect(`/ordrer/${t.id}`);
+
+  const sf = salesforceLink(formData.get("salesforceUrl"));
+  if (sf === undefined) redirect(`/ordrer/${t.id}?fejl=salesforce`);
+
+  let acceptAttachmentId: string | null = null;
+  const fil = formData.get("accept");
+  if (fil instanceof File && fil.size > 0) {
+    if (!t.companyId) redirect(`/ordrer/${t.id}?fejl=ingen-kunde`);
+    if (fil.size > MAKS_FILSTOERRELSE) redirect(`/ordrer/${t.id}?fejl=for-stor`);
+    const att = await db.attachment.create({
+      data: {
+        companyId: t.companyId,
+        filename: saniterFilnavn(`Accept ${dokNr(t)} - ${fil.name}`),
+        category: "accept",
+        mimeType: fil.type || "application/octet-stream",
+        sizeBytes: fil.size,
+        data: Buffer.from(await fil.arrayBuffer()),
+        uploadedBy: mig.initials,
+      },
+      select: { id: true },
+    });
+    acceptAttachmentId = att.id;
+  }
+
+  const note = txt(formData.get("acceptNote"));
+  await db.order.update({
+    where: { id: t.id },
+    data: {
+      status: "godkendt",
+      acceptedAt: fraIso(txt(formData.get("acceptedAt"))) ?? new Date(),
+      acceptedBy: mig.initials,
+      acceptAttachmentId,
+      ...(sf !== null ? { salesforceUrl: sf } : {}),
+    },
+  });
+  if (t.companyId) {
+    await db.logEntry.create({
+      data: {
+        companyId: t.companyId,
+        kind: "aftale",
+        content: `Tilbud ${dokNr(t)} godkendt af kunden${acceptAttachmentId ? " — accept gemt i filboksen" : ""}${note ? `. ${note}` : ""}`,
+        author: mig.initials,
+      },
+    });
+  }
+
+  if (formData.get("lavOrdre") === "1") {
+    const ordre = await ordreFraTilbud(t.id, mig.initials, !!t.companyId);
+    if (ordre) redirect(`/ordrer/${ordre.id}?besked=godkendt`);
+  }
+  if (t.companyId) revalidatePath(`/kunder/${t.companyId}`);
+  revalidatePath("/ordrer");
+  redirect(`/ordrer/${t.id}?besked=godkendt`);
+}
+
+/** Kunden har sagt nej — eller tilbuddet sættes tilbage til åbent. */
+export async function skiftTilbudsstatus(tilbudId: string, status: "afvist" | "aaben") {
+  const mig = await kraevSkriv("salg");
+  const t = await db.order.findUnique({ where: { id: tilbudId }, select: { id: true, kind: true, number: true, status: true, companyId: true } });
+  if (!t || t.kind !== "tilbud" || t.status === "godkendt") redirect(`/ordrer/${tilbudId}`);
+  await db.order.update({ where: { id: t.id }, data: { status } });
+  if (t.companyId) {
+    await db.logEntry.create({
+      data: { companyId: t.companyId, kind: "aftale", content: `Tilbud ${dokNr(t)} ${status === "afvist" ? "markeret som afvist" : "genåbnet"}`, author: mig.initials },
+    });
+    revalidatePath(`/kunder/${t.companyId}`);
+  }
+  revalidatePath("/ordrer");
+  redirect(`/ordrer/${t.id}`);
+}
+
+/** Sætter eller retter Salesforce-linket på et tilbud eller en ordre. */
+export async function gemSalesforceLink(orderId: string, formData: FormData) {
+  await kraevSkriv("salg");
+  const sf = salesforceLink(formData.get("salesforceUrl"));
+  if (sf === undefined) redirect(`/ordrer/${orderId}?fejl=salesforce`);
+  const o = await db.order.update({ where: { id: orderId }, data: { salesforceUrl: sf }, select: { companyId: true } });
+  if (o.companyId) revalidatePath(`/kunder/${o.companyId}`);
+  revalidatePath("/ordrer");
+  redirect(`/ordrer/${orderId}`);
 }
 
 /** Lægger en allerede oprettet ordrebekræftelse over på kundens aftaler. */

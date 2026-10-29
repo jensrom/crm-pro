@@ -1,14 +1,14 @@
 import { kanSkrive } from "@/lib/roller";
 import { kraevBruger, kraevSkriv, kraevAdmin } from "@/lib/auth";
 import Link from "next/link";
-import { Download, FileText, Plus, Search } from "lucide-react";
+import { Download, ExternalLink, FileText, Plus, Search } from "lucide-react";
 import { Card, CardBody, CardHeader, EmptyState, StatCard } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { db } from "@/lib/db";
 import { datoKort, kroner, tal } from "@/lib/format";
-import { dokNr } from "@/lib/dokumenter";
+import { dokNr, subNr } from "@/lib/dokumenter";
 import { ordreTotal } from "@/lib/ordre-pdf";
 import { cn } from "@/lib/utils";
 
@@ -43,7 +43,7 @@ export default async function OrdrelisteSide({
           }
         : {}),
     },
-    include: { lines: true, company: { select: { id: true, name: true } } },
+    include: { lines: true, company: { select: { id: true, name: true } }, contract: { select: { subNumber: true } } },
     orderBy: [{ orderDate: "desc" }, { createdAt: "desc" }],
     take: 500,
   });
@@ -137,6 +137,7 @@ export default async function OrdrelisteSide({
                   {ordrer.map((o) => {
                     const erTilbud = o.kind === "tilbud";
                     const fornyelse = o.lines.some((l) => l.lineKind === "fornyelse");
+                    const tilkoeb = o.lines.some((l) => l.lineKind === "tilkoeb");
                     const udloebet = erTilbud && o.validUntil != null && o.validUntil < nu;
                     return (
                       <tr key={o.id} className="border-b border-border/60 last:border-0 even:bg-muted/45 hover:bg-primary/[0.05] transition-colors">
@@ -147,6 +148,12 @@ export default async function OrdrelisteSide({
                           <span className="inline-flex items-center gap-1">
                             {erTilbud ? <Badge variant="warning">Tilbud</Badge> : <Badge variant="default">Ordre</Badge>}
                             {fornyelse && <Badge variant="info">Fornyelse</Badge>}
+                            {tilkoeb && <Badge variant="info">Tilkøb{o.contract ? ` ${subNr(o.contract.subNumber)}` : ""}</Badge>}
+                            {o.salesforceUrl && (
+                              <a href={o.salesforceUrl} target="_blank" rel="noopener noreferrer" title="Opportunity i Salesforce" aria-label="Opportunity i Salesforce" className="text-muted-foreground hover:text-primary">
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </a>
+                            )}
                           </span>
                         </td>
                         <td className="px-3 py-2.5 tabular text-muted-foreground whitespace-nowrap">{datoKort(o.orderDate)}</td>
@@ -159,7 +166,11 @@ export default async function OrdrelisteSide({
                         <td className="px-3 py-2.5 text-right tabular">{o.lines.length}</td>
                         <td className="px-3 py-2.5 text-right tabular font-medium whitespace-nowrap">{kroner(ordreTotal(o.lines))}</td>
                         <td className="px-3 py-2.5 text-xs whitespace-nowrap">
-                          {erTilbud
+                          {erTilbud && o.status === "godkendt"
+                            ? <span className="text-success">Godkendt{o.acceptedAt ? ` ${datoKort(o.acceptedAt)}` : ""}</span>
+                            : erTilbud && o.status === "afvist"
+                            ? <span className="text-danger">Afvist</span>
+                            : erTilbud
                             ? o.validUntil
                               ? <span className={udloebet ? "text-muted-foreground" : "text-foreground"}>{udloebet ? "Udløbet" : `Gyldig til ${datoKort(o.validUntil)}`}</span>
                               : <span className="text-muted-foreground">–</span>

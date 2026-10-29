@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { GruppeFlueben } from "@/components/dokumenter/GruppeFlueben";
 import { db } from "@/lib/db";
-import { foreslaaPeriode, isoDato, sikrSubNumre, subNr } from "@/lib/dokumenter";
+import { sikrKontrakter } from "@/lib/kontrakter";
+import { foreslaaPeriode, isoDato, subNr, noegleNr } from "@/lib/dokumenter";
 import { licensmodel } from "@/lib/katalog";
 import { label, FAKTURERING } from "@/lib/labels";
 
@@ -22,19 +23,19 @@ export default async function LicensbevisSide({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ produkt?: string; linje?: string }>;
+  searchParams: Promise<{ produkt?: string; linje?: string; noegle?: string }>;
 }) {
   const { id } = await params;
-  const { produkt, linje } = await searchParams;
+  const { produkt, linje, noegle } = await searchParams;
 
-  await sikrSubNumre(id);
+  await sikrKontrakter(id);
   const kunde = await db.company.findUnique({
     where: { id },
     include: {
       customerProducts: {
         where: { isActive: true },
-        include: { product: { include: { family: true } } },
-        orderBy: { subNumber: "asc" },
+        include: { product: { include: { family: true } }, contract: { select: { subNumber: true } } },
+        orderBy: [{ contract: { subNumber: "asc" } }, { createdAt: "asc" }],
       },
     },
   });
@@ -51,7 +52,7 @@ export default async function LicensbevisSide({
   const liste = [...grupper.entries()].sort((a, b) => a[1].sortering - b[1].sortering);
 
   const forvalgt = (l: (typeof kunde.customerProducts)[number]) =>
-    linje ? l.id === linje : produkt ? (l.product.familyId ?? "uden") === produkt : true;
+    noegle ? l.contractId === noegle : linje ? l.id === linje : produkt ? (l.product.familyId ?? "uden") === produkt : true;
 
   return (
     <div className="flex flex-col gap-5 max-w-4xl">
@@ -96,7 +97,7 @@ export default async function LicensbevisSide({
                           <div className="min-w-0">
                             <div className="text-sm font-medium flex items-center gap-2">
                               {l.product.name}
-                              <Badge variant="muted">{subNr(l.subNumber)}</Badge>
+                              <Badge variant="muted">{noegleNr(l)}</Badge>
                             </div>
                             <div className="text-xs text-muted-foreground tabular">
                               {l.seats} licenser · {licensmodel(l.product.licenseModel).label}

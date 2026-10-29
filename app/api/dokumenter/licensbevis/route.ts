@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { sikrKontrakter } from "@/lib/kontrakter";
 import { hentSession } from "@/lib/auth";
-import { brugerensProfilId, filnavn, fraIsoDato, hentAfsender, sikrSubNumre, subNr } from "@/lib/dokumenter";
+import { brugerensProfilId, filnavn, fraIsoDato, hentAfsender, subNr, noegleNr } from "@/lib/dokumenter";
 import { licensmodel } from "@/lib/katalog";
 import { lavLicensbevis } from "@/lib/pdf";
 import { gemDokumentIFilboks } from "@/lib/filer";
@@ -23,14 +24,14 @@ export async function GET(req: Request) {
   if (!kundeId) return new NextResponse("Kunde mangler", { status: 400 });
   const valgte = q.getAll("linje");
 
-  await sikrSubNumre(kundeId);
+  await sikrKontrakter(kundeId);
   const kunde = await db.company.findUnique({
     where: { id: kundeId },
     include: {
       customerProducts: {
         where: { isActive: true, ...(valgte.length ? { id: { in: valgte } } : {}) },
-        include: { product: { include: { family: true } } },
-        orderBy: { subNumber: "asc" },
+        include: { product: { include: { family: true } }, contract: { select: { subNumber: true } } },
+        orderBy: [{ contract: { subNumber: "asc" } }, { createdAt: "asc" }],
       },
     },
   });
@@ -40,9 +41,9 @@ export async function GET(req: Request) {
   }
 
   const linjer = kunde.customerProducts
-    .sort((a, b) => (a.product.family?.sortOrder ?? 999) - (b.product.family?.sortOrder ?? 999) || (a.subNumber ?? 0) - (b.subNumber ?? 0))
+    .sort((a, b) => (a.product.family?.sortOrder ?? 999) - (b.product.family?.sortOrder ?? 999) || (a.contract?.subNumber ?? a.subNumber ?? 0) - (b.contract?.subNumber ?? b.subNumber ?? 0))
     .map((l) => ({
-      sub: subNr(l.subNumber),
+      sub: noegleNr(l),
       produkt: l.product.family?.name ?? "",
       licens: l.product.name,
       model: licensmodel(l.product.licenseModel).label,

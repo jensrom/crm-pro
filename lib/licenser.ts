@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { opretKontrakt } from "@/lib/kontrakter";
 
 type Tx = Parameters<Parameters<typeof db.$transaction>[0]>[0];
 
@@ -18,17 +19,23 @@ export async function registrerLicensaendring(
     date?: Date;
     note?: string | null;
     initials: string | null;
+    /** Præcis den linje der rettes (fx ved tilkøb på en SUB-nøgle) */
+    linjeId?: string | null;
+    /** SUB-nøglen linjen skal findes eller oprettes under. Tom = kundens første linje med licensen / ny nøgle. */
+    contractId?: string | null;
     /** Kun ved ny linje */
-    ny?: { startDate?: Date | null; endDate?: Date | null; termMonths?: number | null };
+    ny?: { startDate?: Date | null; endDate?: Date | null; termMonths?: number | null; unitPriceMonth?: number | null };
     logTekst?: string;
   }
 ) {
   const produkt = await tx.product.findUnique({ where: { id: a.productId } });
   if (!produkt) throw new Error("Licensen findes ikke");
-  const linje = await tx.customerProduct.findFirst({
-    where: { companyId: a.companyId, productId: a.productId, isActive: true },
-    orderBy: { createdAt: "asc" },
-  });
+  const linje = a.linjeId
+    ? await tx.customerProduct.findFirst({ where: { id: a.linjeId, companyId: a.companyId } })
+    : await tx.customerProduct.findFirst({
+        where: { companyId: a.companyId, productId: a.productId, isActive: true, ...(a.contractId ? { contractId: a.contractId } : {}) },
+        orderBy: { createdAt: "asc" },
+      });
   const foer = linje?.seats ?? 0;
   const efter = Math.max(0, foer + a.delta);
   const dato = a.date ?? new Date();
@@ -41,15 +48,18 @@ export async function registrerLicensaendring(
     await tx.customerProduct.update({ where: { id: linje.id }, data: { seats: efter } });
     linjeId = linje.id;
   } else {
+    const contractId = a.contractId ?? (await opretKontrakt(tx, a.companyId, a.initials)).id;
     const ny = await tx.customerProduct.create({
       data: {
         companyId: a.companyId,
         productId: a.productId,
+        contractId,
         seats: efter,
         activeSeats: 0,
         startDate: a.ny?.startDate ?? dato,
         endDate: a.ny?.endDate ?? null,
         termMonths: a.ny?.termMonths ?? 12,
+        unitPriceMonth: a.ny?.unitPriceMonth ?? null,
       },
     });
     linjeId = ny.id;

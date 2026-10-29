@@ -4,7 +4,7 @@
  *   1. Produktet "Idus" i kataloget (med Idus' betingelser), hvis kataloget er tomt
  *   2. Licenser uden produkt lægges under det første produkt
  *   3. Prishistorik startes for licenser, der ikke har nogen
- *   4. Licenslinjer uden SUB-nummer får det næste ledige
+ *   4. Licenslinjer uden SUB-nøgle (kontrakt) får hver sin — et gammelt SUB-nummer genbruges
  *   5. Er der ingen aktiv superadministrator, bliver den ældste aktive administrator det
  */
 import { existsSync, readFileSync } from "node:fs";
@@ -47,12 +47,26 @@ export async function klargoer(prisma, log = console.log) {
   }
   if (udenHistorik.length) log(`  prishistorik startet for ${udenHistorik.length} licenser`);
 
-  const udenSub = await prisma.customerProduct.findMany({ where: { subNumber: null }, orderBy: { createdAt: "asc" }, select: { id: true } });
-  if (udenSub.length) {
-    const maks = await prisma.customerProduct.aggregate({ _max: { subNumber: true } });
-    let n = maks._max.subNumber ?? 0;
-    for (const l of udenSub) await prisma.customerProduct.update({ where: { id: l.id }, data: { subNumber: ++n } });
-    log(`  ${udenSub.length} licenslinjer fik SUB-nummer`);
+  // SUB-nøgler: hver linje uden nøgle får sin egen kontrakt. Et gammelt SUB-nummer på linjen genbruges som nøgle.
+  const udenNoegle = await prisma.customerProduct.findMany({
+    where: { contractId: null },
+    orderBy: [{ subNumber: "asc" }, { createdAt: "asc" }],
+    select: { id: true, companyId: true, subNumber: true },
+  });
+  if (udenNoegle.length) {
+    const [c, l] = await Promise.all([
+      prisma.contract.aggregate({ _max: { subNumber: true } }),
+      prisma.customerProduct.aggregate({ _max: { subNumber: true } }),
+    ]);
+    let n = Math.max(c._max.subNumber ?? 0, l._max.subNumber ?? 0);
+    const brugt = new Set((await prisma.contract.findMany({ select: { subNumber: true } })).map((k) => k.subNumber));
+    for (const x of udenNoegle) {
+      const nr = x.subNumber != null && !brugt.has(x.subNumber) ? x.subNumber : ++n;
+      brugt.add(nr);
+      const k = await prisma.contract.create({ data: { companyId: x.companyId, subNumber: nr } });
+      await prisma.customerProduct.update({ where: { id: x.id }, data: { contractId: k.id } });
+    }
+    log(`  ${udenNoegle.length} licenslinjer fik en SUB-nøgle`);
   }
 
   if ((await prisma.user.count({ where: { role: "superadmin", isActive: true } })) === 0) {

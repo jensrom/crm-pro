@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, BookOpen, Check, ChevronRight, Download, ExternalLink, FileBadge, FileText, Flame, RefreshCw, LayoutDashboard, LifeBuoy, ListChecks, Mail, Minus, Package, PackagePlus, Paperclip, Phone, Plus, Scissors, Trash2, TrendingUp, Undo2, Users } from "lucide-react";
+import { AlertTriangle, ArrowLeft, BookOpen, KeyRound, Check, ChevronRight, Download, ExternalLink, FileBadge, FileText, Flame, RefreshCw, LayoutDashboard, LifeBuoy, ListChecks, Mail, Minus, Package, PackagePlus, Paperclip, Phone, Plus, Scissors, Trash2, TrendingUp, Undo2, Users } from "lucide-react";
 import { GemtAf } from "@/components/ui/gemt-af";
 import { Card, CardBody, CardHeader, EmptyState } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { db } from "@/lib/db";
+import { forskelligeUdloeb, kontraktUdloeb, sikrKontrakter } from "@/lib/kontrakter";
 import { noegletal } from "@/lib/analysis";
 import { gaeldendeMaanedspris } from "@/lib/pricing";
 import { ProduktMaerke } from "@/lib/produktstil";
@@ -33,7 +34,7 @@ import { LicensOptions } from "@/components/produkter/LicensOptions";
 import { fortrydLicensaendring, registrerLicensaendring } from "@/app/actions/tilkoeb";
 import { hentSession } from "@/lib/auth";
 import { kanLaese, kanSkrive, rettigheder } from "@/lib/roller";
-import { dokNr, isoDato, sikrSubNumre, subNr } from "@/lib/dokumenter";
+import { dokNr, isoDato, noegleNr, subNr } from "@/lib/dokumenter";
 import { aftaleUdloeb, dagTekst } from "@/lib/perioder";
 import { ordreTotal } from "@/lib/ordre-pdf";
 
@@ -57,16 +58,26 @@ export default async function KundeSide({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tilkoeb?: string; fil?: string; fane?: string; ryddede?: string; spor?: string; rediger?: string; linje?: string }>;
+  searchParams: Promise<{ tilkoeb?: string; fil?: string; fane?: string; ryddede?: string; spor?: string; rediger?: string; linje?: string; noegle?: string }>;
 }) {
   const { id } = await params;
-  const { tilkoeb, fil, fane: faneParam, ryddede, spor, rediger, linje } = await searchParams;
-  await sikrSubNumre(id);
+  const { tilkoeb, fil, fane: faneParam, ryddede, spor, rediger, linje, noegle } = await searchParams;
+  await sikrKontrakter(id);
   const [kunde, grupper, filer, mig, indst] = await Promise.all([
     db.company.findUnique({
       where: { id },
       include: {
-        customerProducts: { include: { product: { include: { family: true } } }, orderBy: { createdAt: "asc" } },
+        customerProducts: { include: { product: { include: { family: true } }, contract: { select: { id: true, subNumber: true } } }, orderBy: { createdAt: "asc" } },
+        contracts: {
+          orderBy: { subNumber: "asc" },
+          include: {
+            orders: {
+              select: { id: true, kind: true, number: true, status: true, orderDate: true, salesforceUrl: true, appliedAt: true, lines: { select: { quantity: true, unitPrice: true, months: true } } },
+              orderBy: [{ orderDate: "desc" }, { number: "desc" }],
+              take: 6,
+            },
+          },
+        },
         orders: { include: { lines: true }, orderBy: { number: "desc" }, take: 5 },
         contacts: { orderBy: [{ isPrimary: "desc" }, { firstName: "asc" }] },
         deals: { include: { product: true }, orderBy: { createdAt: "desc" } },
@@ -144,7 +155,7 @@ export default async function KundeSide({
                       <div className="text-sm font-medium flex items-center gap-2">
                         <ProduktMaerke icon={l.product.icon} color={l.product.color} size="md" />
                         {l.product.name}
-                        <Badge variant="muted">{subNr(l.subNumber)}</Badge>
+                        <Badge variant="muted">{noegleNr(l)}</Badge>
                         <Link href={`/kunder/${kunde.id}/licensbevis?linje=${l.id}`} title="Licensbevis for denne licens" className="text-muted-foreground hover:text-primary">
                           <FileBadge className="h-3.5 w-3.5" />
                         </Link>
@@ -157,6 +168,15 @@ export default async function KundeSide({
                       </div>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="col-span-2 sm:col-span-4">
+                        <Label htmlFor={`k-${l.id}`} hint="flyt linjen ind under en anden kontrakt">SUB-nøgle</Label>
+                        <Select id={`k-${l.id}`} name="contractId" defaultValue={l.contractId ?? "ny"}>
+                          {kunde.contracts.map((k) => (
+                            <option key={k.id} value={k.id}>{subNr(k.subNumber)}{k.name ? ` · ${k.name}` : ""}</option>
+                          ))}
+                          <option value="ny">Ny SUB-nøgle</option>
+                        </Select>
+                      </div>
                       <div className="col-span-2">
                         <Label htmlFor={`p-${l.id}`}>Pakke</Label>
                         <Select id={`p-${l.id}`} name="productId" defaultValue={l.productId}>
@@ -224,6 +244,16 @@ export default async function KundeSide({
                 );
   };
   const valgtLinje = linje ? kunde.customerProducts.find((l) => l.id === linje) ?? null : null;
+  // Linjerne grupperet under deres SUB-nøgle (kontrakt)
+  const noegler = [
+    ...kunde.contracts.map((k) => {
+      const linjer = kunde.customerProducts.filter((l) => l.contractId === k.id);
+      return { k, linjer, udloeb: kontraktUdloeb(linjer, nu), skaev: forskelligeUdloeb(linjer, nu) };
+    }),
+    ...(kunde.customerProducts.some((l) => !l.contractId)
+      ? [{ k: null, linjer: kunde.customerProducts.filter((l) => !l.contractId), udloeb: null, skaev: false }]
+      : []),
+  ].filter((g) => g.linjer.length > 0 || (g.k && g.k.orders.length > 0));
   const linjeHistorik = valgtLinje ? kunde.licenseChanges.filter((c) => c.productId === valgtLinje.productId) : [];
   const linjeAar = (l: Linje) => {
     const pris = gaeldendeMaanedspris(l.unitPriceMonth, l.product);
@@ -413,7 +443,35 @@ export default async function KundeSide({
                   <li className="hidden sm:grid grid-cols-[1fr_5.5rem_6.5rem_1rem] gap-3 px-5 py-2 text-[11px] uppercase tracking-wide text-muted-foreground border-b border-border">
                     <span>Produkt</span><span className="text-right">Licenser</span><span className="text-right">Årsværdi</span><span />
                   </li>
-                  {kunde.customerProducts.map((l) => {
+                  {noegler.map(({ k, linjer, udloeb, skaev }) => (
+                    <li key={k?.id ?? "uden"} id={k ? `noegle-${k.id}` : undefined} className={cn("scroll-mt-24", k && noegle === k.id && "ring-2 ring-primary/40 ring-inset")}>
+                      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-5 py-2.5 bg-secondary/50 border-b border-border">
+                        <div className="min-w-0 flex items-center gap-2 text-sm">
+                          <KeyRound className="h-3.5 w-3.5 text-primary shrink-0" />
+                          <span className="font-semibold tabular">{k ? subNr(k.subNumber) : "Uden nøgle"}</span>
+                          {k?.name && <span className="text-muted-foreground truncate">· {k.name}</span>}
+                          <span className="text-xs text-muted-foreground tabular">
+                            {udloeb ? `udløber ${dagTekst(udloeb)}` : "ingen løbende abonnementer"}
+                          </span>
+                          {skaev && (
+                            <span title="Licenserne på nøglen har forskellige udløb" className="text-warning"><AlertTriangle className="h-3.5 w-3.5" /></span>
+                          )}
+                        </div>
+                        {k && (
+                          <div className="flex items-center gap-1.5">
+                            <Link href={`/kunder/${kunde.id}/licensbevis?noegle=${k.id}`} title="Licensbevis for nøglen" className="inline-grid place-items-center h-7 w-7 rounded-md text-muted-foreground hover:text-primary hover:bg-secondary">
+                              <FileBadge className="h-3.5 w-3.5" />
+                            </Link>
+                            {salgS && (
+                              <Link href={`/ordrer/ny?type=tilbud&kunde=${kunde.id}&kontrakt=${k.id}`}>
+                                <Button size="sm" variant="secondary" type="button" className="h-7"><Plus className="h-3.5 w-3.5" /> Tilkøb</Button>
+                              </Link>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <ul>
+                  {linjer.map((l) => {
                     const valgt = l.id === valgtLinje?.id;
                     const perpetual = l.product.licenseModel === "perpetual";
                     const aar = linjeAar(l);
@@ -433,7 +491,7 @@ export default async function KundeSide({
                             <span className="min-w-0">
                               <span className="block text-sm font-medium truncate">{l.product.name}</span>
                               <span className="block text-[11px] text-muted-foreground tabular truncate">
-                                {subNr(l.subNumber)} · {perpetual ? "Perpetual" : `udløber ${dagTekst(aftaleUdloeb(l))}`}
+                                {perpetual ? "Perpetual" : `udløber ${dagTekst(aftaleUdloeb(l))}`}{l.seats > 0 && !perpetual && l.unitPriceMonth != null ? " · aftalt pris" : ""}
                               </span>
                             </span>
                           </span>
@@ -446,6 +504,30 @@ export default async function KundeSide({
                       </li>
                     );
                   })}
+                      </ul>
+                      {k && k.orders.length > 0 && (
+                        <ul className="px-5 py-2 border-t border-border/60 flex flex-col gap-1 bg-background/40">
+                          {k.orders.map((o) => (
+                            <li key={o.id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+                              <Link href={`/ordrer/${o.id}`} className="font-medium tabular hover:text-primary">{dokNr(o)}</Link>
+                              <span className="text-muted-foreground tabular">{datoKort(o.orderDate)}</span>
+                              <span className="tabular">{kroner(ordreTotal(o.lines))}</span>
+                              {o.kind === "tilbud" ? (
+                                o.status === "godkendt" ? <Badge variant="success">Godkendt</Badge>
+                                : o.status === "afvist" ? <Badge variant="danger">Afvist</Badge>
+                                : <Badge variant="info">Afventer</Badge>
+                              ) : o.appliedAt ? <Badge variant="success">Lagt på nøglen</Badge> : <Badge variant="warning">Ikke overført</Badge>}
+                              {o.salesforceUrl && (
+                                <a href={o.salesforceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-primary hover:underline">
+                                  <ExternalLink className="h-3 w-3" /> Salesforce
+                                </a>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+                  ))}
                 </ul>
               )}
               {salgS && (
@@ -457,6 +539,15 @@ export default async function KundeSide({
                     <Label htmlFor="np">Pakke</Label>
                     <Select id="np" name="productId" required>
                       <LicensOptions grupper={grupper} />
+                    </Select>
+                  </div>
+                  <div className="col-span-2 sm:col-span-4">
+                    <Label htmlFor="nk">SUB-nøgle</Label>
+                    <Select id="nk" name="contractId" defaultValue="ny">
+                      <option value="ny">Ny SUB-nøgle (ny kontrakt)</option>
+                      {kunde.contracts.map((k) => (
+                        <option key={k.id} value={k.id}>Læg under {subNr(k.subNumber)}{k.name ? ` · ${k.name}` : ""}</option>
+                      ))}
                     </Select>
                   </div>
                   <div><Label htmlFor="ns">Tildelte</Label><Input id="ns" name="seats" type="number" min={0} defaultValue={1} /></div>
@@ -474,7 +565,7 @@ export default async function KundeSide({
               <Card>
                 <CardHeader
                   title={<span className="flex items-center gap-2"><ProduktMaerke icon={valgtLinje.product.icon} color={valgtLinje.product.color} size="md" />{valgtLinje.product.name}</span>}
-                  description={`${subNr(valgtLinje.subNumber)}${valgtLinje.product.family ? ` · ${valgtLinje.product.family.name}` : ""} · tilføjet ${datoKort(valgtLinje.createdAt)}`}
+                  description={`${noegleNr(valgtLinje)}${valgtLinje.product.family ? ` · ${valgtLinje.product.family.name}` : ""} · tilføjet ${datoKort(valgtLinje.createdAt)}`}
                   action={<Link href={`/kunder/${kunde.id}?fane=produkter`} scroll={false} className="text-xs font-medium text-muted-foreground hover:text-foreground">Luk</Link>}
                 />
                 <CardBody className="flex flex-col gap-4">

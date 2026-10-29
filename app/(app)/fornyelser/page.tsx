@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { kroner, tal } from "@/lib/format";
-import { subNr } from "@/lib/dokumenter";
+import { subNr, noegleNr } from "@/lib/dokumenter";
 import { aftaleUdloeb, dagTekst, plusDage } from "@/lib/perioder";
 import { cn } from "@/lib/utils";
 
@@ -26,7 +26,7 @@ export default async function FornyelserSide({ searchParams }: { searchParams: P
 
   const linjer = await db.customerProduct.findMany({
     where: { isActive: true, company: { isActive: true }, product: { licenseModel: { not: "perpetual" } } },
-    include: { company: { select: { id: true, name: true } }, product: { include: { family: true } } },
+    include: { company: { select: { id: true, name: true } }, product: { include: { family: true } }, contract: { select: { subNumber: true } } },
   });
 
   const raekker = linjer
@@ -90,7 +90,7 @@ export default async function FornyelserSide({ searchParams }: { searchParams: P
                         <td className="px-3 py-2.5"><Link href={`/kunder/${l.company.id}`} className="font-medium hover:text-primary">{l.company.name}</Link></td>
                         <td className="px-3 py-2.5">
                           {l.product.family && !l.product.name.toLowerCase().startsWith(l.product.family.name.toLowerCase()) ? `${l.product.family.name} · ` : ""}{l.product.name}
-                          <Badge variant="muted" className="ml-2">{subNr(l.subNumber)}</Badge>
+                          <Badge variant="muted" className="ml-2">{noegleNr(l)}</Badge>
                           {!l.endDate && <Badge variant="muted" className="ml-1">beregnet</Badge>}
                         </td>
                         <td className="px-3 py-2.5 text-right tabular">{l.seats}</td>

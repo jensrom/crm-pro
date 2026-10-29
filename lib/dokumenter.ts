@@ -3,6 +3,9 @@ import { db } from "@/lib/db";
 import { aftalePeriode } from "@/lib/perioder";
 
 export const subNr = (n: number | null | undefined) => (n == null ? "SUB-?????" : `SUB-${String(n).padStart(5, "0")}`);
+/** SUB-nøglen en licenslinje hører under (kontrakten), ellers linjens gamle nummer. */
+export const noegleNr = (l: { subNumber: number | null; contract?: { subNumber: number } | null }) =>
+  subNr(l.contract?.subNumber ?? l.subNumber);
 /** Antal frie tekstlinjer på en ny ordrebekræftelse. */
 export const ANTAL_FRIE_LINJER = 3;
 
@@ -11,26 +14,6 @@ export const tilbudNr = (n: number) => `TIL-${String(n).padStart(5, "0")}`;
 /** Nummeret på et tilbud eller en ordrebekræftelse */
 export const dokNr = (o: { kind: string; number: number }) => (o.kind === "tilbud" ? tilbudNr(o.number) : ordreNr(o.number));
 export const dokNavn = (kind: string) => (kind === "tilbud" ? "Tilbud" : "Ordrebekræftelse");
-
-/**
- * Giver licenslinjer uden SUB-nummer det næste ledige. Kaldes før der vises
- * eller udstedes et licensbevis, så nye linjer altid har et nummer — uanset
- * om de er oprettet på kunden, via tilkøb eller af seed-scriptet.
- */
-export async function sikrSubNumre(companyId?: string) {
-  const uden = await db.customerProduct.findMany({
-    where: { subNumber: null, ...(companyId ? { companyId } : {}) },
-    orderBy: { createdAt: "asc" },
-    select: { id: true },
-  });
-  if (!uden.length) return 0;
-  const maks = await db.customerProduct.aggregate({ _max: { subNumber: true } });
-  let n = maks._max.subNumber ?? 0;
-  for (const l of uden) {
-    await db.customerProduct.update({ where: { id: l.id }, data: { subNumber: ++n } });
-  }
-  return uden.length;
-}
 
 /**
  * Licensperioden på beviset: den aftaleperiode der dækker i dag (startdato +
