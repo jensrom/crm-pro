@@ -1250,3 +1250,14 @@ export async function lavMailudskrift(d: {
   dok.afsnit(d.tekst, { str: 10 });
   return dok.gem();
 }
+
+/** Lægger flere PDF'er sammen til én (fx alle licensbeviser på en ordre). */
+export async function samlPdf(filer: Uint8Array[]) {
+  const ud = await PDFDocument.create();
+  ud.setCreator("CRM-Pro");
+  for (const f of filer) {
+    const kilde = await PDFDocument.load(f);
+    for (const side of await ud.copyPages(kilde, kilde.getPageIndices())) ud.addPage(side);
+  }
+  return ud.save();
+}
