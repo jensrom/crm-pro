@@ -84,6 +84,7 @@ export const LOGTYPER = [
   { key: "aftale",   label: "Aftale" },
   { key: "advarsel", label: "Advarsel" },
   { key: "salg",     label: "Salg" },
+  { key: "tilstand", label: "Tilstand" },
 ] as const;
 
 export const STADIER = [

@@ -18,6 +18,7 @@ export const ROLLER = [
   { key: "tekniker",      label: "Tekniker",           beskrivelse: "Kun teknik · læse + registrere arbejdstid" },
   { key: "saelger_plus",  label: "Sælger+",            beskrivelse: "Læse og skrive i salg · læse i teknik" },
   { key: "saelger",       label: "Sælger",             beskrivelse: "Kun salg · læse + oprette leads og noter" },
+  { key: "intern_salg",   label: "Intern salg",        beskrivelse: "Bestiller hos leverandører · styrer Klar til intern salg · læse i salg og kunder" },
 ] as const;
 
 export type Rolle = (typeof ROLLER)[number]["key"];
@@ -34,15 +35,18 @@ export type Rettigheder = {
   leads: boolean;
   /** Systemindstillinger: brugere, katalog, dokumenter, whitelabel, eksport. */
   indstillinger: boolean;
+  /** Klar til intern salg: bestilling, status og licensdata på godkendte ordrer. */
+  intern: boolean;
 };
 
 const MATRIX: Record<Rolle, Rettigheder> = {
-  superadmin:    { salg: "skriv", teknik: "skriv", kunder: "skriv", tid: true,  leads: true,  indstillinger: true },
-  admin:         { salg: "skriv", teknik: "skriv", kunder: "skriv", tid: true,  leads: true,  indstillinger: false },
-  tekniker_plus: { salg: "laes",  teknik: "skriv", kunder: "skriv", tid: true,  leads: false, indstillinger: false },
-  tekniker:      { salg: "ingen", teknik: "laes",  kunder: "laes",  tid: true,  leads: false, indstillinger: false },
-  saelger_plus:  { salg: "skriv", teknik: "laes",  kunder: "skriv", tid: false, leads: true,  indstillinger: false },
-  saelger:       { salg: "laes",  teknik: "ingen", kunder: "laes",  tid: false, leads: true,  indstillinger: false },
+  superadmin:    { salg: "skriv", teknik: "skriv", kunder: "skriv", tid: true,  leads: true,  indstillinger: true,  intern: true },
+  admin:         { salg: "skriv", teknik: "skriv", kunder: "skriv", tid: true,  leads: true,  indstillinger: false, intern: true },
+  tekniker_plus: { salg: "laes",  teknik: "skriv", kunder: "skriv", tid: true,  leads: false, indstillinger: false, intern: false },
+  tekniker:      { salg: "ingen", teknik: "laes",  kunder: "laes",  tid: true,  leads: false, indstillinger: false, intern: false },
+  saelger_plus:  { salg: "skriv", teknik: "laes",  kunder: "skriv", tid: false, leads: true,  indstillinger: false, intern: false },
+  saelger:       { salg: "laes",  teknik: "ingen", kunder: "laes",  tid: false, leads: true,  indstillinger: false, intern: false },
+  intern_salg:   { salg: "laes",  teknik: "ingen", kunder: "laes",  tid: false, leads: false, indstillinger: false, intern: true },
 };
 
 /**

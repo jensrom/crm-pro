@@ -148,3 +148,10 @@ export async function kraevLogbog(): Promise<Session> {
   if (!(kanSkrive(r.kunder) || kanSkrive(r.salg) || kanSkrive(r.teknik) || r.leads || r.tid)) redirect("/ingen-adgang");
   return s;
 }
+
+/** Klar til intern salg: Intern salg, administrator og superadministrator. */
+export async function kraevIntern(): Promise<Session> {
+  const s = await kraevBruger();
+  if (!s.ret.intern) redirect("/ingen-adgang");
+  return s;
+}

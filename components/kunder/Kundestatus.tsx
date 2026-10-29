@@ -1,12 +1,18 @@
 import { Button } from "@/components/ui/button";
-import { Input, Label, Select } from "@/components/ui/input";
+import { db } from "@/lib/db";
+import { hentSession } from "@/lib/auth";
+import { hentLogSkabeloner } from "@/lib/logskabeloner";
+import { TilstandsLog } from "@/components/kunder/TilstandsLog";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { GemtAf } from "@/components/ui/gemt-af";
 import { KUNDESTATUS, findKundestatus } from "@/lib/labels";
 import { dato } from "@/lib/format";
 import { skiftKundestatus } from "@/app/actions/kunder";
 
-export function KundestatusKort({
+/** "29/10/26" i dansk tid, uanset serverens tidszone. */
+const kortDato = new Intl.DateTimeFormat("da-DK", { timeZone: "Europe/Copenhagen", day: "2-digit", month: "2-digit", year: "2-digit" });
+
+export async function KundestatusKort({
   kundeId,
   status,
   note,
@@ -24,6 +30,11 @@ export function KundestatusKort({
   kanSkrive?: boolean;
 }) {
   const s = findKundestatus(status);
+  const [poster, skabeloner, mig] = await Promise.all([
+    db.logEntry.findMany({ where: { companyId: kundeId, kind: "tilstand" }, orderBy: { createdAt: "desc" }, take: 100 }),
+    hentLogSkabeloner(),
+    hentSession(),
+  ]);
 
   return (
     <Card>
@@ -45,16 +56,21 @@ export function KundestatusKort({
               </label>
             ))}
           </div>
-          <div>
-            <Label htmlFor="statusnote">Hvorfor</Label>
-            <Input id="statusnote" name="customerStatusNote" defaultValue={note ?? ""} placeholder="fx afventer svar på eskalering" />
-          </div>
           <div className="flex items-center justify-between gap-3">
             <GemtAf af={gemtAf} tid={gemtTid} />
             <Button size="sm" type="submit" className="ml-auto">Gem tilstand</Button>
           </div>
         </fieldset>
         </form>
+        <div className="mt-4 pt-4 border-t border-border">
+          <TilstandsLog
+            kundeId={kundeId}
+            initialer={mig?.initials ?? ""}
+            kanSkrive={kanSkrive}
+            skabeloner={skabeloner.map((t) => t.tekst)}
+            linjer={poster.map((p) => ({ id: p.id, dato: kortDato.format(p.createdAt).replace(/\./g, "/"), af: p.author, tekst: p.content }))}
+          />
+        </div>
       </CardBody>
     </Card>
   );

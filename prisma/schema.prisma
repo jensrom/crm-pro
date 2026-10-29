@@ -677,6 +677,9 @@ model LogEntry {
 model Settings {
   id String @id @default("singleton")
 
+  /// Er standard-hurtigteksterne til tilstandsloggen lagt ind? (så de ikke kommer igen, hvis man sletter dem)
+  logSkabelonerOprettet Boolean @default(false)
+
   /// Underteksten under CRM-Pro i sidebjælken
   brandSubtitle String?
   /// De få tegn i logofirkanten, når der ikke er uploadet et logo
@@ -776,6 +779,22 @@ model Order {
   /// Link til Opportunity i Salesforce
   salesforceUrl String?
 
+  // --- Intern salg: bestilling hos leverandøren efter kundens godkendelse ---
+  /// null = ikke sendt til intern | pending | bestilt | afventer | klar | afsluttet (se lib/intern.ts)
+  internStatus       String?
+  internSentAt       DateTime?
+  internSentBy       String?
+  /// Initialer på den interne sælger der har ordren
+  internAnsvarlig    String?
+  internBestiltAt    DateTime?
+  internAfventerAt   DateTime?
+  internKlarAt       DateTime?
+  /// Leveret og afsluttet — grundlaget for leveringsopgørelsen
+  internAfsluttetAt  DateTime?
+  /// Leverandørens ordrenummer
+  leverandoerOrdrenr String?
+  internNote         String?
+
   createdAt DateTime @default(now())
   createdBy String?
 
@@ -790,6 +809,8 @@ model Order {
   @@index([orderDate])
   @@index([sourceOrderId])
   @@index([senderProfileId])
+  @@index([internStatus])
+  @@index([internAfsluttetAt])
   @@map("orders")
 }
 
@@ -817,8 +838,37 @@ model OrderLine {
   /// Sidste dag i perioden
   periodEnd    DateTime?
 
+  // --- Licensdata udfyldt af intern salg (bruges på licensbeviset) ---
+  /// Reference/serienummer hos leverandøren, fx 4571
+  leverandoerRef String?
+  /// Placering eller instans, fx "Instance Holstebro"
+  placering      String?
+  /// Varenummer hos leverandøren, fx 02-510-110-101
+  partNr         String?
+  version        String?
+
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@map("order_lines")
+}
+
+// ============================================================
+// HURTIGTEKSTER TIL TILSTANDSLOGGEN
+// Korte standardtekster man kan klikke ind i loggen under Kundens tilstand.
+// Styres under Indstillinger → Salg.
+// ============================================================
+
+model LogSkabelon {
+  id        String  @id @default(cuid())
+  tekst     String
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  @@index([isActive, sortOrder])
+  @@map("log_skabeloner")
 }

@@ -8,7 +8,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { kraevAdmin, kraevSkriv } from "@/lib/auth";
 import { formular } from "@/lib/formular";
-import { BESLUTNINGSROLLER, FAKTURERING, KONFIDENSER, KUNDESTATUS, PRIORITETER } from "@/lib/labels";
+import { BESLUTNINGSROLLER, FAKTURERING, KONFIDENSER, KUNDESTATUS, PRIORITETER, findKundestatus } from "@/lib/labels";
 import { opretKontrakt, ryddTommeKontrakter } from "@/lib/kontrakter";
 
 function opfrisk(kundeId?: string | null) {
@@ -116,19 +116,45 @@ export async function sletLicenslinje(id: string) {
   opfrisk(linje.companyId);
 }
 
-/** Sætter kundens tilstand og noterer hvornår og hvorfor. */
+/** Sætter kundens tilstand. Et skift skrives i tilstandsloggen (og dermed i logbogen). */
 export async function skiftKundestatus(id: string, formData: FormData) {
-  await kraevSkriv("kunder");
+  const mig = await kraevSkriv("kunder");
   const f = formular(formData);
+  const ny = f.valg("customerStatus", KUNDESTATUS, "stabil");
+  const foer = await db.company.findUnique({ where: { id }, select: { customerStatus: true } });
+  if (!foer) return;
   await db.company.update({
     where: { id },
     data: {
-      customerStatus: f.valg("customerStatus", KUNDESTATUS, "stabil"),
-      customerStatusNote: f.tekst("customerStatusNote"),
+      customerStatus: ny,
       customerStatusAt: new Date(),
+      // Ældre formularer sender stadig en note med
+      ...(f.har("customerStatusNote") ? { customerStatusNote: f.tekst("customerStatusNote") } : {}),
     },
   });
+  if (foer.customerStatus !== ny) {
+    await db.logEntry.create({
+      data: { companyId: id, kind: "tilstand", content: `Tilstand: ${findKundestatus(foer.customerStatus).label} → ${findKundestatus(ny).label}`, author: mig.initials },
+    });
+  }
   opfrisk(id);
+}
+
+/**
+ * Én linje i tilstandsloggen ("29/10/26 JPR: …"). Dato og initialer gemmes
+ * som tidspunkt og forfatter — står de foran teksten, fjernes de. Den nyeste
+ * linje bliver også kundens "hvorfor", som vises under kundens navn.
+ */
+export async function skrivTilstandslog(kundeId: string, formData: FormData) {
+  const mig = await kraevSkriv("kunder");
+  const raa = formular(formData).tekst("tekst") ?? "";
+  const tekst = raa.replace(/^\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\s+[A-ZÆØÅ0-9]{1,6}:\s*/i, "").trim().slice(0, 500);
+  if (!tekst) return;
+  await db.$transaction([
+    db.logEntry.create({ data: { companyId: kundeId, kind: "tilstand", content: tekst, author: mig.initials } }),
+    db.company.update({ where: { id: kundeId }, data: { customerStatusNote: tekst } }),
+  ]);
+  opfrisk(kundeId);
 }
 
 /**

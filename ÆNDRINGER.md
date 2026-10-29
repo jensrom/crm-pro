@@ -3,6 +3,30 @@
 Alt herunder er bygget oven på CRM-Pro 1.0.2. Den nyeste udgave kører på Vercel med Postgres (Neon).
 Opsætning og flytning af data står i `README.md`.
 
+## Tilstandslog, intern salg og licensbevis pr. ordre (29. oktober 2026)
+
+- **Tilstandslog** under *Kundens tilstand*.
+  - Tryk **+**, så står `29/10/26 JPR: ` klar, og du skriver bare videre.
+  - Hurtigtekster sættes ind med ét klik.
+  - Hver gemt linje er sin egen post, nyeste øverst, én linje pr. post. De samme linjer står i Logbogen.
+  - Skift af tilstand logges automatisk ("Tilstand: Stabil → Risiko").
+  - Den nyeste linje vises under kundens navn.
+- **Indstillinger → Salg → Log skrivning:** hurtigteksterne kan tilføjes, rettes, skjules, sorteres og slettes.
+- **Klar til intern salg** (nyt menupunkt) og **ny rolle "Intern salg"**.
+  - En ordrebekræftelse sendes videre med *Send til intern salg*.
+  - Forløb: Pending → Bestilt → Afventer leverandør → Klar til kunde → Leveret & afsluttet. Hvert trin har sit tidspunkt og logges på kunden.
+  - Leverede ordrer ligger i deres egen pulje med datofilter.
+  - Intern salg udfylder leverandørens ordrenr. samt leverandør-ref., placering, part # og version pr. licens.
+- **Licensbevis pr. produkt** fra *Klar til kunde*:
+  - Licensnr. er ordrenummeret, med leverandør-ref., placering, detaljer, SUB-nr., periode og pris for perioden samt subscription-aftalen.
+  - Beviset gemmes i filboksen og noteres i logbogen.
+- **Dashboard → Leveringer:** antal, værdi og kunder for leverede ordrer.
+  - Faste perioder: denne måned, sidste måned, dette kvartal, i år og seneste 12 mdr.
+  - Du kan også vælge egne datoer.
+- **Database (lægges på automatisk):**
+  - Nye felter til intern salg på `orders` og licensdata på `order_lines`.
+  - Ny tabel `log_skabeloner`.
+
 ## Backend-gennemgang (29. oktober 2026)
 
 Se `BACKEND.md` for opbygning, mapper og regler.

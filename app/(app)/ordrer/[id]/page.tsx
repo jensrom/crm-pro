@@ -13,6 +13,8 @@ import { dato, kroner } from "@/lib/format";
 import { dokNavn, dokNr, subNr } from "@/lib/dokumenter";
 import { dagTekst, isoDag } from "@/lib/perioder";
 import { ordreTotal } from "@/lib/ordre-pdf";
+import { InternKort } from "@/components/ordrer/InternKort";
+import { findInternStatus } from "@/lib/intern";
 import { anvendOrdre, gemSalesforceLink, godkendTilbud, skiftTilbudsstatus, sletOrdre, tilbudTilOrdre } from "@/app/actions/ordrer";
 
 const FEJL: Record<string, string> = {
@@ -72,6 +74,7 @@ export default async function OrdreSide({ params, searchParams }: { params: Prom
             {status === "aaben" && <Badge variant="info">Afventer kunden</Badge>}
             {status === "godkendt" && <Badge variant="success"><CheckCircle2 className="h-3 w-3 mr-1 inline" />Godkendt</Badge>}
             {status === "afvist" && <Badge variant="danger"><XCircle className="h-3 w-3 mr-1 inline" />Afvist</Badge>}
+            {o.internStatus && <Badge variant={findInternStatus(o.internStatus)?.variant ?? "info"}>Intern: {findInternStatus(o.internStatus)?.label}</Badge>}
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
             {dato(o.orderDate)} · {o.recipientName}{o.createdBy && ` · oprettet af ${o.createdBy}`}
@@ -127,6 +130,11 @@ export default async function OrdreSide({ params, searchParams }: { params: Prom
       )}
       {fejl && FEJL[fejl] && (
         <Card className="border-danger/40 bg-danger/[0.06]"><CardBody className="text-sm">{FEJL[fejl]}</CardBody></Card>
+      )}
+      {(besked === "intern" || besked === "intern-gemt") && (
+        <Card className="border-success/40 bg-success/[0.06]">
+          <CardBody className="text-sm">{besked === "intern" ? "Ordren er sendt til intern salg og ligger nu på listen Klar til intern salg." : "Oplysningerne til intern salg er gemt."}</CardBody>
+        </Card>
       )}
       {besked === "anvendt" && (
         <Card className="border-success/40 bg-success/[0.06]"><CardBody className="text-sm">Kundens aftaler er opdateret ud fra ordren.</CardBody></Card>
@@ -206,6 +214,8 @@ export default async function OrdreSide({ params, searchParams }: { params: Prom
           </CardBody>
         </Card>
       )}
+
+      <InternKort o={o} kanSende={skriv} kanStyre={!!mig?.ret.intern} />
 
       {kanAnvendes && skriv && (
         <Card>

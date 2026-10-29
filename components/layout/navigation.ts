@@ -16,6 +16,7 @@ import {
   PackagePlus,
   FileText,
   RefreshCw,
+  ClipboardCheck,
 } from "lucide-react";
 
 export type NavItem = { label: string; href: string; icon: React.ElementType; boern?: NavItem[]; skilleFoer?: boolean };
@@ -45,6 +46,7 @@ export const SEKTIONER: { sektion: string; punkter: NavItem[] }[] = [
       { label: "Leads", href: "/leads", icon: Inbox },
       { label: "Opportunities", href: "/opportunities", icon: KanbanSquare },
       { label: "Ordreliste", href: "/ordrer", icon: FileText },
+      { label: "Intern salg", href: "/intern", icon: ClipboardCheck },
       { label: "Fornyelser", href: "/fornyelser", icon: RefreshCw, skilleFoer: true },
       { label: "Tilkøb", href: "/tilkoeb", icon: PackagePlus },
       { label: "Produkter", href: "/produkter", icon: Package },

@@ -7,6 +7,7 @@ const PUNKTER = [
   { href: "/indstillinger/whitelabel", label: "Whitelabel" },
   { href: "/indstillinger/udseende", label: "Udseende" },
   { href: "/indstillinger/katalog", label: "Katalog" },
+  { href: "/indstillinger/salg", label: "Salg" },
   { href: "/indstillinger/dokumenter", label: "Dokumenter" },
   { href: "/indstillinger/eksport", label: "Eksport" },
 ];
