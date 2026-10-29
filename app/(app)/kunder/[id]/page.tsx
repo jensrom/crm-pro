@@ -149,7 +149,7 @@ export default async function KundeSide({
                 const pris = gaeldendeMaanedspris(l.unitPriceMonth, l.product);
                 const aar = pris == null || perpetual ? null : l.seats * pris * 12;
                 return (
-                  <form action={gemLicenslinje.bind(null, kunde.id)} className="rounded-lg border border-border p-4 flex flex-col gap-3">
+                  <form key={l.id} action={gemLicenslinje.bind(null, kunde.id)} className="rounded-lg border border-border p-4 flex flex-col gap-3">
                     <input type="hidden" name="linjeId" value={l.id} />
                     <div className="flex items-center justify-between gap-2">
                       <div className="text-sm font-medium flex items-center gap-2">
