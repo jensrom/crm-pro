@@ -8,19 +8,10 @@ import { Input, Select } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { PRIORITET, findKundestatus } from "@/lib/labels";
 import { kroner, millioner, procent, tal } from "@/lib/format";
-import { ProduktMaerke } from "@/lib/produktstil";
+import { ProduktChips } from "@/components/kunder/ProduktChips";
+import type { KundeProdukt } from "@/lib/kundeprodukter";
 
-/** Et produkt (fx Idus eller Fiix) kunden har licenser under. */
-export type KundeProdukt = {
-  navn: string;
-  ikon: string | null;
-  farve: string | null;
-  /** Licenser i alt under produktet */
-  licenser: number;
-  /** "3 × Idus Online Professional" — vises ved hover */
-  linjer: string[];
-  udenPris: boolean;
-};
+export type { KundeProdukt };
 
 export type Raekke = {
   id: string;
@@ -182,26 +173,7 @@ export function KundeListe({ raekker, initialHotKun = false }: { raekker: Raekke
                   <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{r.country}</td>
                   <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{r.industry ?? "–"}</td>
                   <td className="px-3 py-2.5">
-                    {r.produkter.length === 0 ? (
-                      <span className="text-muted-foreground">Ingen</span>
-                    ) : (
-                      <span className="flex flex-wrap gap-1.5">
-                        {r.produkter.map((p) => (
-                          <span
-                            key={p.navn}
-                            title={`${p.linjer.join("\n")}${p.udenPris ? "\n— mindst én licens uden pris" : ""}`}
-                            className={cn(
-                              "inline-flex items-center gap-1.5 h-6 pl-1 pr-2 rounded-sm border text-xs whitespace-nowrap",
-                              p.udenPris ? "border-warning/50 bg-warning/[0.08]" : "border-border bg-secondary/50"
-                            )}
-                          >
-                            <ProduktMaerke icon={p.ikon} color={p.farve} size="sm" />
-                            <span className="font-medium">{p.navn}</span>
-                            <span className="text-muted-foreground tabular">{p.licenser}</span>
-                          </span>
-                        ))}
-                      </span>
-                    )}
+                    <ProduktChips produkter={r.produkter} />
                   </td>
                   <td className="px-3 py-2.5 text-right tabular">{r.seats}</td>
                   <td className="px-3 py-2.5 text-right tabular">{r.aktive}</td>

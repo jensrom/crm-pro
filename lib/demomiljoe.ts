@@ -786,7 +786,7 @@ export async function bygDemomiljoe(initials: string | null): Promise<DemoResult
       data: {
         kind: "ordre", number: ordreNr++, companyId: kunde.id, ...mod, reference: t.chance(0.6) ? `PO-${t.tal(10000, 99999)}` : null,
         intro: "Hermed bekræftes levering af følgende ydelser til %KUNDENAVN%.",
-        orderDate: yDato, status: "godkendt", salesforceUrl: t.chance(0.4) ? sf() : null, createdBy: af(), createdAt: yDato,
+        orderDate: yDato, status: "godkendt", appliedAt: yDato, salesforceUrl: t.chance(0.4) ? sf() : null, createdBy: af(), createdAt: yDato,
         note: t.en(["Rejse afregnes efter regning.", "Kursus afholdes hos kunden.", null]),
         lines: {
           create: ydelser.map((f, i) => ({
@@ -818,12 +818,13 @@ export async function bygDemomiljoe(initials: string | null): Promise<DemoResult
         select: { id: true },
       });
       await db.order.update({ where: { id: til.id }, data: { acceptAttachmentId: att.id } });
+      const oDato = new Date(Math.min(plusDage(tStart, t.tal(2, 6)).getTime(), Date.now()));
       const linjerTil = await db.orderLine.findMany({ where: { orderId: til.id }, orderBy: { sortOrder: "asc" } });
       const ord2 = await db.order.create({
         data: {
           kind: "ordre", number: ordreNr++, companyId: kunde.id, contractId: maal.contractId, ...mod, intro: til.intro,
-          orderDate: plusDage(tStart, t.tal(2, 6)), sourceOrderId: til.id, status: "godkendt", salesforceUrl: til.salesforceUrl,
-          appliedAt: new Date(), createdBy: af(),
+          orderDate: oDato, sourceOrderId: til.id, status: "godkendt", salesforceUrl: til.salesforceUrl,
+          appliedAt: oDato, createdBy: af(), createdAt: oDato,
           lines: { create: linjerTil.map(({ id: _i, orderId: _o, ...l }) => l) },
         },
       });
