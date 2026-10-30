@@ -214,7 +214,7 @@ export default async function BrugerSide({
             <form action={opretBruger} className="grid sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="ninitials">Initialer</Label>
-                <Input id="ninitials" name="initials" required maxLength={8} placeholder="fx JPR" className="uppercase tracking-widest" />
+                <Input id="ninitials" name="initials" required maxLength={8} placeholder="fx ABC" className="uppercase tracking-widest" />
               </div>
               <div><Label htmlFor="npin2">PIN (4–8 cifre)</Label><Input id="npin2" name="pin" type="password" inputMode="numeric" required placeholder="4–8 cifre" /></div>
               <div className="sm:col-span-2"><Label htmlFor="nname">Navn</Label><Input id="nname" name="name" required /></div>

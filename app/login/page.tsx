@@ -56,7 +56,7 @@ export default async function LoginSide({ searchParams }: { searchParams: Promis
               autoFocus
               autoComplete="username"
               maxLength={8}
-              placeholder="fx JPR"
+              placeholder="fx ABC"
               className="uppercase tracking-widest"
             />
           </div>

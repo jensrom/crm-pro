@@ -77,7 +77,7 @@ export function KontaktSoeg({ kontakter, start }: { kontakter: SoegKontakt[]; st
           type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Søg på person eller kunde, fx Helle eller Tórshavn"
+          placeholder="Søg på person eller kunde"
           aria-label="Søg i kontakter"
           className="w-full h-10 rounded-lg border border-input bg-background pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         />

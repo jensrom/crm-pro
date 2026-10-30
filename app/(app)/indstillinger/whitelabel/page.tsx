@@ -83,7 +83,7 @@ export default async function WhitelabelSide({
                 id="brandSubtitle"
                 name="brandSubtitle"
                 defaultValue={i.brandSubtitle ?? ""}
-                placeholder="Idus Online · DK & FO"
+                placeholder="fx Produkt · Region"
                 maxLength={60}
               />
               <p className="text-xs text-muted-foreground mt-1.5">
@@ -114,7 +114,7 @@ export default async function WhitelabelSide({
               </div>
               <div>
                 <Label htmlFor="brandMarkText">Bogstaver</Label>
-                <Input id="brandMarkText" name="brandMarkText" defaultValue={i.brandMarkText ?? ""} placeholder="CP" maxLength={3} />
+                <Input id="brandMarkText" name="brandMarkText" defaultValue={i.brandMarkText ?? ""} placeholder="fx AB" maxLength={3} />
                 <p className="text-xs text-muted-foreground mt-1.5">Vises kun uden logo. Højst tre tegn.</p>
               </div>
             </div>

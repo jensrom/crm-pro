@@ -141,7 +141,7 @@ export function InternKort({ o, kanSende, kanStyre }: { o: Ordre; kanSende: bool
         <form key={`${o.id}-${o.internStatus}`} action={gemInternData.bind(null, o.id)} className="flex flex-col gap-4">
           <fieldset disabled={!kanStyre} className="contents">
             <div className="grid sm:grid-cols-3 gap-3">
-              <div><Label htmlFor="lo">Leverandørens ordrenr.</Label><Input id="lo" name="leverandoerOrdrenr" defaultValue={o.leverandoerOrdrenr ?? ""} placeholder="fx D33912" /></div>
+              <div><Label htmlFor="lo">Leverandørens ordrenr.</Label><Input id="lo" name="leverandoerOrdrenr" defaultValue={o.leverandoerOrdrenr ?? ""} placeholder="fx 123456" /></div>
               <div><Label htmlFor="ia">Ansvarlig (initialer)</Label><Input id="ia" name="internAnsvarlig" defaultValue={o.internAnsvarlig ?? ""} maxLength={6} /></div>
               <div className="sm:col-span-3"><Label htmlFor="in">Intern note</Label><Textarea id="in" name="internNote" defaultValue={o.internNote ?? ""} className="min-h-[54px]" placeholder="fx leveringstid 3 uger" /></div>
             </div>
@@ -162,10 +162,10 @@ export function InternKort({ o, kanSende, kanStyre }: { o: Ordre; kanSende: bool
                     {licensLinjer.map((l) => (
                       <tr key={l.id}>
                         <td className="px-5 py-2 min-w-[180px]">{l.quantity} × {l.description}</td>
-                        <td className="px-2 py-2"><Input name={`ref_${l.id}`} defaultValue={l.leverandoerRef ?? ""} placeholder="fx 4571" className="h-8 text-xs w-28" /></td>
-                        <td className="px-2 py-2"><Input name={`placering_${l.id}`} defaultValue={l.placering ?? ""} placeholder="fx Instance Holstebro" className="h-8 text-xs min-w-[150px]" /></td>
-                        <td className="px-2 py-2"><Input name={`part_${l.id}`} defaultValue={l.partNr ?? ""} placeholder="02-510-110-101" className="h-8 text-xs w-36" /></td>
-                        <td className="px-2 py-2"><Input name={`version_${l.id}`} defaultValue={l.version ?? ""} placeholder="1.0" className="h-8 text-xs w-16" /></td>
+                        <td className="px-2 py-2"><Input name={`ref_${l.id}`} defaultValue={l.leverandoerRef ?? ""} placeholder="fx 1234" className="h-8 text-xs w-28" /></td>
+                        <td className="px-2 py-2"><Input name={`placering_${l.id}`} defaultValue={l.placering ?? ""} placeholder="fx Instans 2" className="h-8 text-xs min-w-[150px]" /></td>
+                        <td className="px-2 py-2"><Input name={`part_${l.id}`} defaultValue={l.partNr ?? ""} placeholder="fx 00-000-000" className="h-8 text-xs w-36" /></td>
+                        <td className="px-2 py-2"><Input name={`version_${l.id}`} defaultValue={l.version ?? ""} placeholder="fx 1.0" className="h-8 text-xs w-16" /></td>
                         <td className="px-5 py-2 text-right whitespace-nowrap">
                           {kanLaveLicensbevis(o.internStatus) ? (
                             <a href={`/api/dokumenter/ordre/${o.id}/licensbevis?linje=${l.id}&gem=1`} target="_blank" rel="noopener" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">

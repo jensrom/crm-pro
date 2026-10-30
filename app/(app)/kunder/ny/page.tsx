@@ -73,7 +73,7 @@ export default async function NyKunde({ searchParams }: { searchParams: Promise<
           <CardBody className="grid sm:grid-cols-2 gap-4">
             <div><Label htmlFor="name">Firmanavn</Label><Input id="name" name="name" required defaultValue={kilde?.name ?? ""} /></div>
             <div>
-              <Label htmlFor="department" hint="fx Økonomi, Lager Esbjerg">Afdeling</Label>
+              <Label htmlFor="department" hint="fx Økonomi, Lager 2">Afdeling</Label>
               <Input id="department" name="department" autoFocus={!!kilde} />
             </div>
             <div><Label htmlFor="orgNumber">CVR-nummer</Label><Input id="orgNumber" name="orgNumber" defaultValue={kilde?.orgNumber ?? ""} /></div>
