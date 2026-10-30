@@ -69,7 +69,7 @@ export default async function LoginSide({ searchParams }: { searchParams: Promis
               inputMode="numeric"
               required
               autoComplete="current-password"
-              placeholder="••••"
+              placeholder="4–8 cifre"
             />
           </div>
           <Button type="submit" className="w-full">Log ind</Button>
