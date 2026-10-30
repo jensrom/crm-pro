@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createPortal, useFormStatus } from "react-dom";
 import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useMaaSlette, type SletNiveau } from "@/components/ui/slet-ret";
 
 /**
  * Slet-knap med sikkerhedsspørgsmål. Gælder for alle roller: intet slettes
@@ -16,6 +17,9 @@ import { cn } from "@/lib/utils";
  *   </form>
  *
  * Har knappen sin egen server-handling (formAction), gives den med som prop.
+ *
+ * Kun Administrator og Superadministrator ser knappen (kraever="superadmin":
+ * kun Superadministrator). Andre brugere får slet ingen knap.
  */
 export function BekraeftSlet({
   hvad,
@@ -25,7 +29,10 @@ export function BekraeftSlet({
   className,
   ikonKlasse = "h-3.5 w-3.5",
   title,
+  kraever = "admin",
 }: {
+  /** Hvem der må slette: "admin" (Administrator og Superadministrator) eller "superadmin". */
+  kraever?: SletNiveau;
   /** Hvad der slettes, fx `filen "Kontrakt.pdf"` — indgår i spørgsmålet. */
   hvad: string;
   /** Valgfri ekstra linje, fx hvad sletningen også rammer. */
@@ -48,6 +55,8 @@ export function BekraeftSlet({
 
   const { pending } = useFormStatus();
   const varIGang = useRef(false);
+
+  const maa = useMaaSlette(kraever);
 
   useEffect(() => setMonteret(true), []);
 
@@ -74,6 +83,8 @@ export function BekraeftSlet({
       document.body.style.overflow = foer;
     };
   }, [aaben, sender]);
+
+  if (!maa) return null;
 
   function bekraeft() {
     const form = indsend.current?.form;

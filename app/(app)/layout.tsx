@@ -2,6 +2,7 @@ import { AppSidebar } from "@/components/layout/AppSidebar";
 import { AppTopbar } from "@/components/layout/AppTopbar";
 import { MobilNav } from "@/components/layout/MobilNav";
 import { RulTilAktiv } from "@/components/ui/rul-til-aktiv";
+import { SletRetProvider } from "@/components/ui/slet-ret";
 import { hentIndstillinger } from "@/lib/analysis";
 import { kraevBruger } from "@/lib/auth";
 import { kanLaese } from "@/lib/roller";
@@ -43,7 +44,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       />
       <div className="lg:pl-[var(--sidebar-width)]">
         <AppTopbar bruger={bruger} maerke={{ logo: i.brandLogo, tekst: i.brandMarkText }} />
-        <main className="px-4 pt-4 pb-[calc(100px+env(safe-area-inset-bottom))] sm:px-5 sm:pt-5 lg:p-7 animate-in">{children}</main>
+        <main className="px-4 pt-4 pb-[calc(100px+env(safe-area-inset-bottom))] sm:px-5 sm:pt-5 lg:p-7 animate-in">
+          <SletRetProvider admin={bruger.erAdmin} superadmin={bruger.erSuperAdmin}>{children}</SletRetProvider>
+        </main>
       </div>
       <RulTilAktiv />
       <MobilNav

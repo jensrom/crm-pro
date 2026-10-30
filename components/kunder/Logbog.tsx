@@ -59,7 +59,7 @@ export function Logbog({ kundeId, poster, kanSkrive = true }: { kundeId: string;
                       </button>
                     </form>
                     <form action={sletLog.bind(null, p.id, kundeId)}>
-                      <BekraeftSlet hvad="posten i logbogen" className="p-1 rounded text-muted-foreground hover:text-danger" />
+                      <BekraeftSlet kraever="superadmin" hvad="posten i logbogen" className="p-1 rounded text-muted-foreground hover:text-danger" />
                     </form>
                   </div>}
                 </div>

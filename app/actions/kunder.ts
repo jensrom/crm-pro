@@ -159,7 +159,8 @@ export async function gemLicenslinje(kundeId: string, formData: FormData) {
 }
 
 export async function sletLicenslinje(id: string) {
-  await kraevSkriv("salg");
+  // Kun Administrator og Superadministrator kan slette
+  await kraevAdmin();
   const linje = await db.customerProduct.delete({ where: { id } });
   await ryddTommeKontrakter(linje.companyId);
   opfrisk(linje.companyId);
@@ -259,7 +260,8 @@ export async function opretKontakt(kundeId: string, formData: FormData) {
 }
 
 export async function sletKontakt(id: string, kundeId: string) {
-  await kraevSkriv("kunder");
+  // Kun Administrator og Superadministrator kan slette
+  await kraevAdmin();
   await db.contact.deleteMany({ where: { id, companyId: kundeId } });
   revalidatePath(`/kunder/${kundeId}`);
   revalidatePath("/kontakter");

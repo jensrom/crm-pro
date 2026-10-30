@@ -8,7 +8,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { kraevIntern, kraevSkriv } from "@/lib/auth";
+import { kraevIntern, kraevSkriv, kraevAdmin } from "@/lib/auth";
 import { formular } from "@/lib/formular";
 import { dokNr } from "@/lib/dokumenter";
 import { INTERN_STATUS, erInternStatus, findInternStatus } from "@/lib/intern";
@@ -95,7 +95,8 @@ export async function gemInternData(orderId: string, formData: FormData) {
 
 /** Tager ordren ud af intern salg igen (fx sendt ved en fejl). */
 export async function fjernFraIntern(orderId: string) {
-  const mig = await kraevIntern();
+  // Kun Administrator og Superadministrator kan slette
+  const mig = await kraevAdmin();
   const o = await db.order.findUnique({ where: { id: orderId }, select: { id: true, kind: true, number: true, companyId: true } });
   if (!o) return;
   await db.order.update({

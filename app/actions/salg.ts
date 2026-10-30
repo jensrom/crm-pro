@@ -6,7 +6,7 @@
  */
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { kraevLeads, kraevSkriv, kraevSuperAdmin } from "@/lib/auth";
+import { kraevLeads, kraevSkriv, kraevSuperAdmin, kraevAdmin } from "@/lib/auth";
 import { formular, type Formular } from "@/lib/formular";
 import { AKTIVITETSTYPER, STADIER } from "@/lib/labels";
 import { STADIE_SANDSYNLIGHED, afsluttetDage, erAfsluttet, stadieLabel } from "@/lib/pipeline";
@@ -99,7 +99,8 @@ export async function opdaterSag(id: string, formData: FormData) {
 }
 
 export async function sletSag(id: string) {
-  const mig = await kraevSkriv("salg");
+  // Kun Administrator og Superadministrator kan slette
+  const mig = await kraevAdmin();
   const d = await db.deal.delete({ where: { id } });
   await logSalg(d.companyId, `Salgsmulighed slettet: ${d.title}`, mig.initials);
   opfriskSalg(d.companyId);
@@ -138,7 +139,8 @@ export async function skiftAktivitet(id: string, faerdig: boolean) {
 }
 
 export async function sletAktivitet(id: string) {
-  await kraevSkriv("salg");
+  // Kun Administrator og Superadministrator kan slette
+  await kraevAdmin();
   const a = await db.activity.delete({ where: { id } });
   opfriskAktiviteter(a.companyId);
 }

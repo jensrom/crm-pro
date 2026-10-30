@@ -1,3 +1,4 @@
+import { hentSession } from "@/lib/auth";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ListChecks, Plus } from "lucide-react";
@@ -29,6 +30,8 @@ export async function NotatFane({
   rediger?: string;
   ret: Rettigheder;
 }) {
+  // Kun Administrator og Superadministrator kan slette — også "Ryd Færdig-kolonnen"
+  const erAdmin = (await hentSession())?.erAdmin ?? false;
   // Spor brugeren må se og skrive i (lib/roller.ts).
   const laesbare = [
     ...(kanLaese(ret.salg) || ret.leads ? ["salg"] : []),
@@ -141,7 +144,7 @@ export async function NotatFane({
             {f.l}
           </Link>
         ))}
-        {notater.some((n) => n.lane === "faerdig" && skrivbare.includes(n.track)) && (
+        {erAdmin && notater.some((n) => n.lane === "faerdig" && skrivbare.includes(n.track)) && (
           <form action={ryddFaerdigeForKunde.bind(null, kundeId)} className="ml-auto">
             <Button size="sm" variant="ghost" type="submit" className="text-xs text-muted-foreground">Ryd Færdig-kolonnen</Button>
           </form>
