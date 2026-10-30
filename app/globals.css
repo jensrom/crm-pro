@@ -69,7 +69,7 @@
     --linje: rgba(12,32,58,.09);
     --felt: rgba(255,255,255,.90);
     --felt-kant: rgba(12,32,58,.18);
-    --placeholder: #5b6c80;
+    --placeholder: rgba(12,32,58,.36);
     --spor: rgba(12,32,58,.07);
     --pille-top: #ffffff;
     --pille-bund: rgba(255,255,255,.86);
@@ -135,7 +135,7 @@
     --linje: rgba(255,255,255,.09);
     --felt: rgba(0,0,0,.32);
     --felt-kant: rgba(255,255,255,.18);
-    --placeholder: #8fa0b4;
+    --placeholder: rgba(255,255,255,.30);
     --spor: rgba(0,0,0,.32);
     --pille-top: rgba(255,255,255,.24);
     --pille-bund: rgba(255,255,255,.11);
@@ -375,7 +375,18 @@
   border-color: transparent !important;
   box-shadow: inset 0 1px 2px var(--skygge), 0 0 0 1px var(--felt-kant);
 }
-.felt::placeholder { color: var(--placeholder); opacity: 1; }
+/* Eksempeltekst i felter: svag, kursiv og i normal skrift (også i felter med
+   versaler/spærret skrift), så den aldrig ligner noget der allerede er udfyldt. */
+.felt::placeholder,
+input::placeholder,
+textarea::placeholder {
+  color: var(--placeholder);
+  opacity: 1;
+  font-style: italic;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+}
 .felt:focus, .felt:focus-visible {
   outline: none;
   box-shadow: inset 0 1px 2px var(--skygge), 0 0 0 1.5px hsl(var(--ring)), 0 0 0 5px hsl(var(--ring) / .22) !important;

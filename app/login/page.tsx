@@ -56,7 +56,7 @@ export default async function LoginSide({ searchParams }: { searchParams: Promis
               autoFocus
               autoComplete="username"
               maxLength={8}
-              placeholder="fx JPR"
+              placeholder="fx ABC"
               className="uppercase tracking-widest"
             />
           </div>
@@ -69,7 +69,7 @@ export default async function LoginSide({ searchParams }: { searchParams: Promis
               inputMode="numeric"
               required
               autoComplete="current-password"
-              placeholder="••••"
+              placeholder="4–8 cifre"
             />
           </div>
           <Button type="submit" className="w-full">Log ind</Button>

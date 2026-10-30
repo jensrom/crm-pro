@@ -434,7 +434,7 @@ export default async function NyOrdre({
           <CardBody className="flex flex-col gap-4">
             <div>
               <Label htmlFor="no">Bemærkninger</Label>
-              <Textarea id="no" name="note" className="min-h-[60px]" placeholder="fx Bemærk at OPC-routeren skal afvikles på kundens egne servere." />
+              <Textarea id="no" name="note" className="min-h-[60px]" placeholder="fx Bemærk at løsningen installeres på kundens egne servere." />
             </div>
             {kunde && kind === "ordre" && (
               <label className="flex items-start gap-2.5 text-sm">

@@ -42,13 +42,13 @@ export default async function OpsaetningSide({
         <form action={opretFoersteAdmin} className="bg-card border border-border rounded-xl p-5 grid sm:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="initials">Initialer</Label>
-            <Input id="initials" name="initials" required maxLength={8} placeholder="JPR" className="uppercase tracking-widest" />
+            <Input id="initials" name="initials" required maxLength={8} placeholder="fx ABC" className="uppercase tracking-widest" />
           </div>
           <div>
             <Label htmlFor="pin">PIN (4–8 cifre)</Label>
-            <Input id="pin" name="pin" type="password" inputMode="numeric" required placeholder="••••" />
+            <Input id="pin" name="pin" type="password" inputMode="numeric" required placeholder="4–8 cifre" />
           </div>
-          <div className="sm:col-span-2"><Label htmlFor="name">Navn</Label><Input id="name" name="name" required placeholder="Jens Plesner Rom" /></div>
+          <div className="sm:col-span-2"><Label htmlFor="name">Navn</Label><Input id="name" name="name" required placeholder="fx Fornavn Efternavn" /></div>
           <div className="sm:col-span-2"><Label htmlFor="email">Mail</Label><Input id="email" name="email" type="email" /></div>
           {kraeverKode && (
             <div className="sm:col-span-2">

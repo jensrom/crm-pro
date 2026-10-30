@@ -27,10 +27,10 @@ type Profil = Awaited<ReturnType<typeof db.senderProfile.findMany>>[number] & { 
 function ProfilFelter({ p, fx }: { p?: Profil; fx: string }) {
   return (
     <>
-      <div><Label htmlFor={`${fx}navn`}>Navn på profilen</Label><Input id={`${fx}navn`} name="name" required defaultValue={p?.name ?? ""} placeholder="fx Aarhus" /></div>
-      <div><Label htmlFor={`${fx}af`}>Afdeling (dokumenthoved)</Label><Input id={`${fx}af`} name="department" defaultValue={p?.department ?? ""} placeholder="fx Nordvik Systems ApS, Aarhus" /></div>
+      <div><Label htmlFor={`${fx}navn`}>Navn på profilen</Label><Input id={`${fx}navn`} name="name" required defaultValue={p?.name ?? ""} placeholder="fx by" /></div>
+      <div><Label htmlFor={`${fx}af`}>Afdeling (dokumenthoved)</Label><Input id={`${fx}af`} name="department" defaultValue={p?.department ?? ""} placeholder="fx Firmanavn ApS, By" /></div>
       <div><Label htmlFor={`${fx}a`}>Adresse</Label><Input id={`${fx}a`} name="address" defaultValue={p?.address ?? ""} /></div>
-      <div><Label htmlFor={`${fx}z`}>Postnr. og by</Label><Input id={`${fx}z`} name="zipCity" defaultValue={p?.zipCity ?? ""} placeholder="fx 8000 Aarhus C" /></div>
+      <div><Label htmlFor={`${fx}z`}>Postnr. og by</Label><Input id={`${fx}z`} name="zipCity" defaultValue={p?.zipCity ?? ""} placeholder="fx postnr. og by" /></div>
       <div><Label htmlFor={`${fx}t`}>Telefon (hovednummer)</Label><Input id={`${fx}t`} name="phone" defaultValue={p?.phone ?? ""} /></div>
       <div><Label htmlFor={`${fx}m`}>Mail (fælles)</Label><Input id={`${fx}m`} name="email" type="email" defaultValue={p?.email ?? ""} /></div>
       <details className="sm:col-span-2 group">
@@ -132,8 +132,8 @@ export default async function DokumentIndstillinger({ searchParams }: { searchPa
             description="Bruges i dokumenterne, når afsenderprofilen ikke selv udfylder feltet — typisk firmanavn, CVR, web og bank."
           />
           <CardBody className="grid sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2"><Label htmlFor="n">Firmanavn</Label><Input id="n" name="docCompanyName" defaultValue={s?.docCompanyName ?? ""} placeholder="fx Nordvik Systems ApS" /></div>
-            <div><Label htmlFor="af">Afdeling (dokumenthoved)</Label><Input id="af" name="docDepartment" defaultValue={s?.docDepartment ?? ""} placeholder="fx Nordvik Systems ApS, Aarhus" /></div>
+            <div className="sm:col-span-2"><Label htmlFor="n">Firmanavn</Label><Input id="n" name="docCompanyName" defaultValue={s?.docCompanyName ?? ""} placeholder="fx Firmanavn ApS" /></div>
+            <div><Label htmlFor="af">Afdeling (dokumenthoved)</Label><Input id="af" name="docDepartment" defaultValue={s?.docDepartment ?? ""} placeholder="fx Firmanavn ApS, By" /></div>
             <div><Label htmlFor="c">CVR</Label><Input id="c" name="docCvr" defaultValue={s?.docCvr ?? ""} /></div>
             <div><Label htmlFor="a">Adresse</Label><Input id="a" name="docAddress" defaultValue={s?.docAddress ?? ""} /></div>
             <div><Label htmlFor="z">Postnr. og by</Label><Input id="z" name="docZipCity" defaultValue={s?.docZipCity ?? ""} /></div>
@@ -143,7 +143,7 @@ export default async function DokumentIndstillinger({ searchParams }: { searchPa
             <div><Label htmlFor="w">Web</Label><Input id="w" name="docWebsite" defaultValue={s?.docWebsite ?? ""} /></div>
             <div className="sm:col-span-2">
               <Label htmlFor="b">Bankoplysninger i brevfoden (én pr. linje)</Label>
-              <Textarea id="b" name="docBankInfo" defaultValue={s?.docBankInfo ?? ""} className="min-h-[80px]" placeholder={"Account: Danske Bank - XXXX XXXXXXXX\nIBAN: DKXXXXXXXXXXXXXXXX\nSWIFT: XXXXXX\nVAT NO: DKXXXXXXXX"} />
+              <Textarea id="b" name="docBankInfo" defaultValue={s?.docBankInfo ?? ""} className="min-h-[80px]" placeholder={"Account: Banknavn - XXXX XXXXXXXX\nIBAN: DKXXXXXXXXXXXXXXXX\nSWIFT: XXXXXX\nVAT NO: DKXXXXXXXX"} />
             </div>
             <p className="sm:col-span-2 text-xs text-muted-foreground">
               Logoet er det samme som under Whitelabel.{" "}

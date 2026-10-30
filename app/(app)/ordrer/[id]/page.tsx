@@ -153,7 +153,7 @@ export default async function OrdreSide({ params, searchParams }: { params: Prom
                 <Input id="acc" name="accept" type="file" accept=".pdf,.msg,.eml,.png,.jpg,.jpeg,.docx,application/pdf,image/*" className="h-auto py-1.5" />
               </div>
               <div><Label htmlFor="acd">Accepteret den</Label><Input id="acd" name="acceptedAt" type="date" defaultValue={isoDag(new Date())} /></div>
-              <div><Label htmlFor="acn">Note (valgfri)</Label><Input id="acn" name="acceptNote" placeholder="fx Accept fra Jens Hansen pr. mail" /></div>
+              <div><Label htmlFor="acn">Note (valgfri)</Label><Input id="acn" name="acceptNote" placeholder="fx Accept fra kunden pr. mail" /></div>
               <div className="sm:col-span-2">
                 <Label htmlFor="acs" hint="kopiér adressen på Opportunity'en">Salesforce-link</Label>
                 <Input id="acs" name="salesforceUrl" type="url" defaultValue={o.salesforceUrl ?? ""} placeholder="https://….lightning.force.com/lightning/r/Opportunity/006…/view" />

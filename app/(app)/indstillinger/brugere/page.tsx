@@ -200,7 +200,7 @@ export default async function BrugerSide({
               <form action={nulstilPin.bind(null, under.id)} className="flex items-end gap-3">
                 <div className="w-48">
                   <Label htmlFor="npin">Ny PIN (4–8 cifre)</Label>
-                  <Input id="npin" name="pin" type="password" inputMode="numeric" required placeholder="••••" />
+                  <Input id="npin" name="pin" type="password" inputMode="numeric" required placeholder="4–8 cifre" />
                 </div>
                 <Button variant="secondary" type="submit"><KeyRound className="h-3.5 w-3.5" /> Sæt ny PIN</Button>
               </form>
@@ -214,9 +214,9 @@ export default async function BrugerSide({
             <form action={opretBruger} className="grid sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="ninitials">Initialer</Label>
-                <Input id="ninitials" name="initials" required maxLength={8} placeholder="JPR" className="uppercase tracking-widest" />
+                <Input id="ninitials" name="initials" required maxLength={8} placeholder="fx ABC" className="uppercase tracking-widest" />
               </div>
-              <div><Label htmlFor="npin2">PIN (4–8 cifre)</Label><Input id="npin2" name="pin" type="password" inputMode="numeric" required placeholder="••••" /></div>
+              <div><Label htmlFor="npin2">PIN (4–8 cifre)</Label><Input id="npin2" name="pin" type="password" inputMode="numeric" required placeholder="4–8 cifre" /></div>
               <div className="sm:col-span-2"><Label htmlFor="nname">Navn</Label><Input id="nname" name="name" required /></div>
               <div><Label htmlFor="nemail">Mail</Label><Input id="nemail" name="email" type="email" /></div>
               <div><Label htmlFor="nphone">Tlf. direkte</Label><Input id="nphone" name="phone" /></div>

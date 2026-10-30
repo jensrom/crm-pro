@@ -293,7 +293,7 @@ function NytProdukt() {
       <CardHeader title="Nyt produkt" description="Fx Idus, Fiix eller et andet produkt. Licenserne lægger du ind under det bagefter." />
       <CardBody>
         <form action={opretProduktFamilie} className="grid sm:grid-cols-2 gap-4">
-          <div className="sm:col-span-2"><Label htmlFor="fn">Navn</Label><Input id="fn" name="name" required placeholder="fx Idus" /></div>
+          <div className="sm:col-span-2"><Label htmlFor="fn">Navn</Label><Input id="fn" name="name" required placeholder="fx Produktnavn" /></div>
           <div><Label htmlFor="fs">Sortering</Label><Input id="fs" name="sortOrder" type="number" placeholder="rækkefølge" /></div>
           <div className="sm:col-span-2"><Label htmlFor="fd">Beskrivelse</Label><Textarea id="fd" name="description" className="min-h-[70px]" /></div>
           <div className="sm:col-span-2 flex justify-end gap-2">
@@ -428,7 +428,7 @@ function NyLicens({ familier, valgtFamilieId }: { familier: Familie[]; valgtFami
           <NavnOgVarenummer
             idPrefix="ny"
             familie={familier.find((f) => f.id === valgtFamilieId)?.name ?? null}
-            placeholder="fx Idus Online Professional eller Extension fee"
+            placeholder="fx Produktnavn Professional eller Opstartsgebyr"
           />
           <div>
             <Label htmlFor="lf">Produkt</Label>
@@ -482,7 +482,7 @@ function LicensRediger({ licens, familier }: { licens: Licens; familier: Familie
           <div className="sm:col-span-2"><Label htmlFor="ed">Intern beskrivelse</Label><Textarea id="ed" name="description" defaultValue={licens.description ?? ""} className="min-h-[60px]" /></div>
           <div className="sm:col-span-2">
             <Label htmlFor="edt">Tekst på tilbud og ordrebekræftelser</Label>
-            <Textarea id="edt" name="documentText" defaultValue={licens.documentText ?? ""} className="min-h-[90px]" placeholder="fx OPC Router 5 – Basic indeholder følgende plugins: OPC UA/Classic Client og SQL Server." />
+            <Textarea id="edt" name="documentText" defaultValue={licens.documentText ?? ""} className="min-h-[90px]" placeholder="fx Pakken indeholder modul A og modul B." />
           </div>
           <div className="sm:col-span-2 border-t border-border pt-4"><StilVaelger valgtIkon={licens.icon} valgtFarve={licens.color} /></div>
           <label className="sm:col-span-2 flex items-center gap-2 text-sm">
