@@ -130,7 +130,8 @@ export async function flytNotat(id: string, lane: string, indeks: number) {
 }
 
 export async function sletNotat(id: string) {
-  await kraevNotat(id);
+  // Kun Administrator og Superadministrator kan slette
+  await kraevAdmin();
   const n = await db.customerNote.delete({ where: { id } });
   opfrisk(n.companyId);
 }
@@ -144,7 +145,8 @@ export async function ryddFaerdige() {
 
 /** Rydder Færdig-kolonnen for én kunde. */
 export async function ryddFaerdigeForKunde(kundeId: string) {
-  const mig = await kraevBruger();
+  // Kun Administrator og Superadministrator kan slette
+  const mig = await kraevAdmin();
   // Ryd kun de spor brugeren selv må skrive i.
   const spor = [
     ...(mig.ret.leads || mig.ret.salg === "skriv" ? ["salg"] : []),

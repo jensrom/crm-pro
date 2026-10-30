@@ -6,7 +6,7 @@
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { kraevAdmin, kraevLogbog, kraevSkriv, kraevTid } from "@/lib/auth";
+import { kraevAdmin, kraevLogbog, kraevSkriv, kraevTid, kraevSuperAdmin } from "@/lib/auth";
 import { formular } from "@/lib/formular";
 import { LOGTYPER, SAGSPRIORITET, SAGSSTATUS } from "@/lib/labels";
 import { medLoebenummer } from "@/lib/nummerserie";
@@ -115,7 +115,8 @@ export async function skiftSagsstatus(id: string, status: string) {
 }
 
 export async function sletSag(id: string) {
-  await kraevSkriv("teknik");
+  // Kun Administrator og Superadministrator kan slette
+  await kraevAdmin();
   // Tid registreret på sagen bliver stående på kunden (og kortet) — kun koblingen til sagen fjernes.
   const sag = await db.$transaction(async (tx) => {
     await tx.timeLog.updateMany({ where: { ticketId: id }, data: { ticketId: null } });
@@ -137,7 +138,8 @@ export async function skrivKommentar(sagId: string, formData: FormData) {
 }
 
 export async function sletKommentar(id: string, sagId: string) {
-  await kraevSkriv("teknik");
+  // Kun Administrator og Superadministrator kan slette
+  await kraevAdmin();
   await db.ticketComment.deleteMany({ where: { id, ticketId: sagId } });
   revalidatePath(`/teknik/sager/${sagId}`);
 }
@@ -191,7 +193,8 @@ export async function gemKlippekort(id: string, formData: FormData) {
 }
 
 export async function sletKlippekort(id: string) {
-  await kraevSkriv("teknik");
+  // Kun Administrator og Superadministrator kan slette
+  await kraevAdmin();
   // Tidsposterne slippes fri i stedet for at forsvinde — timerne er stadig brugt.
   const kort = await db.$transaction(async (tx) => {
     await tx.timeLog.updateMany({ where: { bundleId: id }, data: { bundleId: null } });
@@ -244,7 +247,8 @@ export async function registrerTid(formData: FormData) {
 }
 
 export async function sletTid(id: string) {
-  await kraevTid();
+  // Kun Administrator og Superadministrator kan slette
+  await kraevAdmin();
   const post = await db.$transaction(async (tx) => {
     const p = await tx.timeLog.delete({ where: { id } });
     await opdaterForbrug(tx, p.bundleId);
@@ -276,7 +280,8 @@ export async function skiftFastgjort(id: string, kundeId: string, fastgjort: boo
 }
 
 export async function sletLog(id: string, kundeId: string) {
-  await kraevAdmin();
+  // Logbogen er kundens historik — kun Superadministrator kan slette i den
+  await kraevSuperAdmin();
   await db.logEntry.deleteMany({ where: { id, companyId: kundeId } });
   revalidatePath(`/kunder/${kundeId}`);
 }

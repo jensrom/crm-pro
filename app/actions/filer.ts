@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { MAKS_FILSTOERRELSE, saniterFilnavn } from "@/lib/filer";
 import { normaliserKategori } from "@/lib/attachment-categories";
-import { kraevBruger, kraevSkriv } from "@/lib/auth";
+import { kraevBruger, kraevSkriv, kraevAdmin } from "@/lib/auth";
 
 /** Alle filer på en kunde, nyeste først — uden selve indholdet. */
 export async function hentFiler(companyId: string) {
@@ -53,7 +53,8 @@ export async function flytFilKategori(id: string, formData: FormData) {
 }
 
 export async function sletFil(id: string) {
-  await kraevSkriv("kunder");
+  // Kun Administrator og Superadministrator kan slette
+  await kraevAdmin();
   const att = await db.attachment.delete({ where: { id }, select: { companyId: true } }).catch(() => null);
   if (att) revalidatePath(`/kunder/${att.companyId}`);
 }
