@@ -251,37 +251,12 @@ const AKTIVITETER: { type: string; subject: string }[] = [
   { type: "opgave", subject: "Opdatér kontaktliste" },
 ];
 
-const SAGER: { title: string; description: string }[] = [
-  { title: "Login fejler efter skift af kodeord", description: "Brugeren får 'ugyldigt login' efter nulstilling." },
-  { title: "Sensoralarmer kommer dobbelt", description: "Samme alarm sendes to gange med 1 minuts mellemrum." },
-  { title: "Import af aktiver fejler på kolonnen Placering", description: "Ca. 300 rækker afvises ved import." },
-  { title: "Mobil-app synkroniserer langsomt", description: "Op til 5 minutter før ændringer ses på pc." },
-  { title: "Rapport over energiforbrug mangler uge 41", description: "Grafen er tom for hele ugen." },
-  { title: "Ønske om nyt felt på arbejdsordren", description: "Feltet 'Stopårsag' som rulleliste." },
-  { title: "Gateway mister forbindelsen om natten", description: "Falder ud ca. kl. 02 og kommer først igen ved genstart." },
-  { title: "Forkert sprog i mails til teknikere", description: "Notifikationer kommer på engelsk." },
-  { title: "Negativ beholdning på reservedel", description: "Varenr. 10-2231 står med −4." },
-  { title: "Oprettelse af tre nye brugere", description: "Navne og roller sendt på mail." },
-  { title: "Planbro viser forkert kapacitet", description: "Helligdage regnes som arbejdsdage." },
-  { title: "Dokumenter kan ikke åbnes på iPad", description: "PDF'er over 20 MB loader ikke." },
-  { title: "Ruter vises ikke i mobil-appen", description: "Nye ruter fra i går er ikke kommet ud på telefonerne." },
-  { title: "Fejl i CO₂-rapporten", description: "Faktoren for fjernvarme er den gamle." },
-  { title: "Ønske om SSO med Microsoft", description: "IT vil have login via Entra ID." },
-  { title: "Prisregulering slået forkert igennem", description: "Fakturaen viser gammel pris på to licenser." },
-  { title: "Stregkodeskanner læser ikke nye etiketter", description: "Gælder kun etiketter fra den nye printer." },
-  { title: "Kursusønske til to nye planlæggere", description: "Gerne i uge 48." },
-];
-const SAGSKOMMENTARER = [
-  "Reproduceret i testmiljøet.", "Kunden har sendt skærmbilleder.", "Sendt videre til udvikling med logfiler.",
-  "Midlertidig løsning givet — genstart af tjenesten.", "Rettelse kommer i næste version.", "Kunden bekræfter at det virker igen.",
-  "Afventer svar fra kundens IT.", "Fjernsession aftalt torsdag kl. 10.", "Intern: kendt fejl, se sag om samme emne.",
-];
 
 const NOTATER = [
   { title: "Send referat fra statusmøde", track: "salg" }, { title: "Forbered fornyelse", track: "salg" },
   { title: "Spørg ind til site nr. 2", track: "salg" }, { title: "Inviter til brugerdag", track: "salg" },
-  { title: "Tjek backup efter opdatering", track: "teknik" }, { title: "Planlæg fjernsession med IT", track: "teknik" },
-  { title: "Venter på logfiler fra kunden", track: "teknik" }, { title: "Gennemgå brugerrettigheder", track: "teknik" },
+  { title: "Tjek licensforbrug før fornyelse", track: "salg" }, { title: "Ring om udvidelse til flere brugere", track: "salg" },
+  { title: "Venter på svar på tilbud", track: "salg" }, { title: "Gennemgå aftalevilkår", track: "salg" },
 ];
 const LOGTEKSTER: { kind: string; content: string }[] = [
   { kind: "moede", content: "Statusmøde: driften er tilfreds, ønsker flere mobilbrugere til foråret." },
@@ -394,7 +369,6 @@ export async function bygDemomiljoe(initials: string | null): Promise<DemoResult
   const efternavn = new Pulje(t, EFTERNAVNE);
   const titelPulje = new Pulje(t, [...TITLER, ...TITLER]);
   const salgPulje = new Pulje(t, SALGSSAGER);
-  const sagPulje = new Pulje(t, SAGER);
   const statusPulje = new Pulje(t, STATUS);
   const subPulje = new Pulje(t, [...t.bland(subs.filter((s) => s.id.startsWith(PRAEFIKS))), ...t.bland(subs.filter((s) => s.id.startsWith(PRAEFIKS)))]);
   const perpPulje = new Pulje(t, [...perps, ...perps, ...perps]);
@@ -405,8 +379,6 @@ export async function bygDemomiljoe(initials: string | null): Promise<DemoResult
   const brugernavn = (ini: string | null) => brugerListe.find((u) => u.initials === ini)?.name ?? ini;
   const afsender = await hentAfsender();
 
-  let sagNr = 1;
-  let kortNr = 1;
   let ordreNr = 1;
   let tilbudNr = 1;
   let poster = 0;
@@ -587,66 +559,6 @@ export async function bygDemomiljoe(initials: string | null): Promise<DemoResult
         },
       });
       poster++;
-    }
-
-    // Klippekort (2) med tidsregistreringer
-    const kort = [];
-    for (let i = 0; i < 2; i++) {
-      const timer = t.en([10, 20, 25, 40, 50]);
-      kort.push(
-        await db.hourBundle.create({
-          data: {
-            number: kortNr++, companyId: kunde.id, name: i === 0 ? "Supportklippekort" : t.en(["Konsulentklippekort", "Implementering", "Udvikling"]),
-            totalHours: timer, price: timer * t.tal(950, 1150), purchaseDate: dageSiden(i === 0 ? t.tal(20, 120) : t.tal(200, 400)),
-            expiresAt: i === 0 ? omDage(t.tal(90, 330)) : dageSiden(t.tal(5, 60)), isActive: i === 0, updatedBy: af(),
-          },
-        })
-      );
-    }
-
-    // Teknik-sager (2–3) med kommentarer og tid
-    const sagStatus = t.nogle(["aaben", "afventer_kunde", "afventer_leverandoer", "loest", "lukket"], t.tal(2, 3));
-    for (const st of sagStatus) {
-      const s = sagPulje.tag();
-      const oprettet = t.tal(1, 60);
-      const loest = st === "loest" || st === "lukket";
-      const sag = await db.ticket.create({
-        data: {
-          number: sagNr++, companyId: kunde.id, contactId: t.en(kontakter).id, productId: t.en(linjer).licens.id,
-          title: s.title, description: s.description, status: st, priority: t.en(["lav", "normal", "normal", "hoej", "kritisk"]),
-          dueAt: loest ? null : omDage(t.tal(-2, 10)), resolvedAt: loest ? dageSiden(t.tal(0, oprettet)) : null,
-          closedAt: st === "lukket" ? dageSiden(t.tal(0, oprettet)) : null,
-          createdAt: dageSiden(oprettet), updatedBy: af(),
-        },
-      });
-      for (const [i, c] of t.nogle(SAGSKOMMENTARER, t.tal(2, 4)).entries()) {
-        await db.ticketComment.create({
-          data: { ticketId: sag.id, content: c, isInternal: c.startsWith("Intern"), author: af(), createdAt: dageSiden(Math.max(0, oprettet - i - 1)) },
-        });
-      }
-      for (let i = 0; i < 2; i++) {
-        await db.timeLog.create({
-          data: {
-            companyId: kunde.id, ticketId: sag.id, bundleId: kort[0].id, date: dageSiden(t.tal(0, oprettet)),
-            durationMin: t.en([15, 30, 45, 60, 90]), description: t.en(["Fejlsøgning", "Fjernsession", "Test af rettelse", "Dokumentation"]),
-            isBillable: t.chance(0.85),
-          },
-        });
-      }
-      poster++;
-    }
-    // Tid på det gamle kort uden sag
-    for (let i = 0; i < 2; i++) {
-      await db.timeLog.create({
-        data: {
-          companyId: kunde.id, bundleId: kort[1].id, date: dageSiden(t.tal(70, 300)),
-          durationMin: t.en([120, 180, 240, 300]), description: t.en(["Opsætning af ruter", "Kursus for superbrugere", "Datamigrering", "Workshop"]),
-        },
-      });
-    }
-    for (const kk of kort) {
-      const sum = await db.timeLog.aggregate({ where: { bundleId: kk.id }, _sum: { durationMin: true } });
-      await db.hourBundle.update({ where: { id: kk.id }, data: { usedMinutes: sum._sum.durationMin ?? 0 } });
     }
 
     // Notater (2–3) og logbog (3–5)
@@ -909,7 +821,7 @@ export async function bygDemomiljoe(initials: string | null): Promise<DemoResult
   await db.customerNote.createMany({
     data: [
       { title: "Opdatér prisliste for 2027", track: "salg", lane: "naeste", priority: "normal", position: 10, author: initials },
-      { title: "Ryd op i gamle sager før månedsskifte", track: "teknik", lane: "nu", priority: "lav", position: 10, author: initials },
+      { title: "Gennemgå åbne tilbud før månedsskifte", track: "salg", lane: "nu", priority: "lav", position: 10, author: initials },
     ],
   });
 

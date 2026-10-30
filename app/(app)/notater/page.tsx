@@ -25,14 +25,12 @@ export default async function NotatSide({
   const mig = await kraevBruger();
   const laesbare = [
     ...(kanLaese(mig.ret.salg) || mig.ret.leads ? ["salg"] : []),
-    ...(kanLaese(mig.ret.teknik) ? ["teknik"] : []),
   ];
   const skrivbare = [
     ...(mig.ret.leads || kanSkrive(mig.ret.salg) ? ["salg"] : []),
-    ...(kanSkrive(mig.ret.teknik) ? ["teknik"] : []),
   ];
   const hvor: any = { track: { in: laesbare } };
-  if ((spor === "salg" || spor === "teknik") && laesbare.includes(spor)) hvor.track = spor;
+  if (spor === "salg" && laesbare.includes(spor)) hvor.track = spor;
   if (kunde) hvor.companyId = kunde;
 
   const [notater, alle, kunder] = await Promise.all([
@@ -77,10 +75,9 @@ export default async function NotatSide({
 
   return (
     <div className="max-w-[1600px] flex flex-col gap-5">
-      <div className="kpi-grid grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
+      <div className="kpi-grid grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-3">
         <StatCard label="Åbne notater" value={tal(aabne.length)} sub={`${tal(alle.length)} i alt`} />
         <StatCard label="Salg" value={tal(aabne.filter((n) => n.track === "salg").length)} sub="åbne på salgssporet" />
-        <StatCard label="Teknik" value={tal(aabne.filter((n) => n.track === "teknik").length)} sub="åbne på teknik-sporet" />
         <StatCard label="Forfaldne" value={tal(forfaldne)} sub="dato overskredet" highlight={forfaldne > 0} />
       </div>
 
@@ -113,12 +110,7 @@ export default async function NotatSide({
                 {kunder.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
               </Select>
             </div>
-            <div>
-              <Label htmlFor="track">Spor</Label>
-              <Select id="track" name="track" defaultValue={under?.track ?? skrivbare[0]}>
-                {NOTAT_SPOR.filter((s) => skrivbare.includes(s.key)).map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-              </Select>
-            </div>
+            <input type="hidden" name="track" value="salg" />
             <div>
               <Label htmlFor="priority">Prioritet</Label>
               <Select id="priority" name="priority" defaultValue={under?.priority ?? "normal"}>
@@ -149,7 +141,8 @@ export default async function NotatSide({
       </Card>}
 
       <div className="flex flex-wrap items-center gap-2">
-        {[{ v: "alle", l: "Salg og teknik" }, ...NOTAT_SPOR.map((s) => ({ v: s.key, l: s.label }))].map((f) => (
+        {/* Spor-filter vises kun, når der er mere end ét spor */}
+        {(NOTAT_SPOR.length > 1 ? [{ v: "alle", l: "Alle spor" }, ...NOTAT_SPOR.map((s) => ({ v: s.key as string, l: s.label as string }))] : []).map((f) => (
           <Link
             key={f.v}
             href={filterHref(f.v)}

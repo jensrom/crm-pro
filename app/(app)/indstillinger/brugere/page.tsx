@@ -66,7 +66,6 @@ export default async function BrugerSide({
                 <tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground border-b border-border">
                   <th className="px-5 py-2.5 font-medium">Rolle</th>
                   <th className="px-3 py-2.5 font-medium">Salg</th>
-                  <th className="px-3 py-2.5 font-medium">Teknik</th>
                   <th className="px-3 py-2.5 font-medium">Kunder</th>
                   <th className="px-5 py-2.5 font-medium">Særligt</th>
                 </tr>
@@ -79,12 +78,10 @@ export default async function BrugerSide({
                     <tr key={r.key} className="border-b border-border/60 last:border-0 even:bg-muted/45">
                       <td className="px-5 py-2 font-medium whitespace-nowrap">{r.label}</td>
                       <td className="px-3 py-2">{niv(ret.salg)}</td>
-                      <td className="px-3 py-2">{niv(ret.teknik)}</td>
                       <td className="px-3 py-2">{niv(ret.kunder)}</td>
                       <td className="px-5 py-2 text-xs text-muted-foreground">
                         {[
                           ret.indstillinger && "Systemindstillinger",
-                          ret.tid && ret.teknik !== "skriv" && "Arbejdstid på sager",
                           ret.leads && ret.salg !== "skriv" && "Oprette leads og salgsnoter",
                         ].filter(Boolean).join(" · ") || "–"}
                       </td>

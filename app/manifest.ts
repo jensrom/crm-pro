@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "CRM-Pro",
     short_name: "CRM-Pro",
-    description: "Salg og teknik i ét CRM.",
+    description: "Kunder, licenser og salg i ét CRM.",
     start_url: "/dashboard",
     display: "standalone",
     background_color: "#eff0f1",

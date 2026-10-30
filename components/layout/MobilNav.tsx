@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Building2, Crown, KanbanSquare, LayoutDashboard, LifeBuoy, LogOut, Menu, Settings, ShieldCheck, X } from "lucide-react";
+import { Building2, Crown, KanbanSquare, LayoutDashboard, LogOut, Menu, Settings, ShieldCheck, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logUd } from "@/app/actions/auth";
 import { rolleNavn } from "@/lib/roller";
@@ -21,13 +21,13 @@ export function MobilNav({
   brand,
   hotAntal = 0,
   visIndstillinger = false,
-  omraader = { salg: true, teknik: true },
+  omraader = { salg: true },
   bruger,
 }: {
   brand: Brand;
   hotAntal?: number;
   visIndstillinger?: boolean;
-  omraader?: { salg: boolean; teknik: boolean };
+  omraader?: { salg: boolean };
   bruger: MobilBruger;
 }) {
   const sti = usePathname();
@@ -53,14 +53,12 @@ export function MobilNav({
     { label: "Overblik", href: "/dashboard", icon: LayoutDashboard },
     { label: "Kunder", href: "/kunder", icon: Building2 },
     ...(omraader.salg ? [{ label: "Salg", href: "/opportunities", icon: KanbanSquare }] : []),
-    ...(omraader.teknik ? [{ label: "Sager", href: "/teknik/sager", icon: LifeBuoy }] : []),
   ];
   // "Kunder" i bundmenuen dækker også kontakter, men ikke Hot-filteret, som har sit eget punkt i skuffen.
   const under = (...rod: string[]) => rod.some((r) => sti === r || sti.startsWith(r + "/"));
   const fastAktiv = (href: string) => {
     if (href === "/kunder") return (sti === "/kunder" && soeg.get("hot") !== "1") || sti.startsWith("/kunder/") || under("/kontakter", "/notater");
     if (href === "/opportunities") return under("/opportunities", "/leads", "/ordrer", "/intern", "/fornyelser", "/tilkoeb", "/produkter", "/pipeline", "/aktiviteter");
-    if (href === "/teknik/sager") return under("/teknik");
     return aktiv(href);
   };
   const ingenFastAktiv = !faste.some((f) => fastAktiv(f.href));

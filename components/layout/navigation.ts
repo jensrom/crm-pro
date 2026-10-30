@@ -10,8 +10,6 @@ import {
   Package,
   CalendarClock,
   Inbox,
-  LifeBuoy,
-  Scissors,
   Flame,
   PackagePlus,
   FileText,
@@ -53,13 +51,6 @@ export const SEKTIONER: { sektion: string; punkter: NavItem[] }[] = [
     ],
   },
   {
-    sektion: "Teknik",
-    punkter: [
-      { label: "Sager", href: "/teknik/sager", icon: LifeBuoy },
-      { label: "Klippekort", href: "/teknik/klippekort", icon: Scissors },
-    ],
-  },
-  {
     sektion: "Arbejde",
     punkter: [{ label: "Aktiviteter", href: "/aktiviteter", icon: CalendarClock }],
   },
@@ -67,10 +58,8 @@ export const SEKTIONER: { sektion: string; punkter: NavItem[] }[] = [
 
 
 /** Sektioner brugerens rolle giver adgang til. */
-export function synligeSektioner(omraader: { salg: boolean; teknik: boolean }) {
-  return SEKTIONER.filter((s) =>
-    s.sektion === "Salg" || s.sektion === "Arbejde" ? omraader.salg : s.sektion === "Teknik" ? omraader.teknik : true
-  );
+export function synligeSektioner(omraader: { salg: boolean }) {
+  return SEKTIONER.filter((s) => (s.sektion === "Salg" || s.sektion === "Arbejde" ? omraader.salg : true));
 }
 
 /** Er menupunktet det aktive? Punkter med ?query skal matche parametrene præcist. */

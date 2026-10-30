@@ -40,7 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         brand={{ subtitle: i.brandSubtitle, markText: i.brandMarkText, logo: i.brandLogo }}
         hotAntal={hotAntal}
         visIndstillinger={bruger.ret.indstillinger}
-        omraader={{ salg: kanLaese(bruger.ret.salg), teknik: kanLaese(bruger.ret.teknik) }}
+        omraader={{ salg: kanLaese(bruger.ret.salg) }}
       />
       <div className="lg:pl-[var(--sidebar-width)]">
         <AppTopbar bruger={bruger} maerke={{ logo: i.brandLogo, tekst: i.brandMarkText }} />
@@ -53,7 +53,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         brand={{ subtitle: i.brandSubtitle, markText: i.brandMarkText, logo: i.brandLogo }}
         hotAntal={hotAntal}
         visIndstillinger={bruger.ret.indstillinger}
-        omraader={{ salg: kanLaese(bruger.ret.salg), teknik: kanLaese(bruger.ret.teknik) }}
+        omraader={{ salg: kanLaese(bruger.ret.salg) }}
         bruger={bruger}
       />
     </div>

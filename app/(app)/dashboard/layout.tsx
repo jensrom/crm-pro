@@ -6,7 +6,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const mig = await kraevBruger();
   const punkter = [
     ...(kanLaese(mig.ret.salg) ? [{ href: "/dashboard", label: "Salg" }] : []),
-    ...(kanLaese(mig.ret.teknik) ? [{ href: "/dashboard/teknik", label: "Teknik" }] : []),
   ];
   return (
     <div className="flex flex-col gap-5">

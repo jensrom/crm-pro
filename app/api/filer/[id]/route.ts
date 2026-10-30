@@ -18,7 +18,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const session = await hentSession();
   if (!session) return new NextResponse("Ikke logget ind", { status: 401 });
   const r = session.ret;
-  if (!kanLaese(r.kunder) && !kanLaese(r.salg) && !kanLaese(r.teknik)) return new NextResponse("Ingen adgang", { status: 403 });
+  if (!kanLaese(r.kunder) && !kanLaese(r.salg)) return new NextResponse("Ingen adgang", { status: 403 });
 
   const { id } = await params;
   const fil = await db.attachment.findUnique({ where: { id } });

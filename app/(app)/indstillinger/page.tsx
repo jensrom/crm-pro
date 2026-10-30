@@ -80,7 +80,7 @@ export default async function IndstillingerSide({
         <div id="demomiljoe" className="scroll-mt-24" />
         <CardHeader
           title="Demomiljø"
-          description="Sletter alle kunder og alt der hænger på dem og bygger 6 nye, fiktive kunder med mindst to af alt: kontakter, SUB-nøgler med abonnementer og perpetual-licenser, licenshistorik, salgsmuligheder, aktiviteter, sager med kommentarer og tid, klippekort, notater, logbog, filer, tilbud og ordrer. Desuden 8 fiktive produkter med prishistorik og ydelser. Brugere, indstillinger og eksisterende licenser (fx Idus) røres ikke. Hver kørsel giver nye tilfældige data."
+          description="Sletter alle kunder og alt der hænger på dem og bygger 6 nye, fiktive kunder med mindst to af alt: kontakter, SUB-nøgler med abonnementer og perpetual-licenser, licenshistorik, salgsmuligheder, aktiviteter, notater, logbog, filer, tilbud og ordrer. Desuden 8 fiktive produkter med prishistorik og ydelser. Brugere, indstillinger og eksisterende licenser (fx Idus) røres ikke. Hver kørsel giver nye tilfældige data."
         />
         <CardBody className="flex flex-col gap-4">
           {demo && DEMO_BESKED[demo] && (

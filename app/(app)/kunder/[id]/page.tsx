@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AlertTriangle, ArrowLeft, BookOpen, KeyRound, Check, ChevronRight, Download, ExternalLink, FileBadge, FileText, Flame, RefreshCw, LayoutDashboard, LifeBuoy, ListChecks, Mail, Minus, Package, PackagePlus, Paperclip, Phone, Plus, Scissors, Trash2, TrendingUp, Undo2, Users } from "lucide-react";
+import { AlertTriangle, ArrowLeft, BookOpen, KeyRound, Check, ChevronRight, Download, ExternalLink, FileBadge, FileText, Flame, RefreshCw, LayoutDashboard, ListChecks, Mail, Minus, Package, PackagePlus, Paperclip, Phone, Plus, Trash2, TrendingUp, Undo2, Users } from "lucide-react";
 import { GemtAf } from "@/components/ui/gemt-af";
 import { Card, CardBody, CardHeader, EmptyState } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,16 +13,15 @@ import { gaeldendeMaanedspris } from "@/lib/pricing";
 import { ProduktMaerke } from "@/lib/produktstil";
 import { dato, datoKort, kroner, millioner, procent, tal } from "@/lib/format";
 import {
-  AABNE_SAGSSTATUS, erAabenSag, BESLUTNINGSROLLER, FAKTURERING, KONFIDENS, NOTAT_KOLONNER,
+  BESLUTNINGSROLLER, FAKTURERING, KONFIDENS, NOTAT_KOLONNER,
   NOTAT_PRIORITET, NOTAT_SPOR, PRIORITET, STADIER,
-  findKundestatus, findSagsprioritet, findSagsstatus, findSpor, label,
+  findKundestatus, findSpor, label,
 } from "@/lib/labels";
-import { kortnummer, kortstatus, sagsnummer, varighed, alderIDage, alderTekst } from "@/lib/teknik";
 import { gemLicenslinje, opretKontakt, sletKontakt, sletLicenslinje, skiftHot } from "@/app/actions/kunder";
 import { Statusboard } from "@/components/kunder/Statusboard";
 import { KundeFaner } from "@/components/kunder/KundeFaner";
 import { BekraeftSlet } from "@/components/ui/bekraeft-slet";
-import { afsluttetDage, dageSiden, erAfsluttet } from "@/lib/pipeline";
+import { afsluttetDage, erAfsluttet } from "@/lib/pipeline";
 import { Logbog } from "@/components/kunder/Logbog";
 import { NotatFane } from "@/components/kunder/NotatFane";
 import { KundestatusKort } from "@/components/kunder/Kundestatus";
@@ -85,8 +84,6 @@ export default async function KundeSide({
         orders: { include: { lines: true }, orderBy: { number: "desc" }, take: 5 },
         contacts: { orderBy: [{ isPrimary: "desc" }, { firstName: "asc" }] },
         deals: { include: { product: true }, orderBy: { createdAt: "desc" } },
-        tickets: { orderBy: [{ status: "asc" }, { createdAt: "asc" }] },
-        hourBundles: { orderBy: { number: "desc" } },
         logEntries: { orderBy: [{ pinned: "desc" }, { createdAt: "desc" }], take: 60 },
         activities: { where: { completedAt: null }, orderBy: { dueDate: "asc" }, take: 10 },
         notes_: { select: { id: true, completedAt: true } },
@@ -105,16 +102,14 @@ export default async function KundeSide({
 
   if (!kunde) notFound();
 
-  // Rettigheder (lib/roller.ts). Fanerne følger rollen: en Tekniker ser kun Teknik og
-  // Notater, en Sælger kun Salg, Produkter og Notater.
+  // Rettigheder (lib/roller.ts). Fanerne følger rollen.
   const ret = rettigheder(mig?.role);
   const salgL = kanLaese(ret.salg), salgS = kanSkrive(ret.salg);
-  const teknikL = kanLaese(ret.teknik), teknikS = kanSkrive(ret.teknik);
   const kunderS = kanSkrive(ret.kunder);
-  const ALLE_FANER = ["overblik", "kontakter", "salg", "produkter", "dokumenter", "filer", "teknik", "notater", "logbog"] as const;
+  const ALLE_FANER = ["overblik", "kontakter", "salg", "produkter", "dokumenter", "filer", "notater", "logbog"] as const;
   type Fane = (typeof ALLE_FANER)[number];
   const FANER: readonly Fane[] = ALLE_FANER.filter((f) =>
-    f === "salg" || f === "produkter" || f === "dokumenter" ? salgL : f === "teknik" ? teknikL : true
+    f === "salg" || f === "produkter" || f === "dokumenter" ? salgL : true
   );
   // Kommer man fra et tilkøb eller en filupload uden fane i URL'en, er det den fane man skal tilbage til.
   const oensket = (faneParam ?? (tilkoeb ? "produkter" : fil ? "filer" : "overblik")) as Fane;
@@ -128,20 +123,12 @@ export default async function KundeSide({
   const ks = findKundestatus(kunde.customerStatus);
   const nu = new Date();
 
-  const aabneSager = kunde.tickets.filter((t) => erAabenSag(t.status));
-  const aktiveKort = kunde.hourBundles.map((k) => ({ k, s: kortstatus(k, nu) })).filter(({ k, s }) => k.isActive && !s.udloebet);
-  const restMin = aktiveKort.reduce((sum, { s }) => sum + Math.max(0, s.restMin), 0);
-
   const dage = afsluttetDage(indst?.pipelineDoneDays);
   const aabneMuligheder = kunde.deals.filter((d) => !erAfsluttet(d.stage));
   const bevaegelser = kunde.logEntries
     .filter((p) => p.kind === "salg")
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     .slice(0, 6);
-  const lukkedeSager = kunde.tickets
-    .filter((t) => !erAabenSag(t.status))
-    .sort((a, b) => (b.closedAt ?? b.resolvedAt ?? b.updatedAt).getTime() - (a.closedAt ?? a.resolvedAt ?? a.updatedAt).getTime());
-  const nyligLukket = lukkedeSager.filter((t) => (dageSiden(t.closedAt ?? t.resolvedAt ?? t.updatedAt, nu) ?? 0) <= dage);
   const aabneNotater = kunde.notes_.filter((no) => !no.completedAt).length;
 
   // Pakker: kun den ejede pakke af et produkt kan vælges; et skift er en opgradering af aftalen
@@ -323,13 +310,13 @@ export default async function KundeSide({
           )}
         </div>
         <div className="flex items-center gap-2">
-          {teknikS && (
+          {kunderS && (
           <form action={skiftHot.bind(null, kunde.id, !kunde.isHot)}>
             <Button
               variant="secondary"
               size="sm"
               type="submit"
-              title={kunde.isHot ? "Fjern Hot-markering" : "Marker Hot — mulighed for at hente flere timer"}
+              title={kunde.isHot ? "Fjern Hot-markering" : "Marker Hot — kunden er klar til mere lige nu"}
               className={kunde.isHot ? "knap-hot" : ""}
             >
               <Flame className="h-3.5 w-3.5" /> {kunde.isHot ? "Hot" : "Marker Hot"}
@@ -358,7 +345,6 @@ export default async function KundeSide({
           { key: "produkter", label: "Produkter", ikon: Package, antal: kunde.customerProducts.length, hint: "produktlinjer" },
           { key: "dokumenter", label: "Dokumenter", ikon: FileText, antal: kunde.orders.length, hint: "seneste tilbud og ordrer" },
           { key: "filer", label: "Filer", ikon: Paperclip, antal: filer.length, hint: "filer" },
-          { key: "teknik", label: "Teknik", ikon: LifeBuoy, antal: aabneSager.length, hint: "åbne sager" },
           { key: "notater", label: "Notater", ikon: ListChecks, antal: aabneNotater, hint: "åbne notater" },
           { key: "logbog", label: "Logbog", ikon: BookOpen, antal: kunde.logEntries.length, hint: "poster" },
         ].filter((f) => FANER.includes(f.key as Fane))}
@@ -366,7 +352,7 @@ export default async function KundeSide({
 
       {fane === "overblik" && (
         <>
-        <div className="kpi-grid grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-5">
+        <div className="kpi-grid grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-3">
           <div className="bg-card border border-border rounded-xl px-5 py-4">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">Licenser</div>
             <div className="mt-1 text-2xl font-semibold tabular">{n.aktive} / {n.seats}</div>
@@ -381,16 +367,6 @@ export default async function KundeSide({
             <div className="mt-0.5 text-xs text-muted-foreground">{n.udenPris > 0 ? "pakke mangler pris" : "på nuværende licenser"}</div>
           </div>
           )}
-          <div className="bg-card border border-border rounded-xl px-5 py-4">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Åbne sager</div>
-            <div className="mt-1 text-2xl font-semibold tabular">{tal(aabneSager.length)}</div>
-            <div className="mt-0.5 text-xs text-muted-foreground">{tal(kunde.tickets.length)} i alt</div>
-          </div>
-          <div className="bg-card border border-border rounded-xl px-5 py-4">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Timer på kort</div>
-            <div className="mt-1 text-2xl font-semibold tabular">{aktiveKort.length ? varighed(restMin) : "–"}</div>
-            <div className="mt-0.5 text-xs text-muted-foreground">{tal(aktiveKort.length)} aktive klippekort</div>
-          </div>
           <div className="bg-card border border-border rounded-xl px-5 py-4">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">Ansatte</div>
             <div className="mt-1 text-2xl font-semibold tabular">{tal(kunde.employees)}</div>
@@ -887,129 +863,9 @@ export default async function KundeSide({
         </div>
       )}
 
-      {fane === "teknik" && (
-        <div className="grid gap-5 lg:grid-cols-2 items-start">
-          <Card>
-            <CardHeader
-              title="Sager"
-              description="Åbne sager står øverst. Løste og lukkede vises en tid og ryddes så væk."
-              action={
-                <div className="flex items-center gap-3">
-                  <Link href={`/teknik/sager?kunde=${kunde.id}`} className="text-xs font-medium text-primary hover:underline">Alle sager</Link>
-                  {teknikS && (
-                  <Link href={`/teknik/sager/ny?kunde=${kunde.id}`}>
-                    <Button size="sm" variant="secondary"><Plus className="h-3.5 w-3.5" /> Ny sag</Button>
-                  </Link>
-                  )}
-                </div>
-              }
-            />
-            <CardBody className="p-0">
-              {aabneSager.length === 0 ? (
-                <div className="px-5"><EmptyState title="Ingen åbne sager" icon={LifeBuoy} description="Opret en når kunden melder noget ind." /></div>
-              ) : (
-                <ul className="divide-y divide-border">
-                  {[...aabneSager]
-                    .sort((a, b) => findSagsprioritet(b.priority).rang - findSagsprioritet(a.priority).rang || a.createdAt.getTime() - b.createdAt.getTime())
-                    .map((t) => {
-                      const p = findSagsprioritet(t.priority);
-                      const st = findSagsstatus(t.status);
-                      const overskredet = t.dueAt != null && t.dueAt < nu;
-                      return (
-                        <li key={t.id} className="px-5 py-2.5 flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <Link href={`/teknik/sager/${t.id}`} className="text-sm font-medium hover:text-primary block truncate">{t.title}</Link>
-                            <div className="text-xs text-muted-foreground tabular">
-                              {sagsnummer(t.number)} · {alderTekst(alderIDage(t.createdAt, nu))}
-                              {t.dueAt && <> · <span className={cn(overskredet && "text-danger font-medium")}>frist {datoKort(t.dueAt)}</span></>}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <Badge variant={p.variant}>{p.label}</Badge>
-                            <Badge variant={st.variant}>{st.label}</Badge>
-                          </div>
-                        </li>
-                      );
-                    })}
-                </ul>
-              )}
-              {nyligLukket.length > 0 && (
-                <div className="border-t border-border">
-                  <div className="px-5 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Løst for nylig · sidste {dage} dage
-                  </div>
-                  <ul className="divide-y divide-border">
-                    {nyligLukket.map((t) => {
-                      const st = findSagsstatus(t.status);
-                      return (
-                        <li key={t.id} className="px-5 py-2 flex items-center justify-between gap-3 opacity-75">
-                          <Link href={`/teknik/sager/${t.id}`} className="text-sm hover:text-primary truncate min-w-0">
-                            {t.title}
-                            <span className="text-xs text-muted-foreground tabular ml-2">{sagsnummer(t.number)}</span>
-                          </Link>
-                          <Badge variant={st.variant}>{st.label}</Badge>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
-              {lukkedeSager.length > nyligLukket.length && (
-                <div className="px-5 py-2.5 border-t border-border text-xs text-muted-foreground">
-                  {tal(lukkedeSager.length - nyligLukket.length)} ældre lukkede sager er ryddet væk ·{" "}
-                  <Link href={`/teknik/sager?kunde=${kunde.id}&status=alle`} className="text-primary hover:underline">se dem under Teknik</Link>
-                </div>
-              )}
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardHeader
-              title="Klippekort"
-              description="Timer kunden har købt, og hvad der er tilbage."
-              action={<Link href="/teknik/klippekort" className="text-xs font-medium text-primary hover:underline">Alle klippekort</Link>}
-            />
-            <CardBody className={kunde.hourBundles.length ? "flex flex-col gap-3" : "p-0"}>
-              {kunde.hourBundles.length === 0 ? (
-                <div className="px-5"><EmptyState title="Ingen klippekort" icon={Scissors} description="Opret et under Teknik → Klippekort." /></div>
-              ) : (
-                kunde.hourBundles.map((k) => {
-                  const s = kortstatus(k, nu);
-                  const inaktiv = !k.isActive || s.udloebet;
-                  return (
-                    <div key={k.id} className={cn("rounded-lg border border-border px-4 py-3", inaktiv && "opacity-60")}>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-sm font-medium flex items-center gap-2">
-                          <Scissors className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span className="tabular">{kortnummer(k.number)}</span>
-                          {k.name && <span className="text-muted-foreground font-normal truncate">{k.name}</span>}
-                        </span>
-                        <span className={cn("text-xs tabular", s.opbrugt ? "text-danger font-medium" : s.naestenOpbrugt ? "text-warning font-medium" : "text-muted-foreground")}>
-                          {varighed(Math.max(0, s.restMin))} tilbage af {varighed(s.koebteMin)}
-                        </span>
-                      </div>
-                      <div className="mt-2 h-1.5 rounded-sm bg-muted overflow-hidden" aria-hidden>
-                        <div
-                          className={cn("h-full rounded-sm", s.opbrugt ? "bg-danger" : s.naestenOpbrugt ? "bg-warning" : "bg-primary/70")}
-                          style={{ width: `${Math.min(100, Math.round(s.forbrugt * 100))}%` }}
-                        />
-                      </div>
-                      <div className="mt-1.5 text-[11px] text-muted-foreground tabular">
-                        {inaktiv ? (s.udloebet ? "Udløbet" : "Inaktivt") : "Aktivt"}
-                        {k.expiresAt && ` · udløber ${datoKort(k.expiresAt)}`}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </CardBody>
-          </Card>
-        </div>
-      )}
-
       {fane === "logbog" && (
         <div className="max-w-3xl">
-            <Logbog kundeId={kunde.id} poster={kunde.logEntries} kanSkrive={kunderS || salgS || teknikS || ret.leads || ret.tid} />
+            <Logbog kundeId={kunde.id} poster={kunde.logEntries} kanSkrive={kunderS || salgS || ret.leads} />
         </div>
       )}
     </div>
