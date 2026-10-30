@@ -16,8 +16,8 @@ export const ROLLER = [
   { key: "admin",         label: "Administrator",      beskrivelse: "Case officer — læse og skrive i salg og teknik" },
   { key: "tekniker_plus", label: "Tekniker+",          beskrivelse: "Læse og skrive i teknik · læse i salg" },
   { key: "tekniker",      label: "Tekniker",           beskrivelse: "Kun teknik · læse + registrere arbejdstid" },
-  { key: "saelger_plus",  label: "Sælger+",            beskrivelse: "Læse og skrive i salg · læse i teknik" },
-  { key: "saelger",       label: "Sælger",             beskrivelse: "Kun salg · læse + oprette leads og noter" },
+  { key: "saelger_plus",  label: "Sælger+",            beskrivelse: "Som Sælger · læse i teknik" },
+  { key: "saelger",       label: "Sælger",             beskrivelse: "Hele salget: kunder, tilbud, ordrer, fornyelser og tilkøb · ingen teknik · kan ikke slette" },
   { key: "intern_salg",   label: "Intern salg",        beskrivelse: "Bestiller hos leverandører · styrer Klar til intern salg · læse i salg og kunder" },
 ] as const;
 
@@ -45,7 +45,9 @@ const MATRIX: Record<Rolle, Rettigheder> = {
   tekniker_plus: { salg: "laes",  teknik: "skriv", kunder: "skriv", tid: true,  leads: false, indstillinger: false, intern: false },
   tekniker:      { salg: "ingen", teknik: "laes",  kunder: "laes",  tid: true,  leads: false, indstillinger: false, intern: false },
   saelger_plus:  { salg: "skriv", teknik: "laes",  kunder: "skriv", tid: false, leads: true,  indstillinger: false, intern: false },
-  saelger:       { salg: "laes",  teknik: "ingen", kunder: "laes",  tid: false, leads: true,  indstillinger: false, intern: false },
+  // Sælger kan gennemføre et salg fra ende til anden (kunde, kontakter, tilbud, ordre,
+  // fornyelse, tilkøb, opgradering, send til intern salg). Sletning kræver altid admin.
+  saelger:       { salg: "skriv", teknik: "ingen", kunder: "skriv", tid: false, leads: true,  indstillinger: false, intern: false },
   intern_salg:   { salg: "laes",  teknik: "ingen", kunder: "laes",  tid: false, leads: false, indstillinger: false, intern: true },
 };
 
