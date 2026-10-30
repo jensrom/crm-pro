@@ -4,7 +4,7 @@ import { Select, Textarea } from "@/components/ui/input";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { LOGTYPER, label } from "@/lib/labels";
 import { dato } from "@/lib/format";
-import { skiftFastgjort, skrivLog, sletLog } from "@/app/actions/teknik";
+import { skiftFastgjort, skrivLog, sletLog } from "@/app/actions/logbog";
 import { cn } from "@/lib/utils";
 import { BekraeftSlet } from "@/components/ui/bekraeft-slet";
 

@@ -20,9 +20,9 @@ export const dynamic = "force-dynamic";
 
 export default async function Dashboard({ searchParams }: { searchParams: Promise<{ lev?: string; fra?: string; til?: string }> }) {
   const { lev, fra, til } = await searchParams;
-  // Uden salg ryger man direkte til teknik-dashboardet (fx en Tekniker).
+  // Uden adgang til salg ryger man til kundelisten.
   const mig = await kraevBruger();
-  if (!kanLaese(mig.ret.salg)) redirect(kanLaese(mig.ret.teknik) ? "/dashboard/teknik" : "/kunder");
+  if (!kanLaese(mig.ret.salg)) redirect("/kunder");
   const [{ kunder, indstillinger }, aabneSager, pakker, hotte] = await Promise.all([
     hentKunderMedNoegletal(),
     db.deal.findMany({

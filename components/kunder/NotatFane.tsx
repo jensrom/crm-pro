@@ -35,13 +35,11 @@ export async function NotatFane({
   // Spor brugeren må se og skrive i (lib/roller.ts).
   const laesbare = [
     ...(kanLaese(ret.salg) || ret.leads ? ["salg"] : []),
-    ...(kanLaese(ret.teknik) ? ["teknik"] : []),
   ];
   const skrivbare = [
     ...(ret.leads || kanSkrive(ret.salg) ? ["salg"] : []),
-    ...(kanSkrive(ret.teknik) ? ["teknik"] : []),
   ];
-  const filterSpor = (spor === "salg" || spor === "teknik") && laesbare.includes(spor) ? spor : null;
+  const filterSpor = spor === "salg" && laesbare.includes(spor) ? spor : null;
   const [notater, navne] = await Promise.all([
     db.customerNote.findMany({
       where: { companyId: kundeId, track: filterSpor ? filterSpor : { in: laesbare } },
@@ -87,7 +85,7 @@ export async function NotatFane({
       {skrivbare.length > 0 && <Card>
         <CardHeader
           title={under ? "Rediger notat" : "Nyt notat"}
-          description={under ? undefined : `${tal(aabne.length)} åbne${forfaldne ? ` · ${tal(forfaldne)} forfaldne` : ""}. Små opgaver på kunden — mærk dem Salg eller Teknik.`}
+          description={under ? undefined : `${tal(aabne.length)} åbne${forfaldne ? ` · ${tal(forfaldne)} forfaldne` : ""}. Små opgaver på kunden.`}
           action={under ? <Link href={basis} scroll={false} className="text-xs font-medium text-primary hover:underline">Annullér</Link> : undefined}
         />
         <CardBody>
@@ -97,12 +95,7 @@ export async function NotatFane({
               <Label htmlFor="nf-t">Hvad skal der ske?</Label>
               <Input id="nf-t" name="title" required defaultValue={under?.title ?? ""} placeholder="fx Følg op på tilbud om ekstra licenser" />
             </div>
-            <div>
-              <Label htmlFor="nf-s">Spor</Label>
-              <Select id="nf-s" name="track" defaultValue={under?.track ?? (filterSpor && skrivbare.includes(filterSpor) ? filterSpor : skrivbare[0])}>
-                {NOTAT_SPOR.filter((s) => skrivbare.includes(s.key)).map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-              </Select>
-            </div>
+            <input type="hidden" name="track" value="salg" />
             <div>
               <Label htmlFor="nf-p">Prioritet</Label>
               <Select id="nf-p" name="priority" defaultValue={under?.priority ?? "normal"}>
@@ -131,7 +124,7 @@ export async function NotatFane({
       </Card>}
 
       <div className="flex flex-wrap items-center gap-2">
-        {[...(laesbare.length > 1 ? [{ v: null as string | null, l: "Salg og teknik" }] : []), ...NOTAT_SPOR.filter((s) => laesbare.includes(s.key)).map((s) => ({ v: s.key as string | null, l: s.label }))].map((f) => (
+        {(NOTAT_SPOR.length > 1 ? NOTAT_SPOR.filter((s) => laesbare.includes(s.key)).map((s) => ({ v: s.key as string | null, l: s.label as string })) : []).map((f) => (
           <Link
             key={f.l}
             href={`/kunder/${kundeId}?fane=notater${f.v ? `&spor=${f.v}` : ""}`}

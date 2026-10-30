@@ -111,7 +111,7 @@ export async function kraevSuperAdmin(): Promise<Session> {
 
 // ---------- Områder ----------
 
-export type Omraade = "salg" | "teknik" | "kunder";
+export type Omraade = "salg" | "kunder";
 
 /** Kræver læseadgang til et område — ellers til "Ingen adgang". */
 export async function kraevLaes(omr: Omraade): Promise<Session> {
@@ -127,13 +127,6 @@ export async function kraevSkriv(omr: Omraade): Promise<Session> {
   return s;
 }
 
-/** Arbejdstid: Tekniker og alle med skriveadgang til teknik. */
-export async function kraevTid(): Promise<Session> {
-  const s = await kraevBruger();
-  if (!s.ret.tid) redirect("/ingen-adgang");
-  return s;
-}
-
 /** Leads, salgsnotater: Sælger og alle med skriveadgang til salg. */
 export async function kraevLeads(): Promise<Session> {
   const s = await kraevBruger();
@@ -145,7 +138,7 @@ export async function kraevLeads(): Promise<Session> {
 export async function kraevLogbog(): Promise<Session> {
   const s = await kraevBruger();
   const r = s.ret;
-  if (!(kanSkrive(r.kunder) || kanSkrive(r.salg) || kanSkrive(r.teknik) || r.leads || r.tid)) redirect("/ingen-adgang");
+  if (!(kanSkrive(r.kunder) || kanSkrive(r.salg) || r.leads)) redirect("/ingen-adgang");
   return s;
 }
 

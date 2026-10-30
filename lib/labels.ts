@@ -61,7 +61,6 @@ export const NOTAT_KOLONNER = [
 
 export const NOTAT_SPOR = [
   { key: "salg",   label: "Salg",   bg: "#2563EB" },
-  { key: "teknik", label: "Teknik", bg: "#047857" },
 ] as const;
 
 export const findSpor = (key: string | null | undefined) =>

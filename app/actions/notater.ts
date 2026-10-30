@@ -11,14 +11,15 @@ import { formular, type Formular } from "@/lib/formular";
 import { NOTAT_KOLONNER, NOTAT_PRIORITET } from "@/lib/labels";
 
 const KOLONNER: string[] = NOTAT_KOLONNER.map((k) => k.key);
-const spor = (f: Formular) => (f.tekst("track") === "teknik" ? "teknik" : "salg");
+// Teknikdelen er fjernet: alle nye notater er salgsnotater
+const spor = (_f: Formular) => "salg";
 
 /**
- * Notater følger deres spor: salgsnotater kræver Sælger-adgang (leads) eller
- * skriveadgang til salg, tekniknotater kræver skriveadgang til teknik.
+ * Notater kræver Sælger-adgang (leads) eller skriveadgang til salg. Gamle
+ * tekniknotater fra før teknikdelen blev fjernet, kan kun ændres af administratorer.
  */
 async function kraevSpor(track: string | null | undefined) {
-  return track === "teknik" ? kraevSkriv("teknik") : kraevLeads();
+  return track === "teknik" ? kraevAdmin() : kraevLeads();
 }
 
 async function kraevNotat(id: string) {
@@ -150,7 +151,6 @@ export async function ryddFaerdigeForKunde(kundeId: string) {
   // Ryd kun de spor brugeren selv må skrive i.
   const spor = [
     ...(mig.ret.leads || mig.ret.salg === "skriv" ? ["salg"] : []),
-    ...(mig.ret.teknik === "skriv" ? ["teknik"] : []),
   ];
   if (spor.length === 0) return;
   await db.customerNote.deleteMany({ where: { lane: "faerdig", companyId: kundeId, track: { in: spor } } });

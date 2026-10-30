@@ -19,7 +19,6 @@ const TITLER: Record<string, string> = {
   "/fornyelser": "Fornyelser",
   "/tilkoeb": "Tilkøb",
   "/produkter": "Produkter",
-  "/teknik": "Teknik",
   "/aktiviteter": "Aktiviteter",
   "/indstillinger": "Indstillinger",
 };

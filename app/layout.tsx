@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "CRM-Pro",
-  description: "Salg og teknik i ét CRM — kunder, licenser, pipeline, ordrer og sager.",
+  description: "Kunder, licenser, pipeline og ordrer i ét CRM.",
   applicationName: "CRM-Pro",
   appleWebApp: { capable: true, title: "CRM-Pro", statusBarStyle: "default" },
   formatDetection: { telephone: false },

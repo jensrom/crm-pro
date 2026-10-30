@@ -22,7 +22,7 @@ export function AppSidebar({
   hotAntal = 0,
   opdatering = null,
   visIndstillinger = false,
-  omraader = { salg: true, teknik: true },
+  omraader = { salg: true },
 }: {
   brand: Brand;
   hotAntal?: number;
@@ -30,7 +30,7 @@ export function AppSidebar({
   /** Kun superadministratorer ser Indstillinger */
   visIndstillinger?: boolean;
   /** Hvilke områder brugerens rolle giver adgang til */
-  omraader?: { salg: boolean; teknik: boolean };
+  omraader?: { salg: boolean };
 }) {
   const synlige = synligeSektioner(omraader);
   const sti = usePathname();

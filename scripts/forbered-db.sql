@@ -8,3 +8,7 @@
 ALTER TABLE "companies" ADD COLUMN IF NOT EXISTS "customerNumber" INTEGER;
 ALTER TABLE "companies" ADD COLUMN IF NOT EXISTS "department" TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS "companies_customerNumber_key" ON "companies"("customerNumber");
+
+-- Teknikdelen er fjernet fra CRM'et (data i sager, klippekort og tid bliver liggende).
+-- Rollerne Tekniker og Tekniker+ findes ikke længere: brugerne bliver Sælger.
+UPDATE "users" SET "role" = 'saelger' WHERE "role" IN ('tekniker', 'tekniker_plus');

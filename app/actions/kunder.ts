@@ -208,11 +208,12 @@ export async function skrivTilstandslog(kundeId: string, formData: FormData) {
 }
 
 /**
- * "Hot" — mulighed for at hente flere timer lige nu. Sættes af teknikere,
- * vises i sidebjælken og på dashboardene.
+ * "Hot" — kunden er klar til mere lige nu (fx flere timer eller licenser).
+ * Sættes manuelt af alle med skriveadgang til kunder; vises i sidebjælken og
+ * på dashboardet.
  */
 export async function skiftHot(id: string, isHot: boolean) {
-  const mig = await kraevSkriv("teknik");
+  const mig = await kraevSkriv("kunder");
   await db.company.update({
     where: { id },
     data: { isHot, hotSince: isHot ? new Date() : null, hotSetBy: isHot ? mig.initials : null },
@@ -235,7 +236,6 @@ export async function sletKunde(id: string, formData: FormData) {
   await db.company.delete({ where: { id } });
   revalidatePath("/kunder");
   revalidatePath("/dashboard");
-  revalidatePath("/teknik");
   redirect(`/kunder?besked=slettet&navn=${encodeURIComponent(kunde.name)}`);
 }
 
