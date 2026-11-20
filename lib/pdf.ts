@@ -128,7 +128,7 @@ class Dok {
     const ud: string[] = [];
     for (const afsnit of ren(t).split("\n")) {
       let linje = "";
-      for (const ord of afsnit.split(/\s+/)) {
+      for (const ord of afsnit.split(/[ \t]+/)) {
         const forsoeg = linje ? `${linje} ${ord}` : ord;
         if (this.bredde(forsoeg, str, fed) <= bredde) linje = forsoeg;
         else {
@@ -732,10 +732,39 @@ export type OrdreLinjePdf = {
   model: string;
   fra?: Date | null;
   til?: Date | null;
+  /** Produktets listepris pr. enhed (pr. md. for abonnement). Bruges kun til rabatnoten. */
+  listepris?: number | null;
 };
 
 export function linjebeloeb(l: { antal: number; enhedspris: number | null; maaneder: number | null }) {
   return l.enhedspris == null ? 0 : l.antal * l.enhedspris * (l.maaneder ?? 1);
+}
+
+const procent = (n: number) => new Intl.NumberFormat("da-DK", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
+
+/**
+ * Rabatnoten under en linje: vises kun når linjens pris er lavere end listeprisen.
+ * Antal måneder er linjens egne, så et tilkøb med restperiode får det rigtige beløb.
+ * Returnerer [forklaring, udregning, samlet rabat].
+ */
+const krTekst = (n: number) => kr(n);
+
+export function rabatnote(l: OrdreLinjePdf): { forklaring: string; udregning: string; samlet: string } | null {
+  if (l.enhedspris == null || l.listepris == null || l.listepris <= 0) return null;
+  const rabat = Math.round((l.listepris - l.enhedspris) * 100) / 100;
+  if (rabat <= 0) return null;
+  const pct = (rabat / l.listepris) * 100;
+  const md = l.maaneder ?? null;
+  const enhed = md ? "pr. bruger pr. md." : "pr. stk.";
+  const antalTekst = md ? `${l.antal} ${l.antal === 1 ? "bruger" : "brugere"}` : `${l.antal} stk.`;
+  const samlet = rabat * l.antal * (md ?? 1);
+  // Hårde mellemrum, så et beløb aldrig brydes mellem tal og "kr."
+  const kr = (n: number) => krTekst(n).replace(/ /g, "\u00a0");
+  return {
+    forklaring: `${kr(rabat)} ${enhed} (listepris ${kr(l.listepris)} » ${kr(l.enhedspris)}, –${procent(pct)} %)`,
+    udregning: md ? `${antalTekst} × ${md} mdr. × ${kr(rabat)} =` : `${antalTekst} × ${kr(rabat)} =`,
+    samlet: `${kr(samlet)} i samlet rabat`,
+  };
 }
 
 /** "Nøgle: værdi" eller "Nøgle<TAB>værdi" pr. linje → par. Linjer uden skilletegn står alene. */
@@ -846,7 +875,23 @@ export async function lavSalgsdokument(d: {
     else if (l.maaneder) ekstra.push(`${l.maaneder} måneder`);
     const ekstraL = ekstra.flatMap((t) => dok.ombryd(t, tekstB, 8.5));
 
-    const h = 10 + navn.length * 13 + (detaljer.length ? 3 + detaljer.length * 11 : 0) + (ekstraL.length ? 3 + ekstraL.length * 11 : 0) + 8;
+    // Rabatnoten: "Rabat:" og det samlede beløb står med fed. Ombrydes hvis kolonnen er smal.
+    const rn = rabatnote(l);
+    type Stykke = { t: string; fed?: boolean };
+    const rabatL: Stykke[][] = [];
+    if (rn) {
+      const foer = "Rabat: ";
+      const r1 = dok.ombryd(foer + rn.forklaring, tekstB, 8.5);
+      r1.forEach((t, j) => rabatL.push(j === 0 && t.startsWith(foer) ? [{ t: foer, fed: true }, { t: t.slice(foer.length) }] : [{ t }]));
+      if (dok.bredde(rn.udregning + " ", 8.5) + dok.bredde(rn.samlet, 8.5, true) <= tekstB) rabatL.push([{ t: rn.udregning + " " }, { t: rn.samlet, fed: true }]);
+      else {
+        dok.ombryd(rn.udregning, tekstB, 8.5).forEach((t) => rabatL.push([{ t }]));
+        rabatL.push([{ t: rn.samlet, fed: true }]);
+      }
+    }
+
+    const h =
+      10 + navn.length * 13 + (detaljer.length ? 3 + detaljer.length * 11 : 0) + (ekstraL.length ? 3 + ekstraL.length * 11 : 0) + (rabatL.length ? 3 + rabatL.length * 11 : 0) + 8;
     if (dok.plads(Math.min(h, 600))) tabelHoved();
 
     const top = dok.y;
@@ -866,6 +911,17 @@ export async function lavSalgsdokument(d: {
     if (ekstraL.length) {
       y -= 3;
       ekstraL.forEach((t) => { dok.skriv(t, xBesk + PAD, y, { str: 8.5, farve: GRAA }); y -= 11; });
+    }
+    if (rabatL.length) {
+      y -= 3;
+      for (const linje of rabatL) {
+        let x = xBesk + PAD;
+        for (const st of linje) {
+          dok.skriv(st.t, x, y, { str: 8.5, fed: st.fed, farve: GRAA });
+          x += dok.bredde(st.t, 8.5, st.fed) + (!st.fed && st.t.endsWith(" ") ? 2.4 : 0);
+        }
+        y -= 11;
+      }
     }
     if (detaljer.length) {
       y -= 3;
