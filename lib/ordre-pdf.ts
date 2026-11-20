@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { dokNr, dokumentFilnavn, haendelser, hentAfsender } from "@/lib/dokumenter";
+import { listepris } from "@/lib/katalog";
 import { lavSalgsdokument } from "@/lib/pdf";
 
 /** Bygger tilbuddet/ordrebekræftelsen som PDF ud fra det der er gemt. */
@@ -25,6 +26,12 @@ export async function ordrePdf(orderId: string) {
     o.createdBy ? db.user.findUnique({ where: { initials: o.createdBy } }) : null,
     o.sourceOrderId ? db.order.findUnique({ where: { id: o.sourceOrderId }, select: { kind: true, number: true } }) : null,
   ]);
+
+  // Listepriser til rabatnoten: kun linjer der stadig peger på en licens i kataloget
+  const priser = pids.length
+    ? await db.product.findMany({ where: { id: { in: pids } }, select: { id: true, licenseModel: true, pricePerUserMonth: true, oneTimePrice: true } })
+    : [];
+  const listeprisFor = new Map(priser.map((p) => [p.id, listepris(p)]));
 
   const bytes = await lavSalgsdokument({
     kind: o.kind,
@@ -51,6 +58,7 @@ export async function ordrePdf(orderId: string) {
       model: l.licenseModel,
       fra: l.periodStart,
       til: l.periodEnd,
+      listepris: l.productId ? listeprisFor.get(l.productId) ?? null : null,
     })),
     note: o.note,
     betingelser: familier,
